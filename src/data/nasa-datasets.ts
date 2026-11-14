@@ -709,6 +709,91 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
     nasaSource: 'MARS_ROVER',
     nasaStudyOrUrl: 'https://mars.nasa.gov/mars2020/timeline/cruise/communications/',
   },
+  {
+    id: 'dust-storm',
+    term: {
+      es: 'Tormenta de Polvo Marciano (Opacidad τ MEDA)',
+      en: 'Martian Dust Storm (MEDA Optical Depth τ)',
+    },
+    shortDefinition: {
+      es: 'Vientos marcianos que levantan polvo fino de óxido de hierro hasta cubrir regiones enteras o todo el planeta, reduciendo la luz solar en los paneles hasta un 60% o más.',
+      en: 'Martian winds that lift fine iron-oxide dust to blanket entire regions or the whole planet, cutting sunlight reaching solar arrays by 60% or more.',
+    },
+    kidAnalogy: {
+      es: 'Es como si una cortina de polvo rojizo tapara el cielo durante días: no te golpea fuerte porque el aire marciano es muy delgado, ¡pero deja tus paneles solares a oscuras como le pasó al rover Opportunity en 2018!',
+      en: 'It’s like a curtain of red dust covering the sky for days: the wind won’t knock you over because Martian air is super thin, but it starves your solar panels of light just like what happened to the Opportunity rover in 2018!',
+    },
+    nasaSource: 'MARS_ROVER',
+    nasaStudyOrUrl: 'https://mars.nasa.gov/mars2020/spacecraft/instruments/meda/',
+  },
+  {
+    id: 'micrometeorite',
+    term: {
+      es: 'Micrometeorito (Impacto Hiperveloz MMOD)',
+      en: 'Micrometeorite (Hypervelocity MMOD Impact)',
+    },
+    shortDefinition: {
+      es: 'Partículas de roca o polvo espacial del tamaño de un grano de arena que viajan entre 10 y 70 km por segundo y golpean la Luna sin frenarse porque no hay atmósfera.',
+      en: 'Sand-sized grains of space rock or dust traveling at 10 to 70 km per second that strike the Moon at full speed because there is no atmosphere to burn them up.',
+    },
+    kidAnalogy: {
+      es: 'En la Tierra se queman en el aire y los vemos como "estrellas fugaces", pero en la Luna no hay aire que los frene, así que un granito diminuto golpea más rápido que una bala.',
+      en: 'On Earth they burn up in the air as "shooting stars," but on the Moon there is no air to slow them down—so a tiny grain hits faster than a speeding bullet.',
+    },
+    nasaSource: 'ARTEMIS',
+    nasaStudyOrUrl: 'https://www.nasa.gov/centers-and-facilities/marshall/nasa-meteoroid-environment-office/',
+  },
+  {
+    id: 'shackleton',
+    term: {
+      es: 'Cráter Shackleton (Polo Sur Lunar 89.9°S)',
+      en: 'Shackleton Crater (Lunar South Pole 89.9°S)',
+    },
+    shortDefinition: {
+      es: 'Cráter de 21 km de ancho en el Polo Sur de la Luna cuyos bordes reciben luz solar más del 80% del año, mientras su fondo en sombra eterna a -180°C conserva hielo de agua.',
+      en: 'A 21-km-wide crater at the Lunar South Pole whose rim peaks receive sunlight over 80% of the year, while its permanently shadowed floor at -180°C traps ancient water ice.',
+    },
+    kidAnalogy: {
+      es: 'Es el campamento perfecto para Artemis: arriba en la montaña tienes enchufe solar casi todo el año, y abajo en la cueva oscura tienes un congelador gigante con agua lista para extraer.',
+      en: 'It’s the ultimate campsite for Artemis: up on the rim you get a solar power plug almost all year, and down in the dark crater floor you have a giant freezer full of water ice.',
+    },
+    nasaSource: 'ARTEMIS',
+    nasaStudyOrUrl: 'https://lunar.gsfc.nasa.gov/',
+  },
+  {
+    id: 'gravity',
+    term: {
+      es: 'Gravedad Parcial y Masa Ósea (0.166 g Luna / 0.378 g Marte)',
+      en: 'Partial Gravity & Bone Density (0.166 g Moon / 0.378 g Mars)',
+    },
+    shortDefinition: {
+      es: 'La fuerza de atracción en la Luna es 1/6 de la terrestre (0.166 g) y en Marte es poco más de 1/3 (0.378 g). Sin ejercicio diario, los huesos pierden ~1% de masa por mes.',
+      en: 'Surface gravity on the Moon is 1/6 of Earth’s (0.166 g) and on Mars is just over 1/3 (0.378 g). Without daily resistance exercise, astronauts lose ~1% of bone mass per month.',
+    },
+    kidAnalogy: {
+      es: 'Si pesas 36 kg en la Tierra, en la Luna pesarías solo 6 kg y en Marte unos 14 kg. ¡Saltar es divertidísimo, pero como tus huesos trabajan menos se vuelven flojos si no haces gimnasio espacial!',
+      en: 'If you weigh 36 kg on Earth, you’d weigh only 6 kg on the Moon and about 14 kg on Mars. Jumping is super fun, but because your bones work less they get weak unless you use the space gym!',
+    },
+    nasaSource: 'OSDR',
+    nasaStudyOrUrl: 'https://www.nasa.gov/hrp/',
+  },
+  {
+    id: 'jezero',
+    term: {
+      es: 'Cráter Jezero (Antiguo Lago y Delta en Marte)',
+      en: 'Jezero Crater (Ancient Martian Lake & River Delta)',
+    },
+    shortDefinition: {
+      es: 'Cráter marciano de 45 km de ancho (18.38°N, 77.58°E) donde hace 3,500 millones de años desembocaba un río formando un delta de arcillas y carbonatos explorado por Perseverance.',
+      en: 'A 45-km-wide Martian crater (18.38°N, 77.58°E) where a river flowed into a lake 3.5 billion years ago, leaving a clay-and-carbonate delta explored by the Perseverance rover.',
+    },
+    kidAnalogy: {
+      es: 'Es el fondo seco de un lago prehistórico en Marte: el barro antiguo atrapó minerales como una cápsula del tiempo donde los científicos buscan huellas de microbios marcianos.',
+      en: 'It’s the dried-up bed of a prehistoric Martian lake: ancient mud trapped minerals like a time capsule where scientists hunt for clues of ancient Martian microbes.',
+    },
+    nasaSource: 'MARS_ROVER',
+    nasaStudyOrUrl: 'https://mars.nasa.gov/mars2020/',
+  },
 ];
 
 export const JUNIOR_ASTRONAUT_QUIZ: ScienceQuizQuestion[] = [
