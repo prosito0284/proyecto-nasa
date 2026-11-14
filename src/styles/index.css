@@ -2539,3 +2539,185 @@ button:active,
     transition: none !important;
   }
 }
+
+/* ============================================================================
+ * C13: Retratos y Lista de Tripulación (`CrewPortrait` & `CrewRoster`)
+ * ============================================================================ */
+.crew-portrait-svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.crew-roster {
+  width: 100%;
+}
+
+.crew-roster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 0.75rem;
+}
+
+.crew-card {
+  background: var(--paper-sheet);
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.crew-card-great {
+  border-left: 4px solid var(--ok-green);
+}
+
+.crew-card-ok {
+  border-left: 4px solid var(--nasa-blue);
+}
+
+.crew-card-worried {
+  border-left: 4px solid var(--warn-ochre);
+}
+
+.crew-card-critical {
+  border-left: 4px solid var(--nasa-red);
+}
+
+.crew-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.crew-card-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.crew-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.crew-member-name {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.15;
+}
+
+.crew-member-role {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--ink-secondary);
+}
+
+.crew-mood-tag {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--ink);
+  background: var(--paper);
+}
+
+.crew-mood-tag-great {
+  color: var(--ok-green);
+  border-color: var(--ok-green);
+}
+
+.crew-mood-tag-ok {
+  color: var(--nasa-blue);
+  border-color: var(--nasa-blue);
+}
+
+.crew-mood-tag-worried {
+  color: var(--warn-ochre);
+  border-color: var(--warn-ochre);
+}
+
+.crew-mood-tag-critical {
+  color: #FFFFFF;
+  background: var(--nasa-red);
+  border-color: var(--nasa-red);
+}
+
+/* Globo de cómic de papel con pico apuntando hacia el retrato */
+.crew-speech-bubble {
+  position: relative;
+  margin: 0.2rem 0 0 0;
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.75rem;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--ink);
+  max-width: 65ch;
+}
+
+.crew-speech-bubble::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 18px;
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 8px solid var(--ink);
+}
+
+.crew-speech-bubble::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 19px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 7px solid var(--paper);
+}
+
+.crew-speech-bubble p {
+  margin: 0;
+}
+
+/* Modo compacto (`compact = true`): solo retratos y nombre */
+.crew-roster-compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.crew-compact-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--paper-sheet);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+}
+
+.crew-compact-name {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
