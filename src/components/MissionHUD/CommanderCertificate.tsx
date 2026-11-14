@@ -6,6 +6,8 @@
 
 import React, { useEffect, useState } from 'react';
 import {
+  CrewMood,
+  CrewStatus,
   DecisionRecord,
   Language,
   OutpostSiteConfig,
@@ -13,6 +15,7 @@ import {
 } from '../../types/mission';
 import type { CommanderEvaluation } from '../../engine/simulationEngine';
 import { missionAudio } from '../../utils/sound';
+import { CrewPortrait } from '../crew';
 import {
   AlertIcon,
   ArrowIcon,
@@ -43,6 +46,8 @@ export interface CommanderCertificateProps {
   history?: DecisionRecord[];
   /** C6: Nombre opcional inicial del astronauta */
   astronautName?: string;
+  /** C17: Estado opcional de la tripulación para mostrar sus retratos en el diploma */
+  crew?: CrewStatus[];
 }
 
 export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
@@ -57,6 +62,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
   onRestartMission,
   history,
   astronautName,
+  crew,
 }) => {
   const [commanderName, setCommanderName] = useState(astronautName ?? '');
 
@@ -149,6 +155,44 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
     (lang === 'es' ? 'Comandante Espacial Junior' : 'Junior Space Commander');
 
   const earnedBadgesCount = evaluation.badges.filter((b) => b.earned).length;
+
+  const defaultCrewMood: CrewMood =
+    missionStatus === 'won' ? 'great' : missionStatus === 'failed' ? 'worried' : 'ok';
+
+  const diplomaCrew =
+    crew && crew.length > 0
+      ? crew.map((c) => ({
+          id: c.member.id,
+          name: c.member.name,
+          role: c.member.role[lang],
+          mood: c.mood,
+        }))
+      : [
+          {
+            id: 'commander',
+            name: 'Cmdr. Vega',
+            role: lang === 'es' ? 'Comandante de misión' : 'Mission commander',
+            mood: defaultCrewMood,
+          },
+          {
+            id: 'engineer',
+            name: 'Ing. Sato',
+            role: lang === 'es' ? 'Ingeniería eléctrica' : 'Power engineer',
+            mood: defaultCrewMood,
+          },
+          {
+            id: 'botanist',
+            name: 'Dra. Okafor',
+            role: lang === 'es' ? 'Botánica e invernadero' : 'Botanist & greenhouse',
+            mood: defaultCrewMood,
+          },
+          {
+            id: 'medic',
+            name: 'Dr. Ríos',
+            role: lang === 'es' ? 'Medicina y dosimetría' : 'Flight surgeon & RAD',
+            mood: defaultCrewMood,
+          },
+        ];
 
   return (
     <div
@@ -252,6 +296,25 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                     ? 'REGISTRO DE VUELO'
                     : 'FLIGHT RECORD'}
               </span>
+            </div>
+          </div>
+
+          {/* C17: Retratos de la tripulación en el certificado */}
+          <div className="cert-crew-section">
+            <h3 className="badges-heading">
+              <HelmetIcon size={17} />{' '}
+              {lang === 'es' ? 'Tripulación de la misión' : 'Mission crew roster'}
+            </h3>
+            <div className="cert-crew-grid">
+              {diplomaCrew.map((member) => (
+                <div key={member.id} className="cert-crew-card">
+                  <CrewPortrait memberId={member.id} mood={member.mood} size={46} />
+                  <div className="cert-crew-info">
+                    <strong>{member.name}</strong>
+                    <span>{member.role}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
