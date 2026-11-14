@@ -77,21 +77,66 @@ Este repositorio está configurado para el trabajo simultáneo de **2 desarrolla
 
 ---
 
-## 4. Estado Actual de Integración (Fase 1 Completada en `main`)
+## 4. Estado Actual de Integración (Fase 2 en `main`)
 
-- ✅ **Bloque A (Claude):** 17 dilemas con trade-offs reales, física de Luna/Marte, proyecciones de turno (`projectSystemsTurn`) y sistema de rangos e insignias (`evaluateCommanderPerformance`) integrados en `main`.
-- ✅ **Bloque B (Antigravity Compañero):** Cliente `nasaApi.ts` (`FLR`/`SEP`/`CME` + `images-api.nasa.gov` con caché), estudios OSDR, glosario y `ScienceModal.tsx` (4 pestañas + Mini-Quiz) integrados en `main`.
-- ✅ **Bloque C (Antigravity Principal):** Mapa interactivo SVG del hábitat (`OutpostMap.tsx`), simulador de retraso de señal con tonos Quindar (`sound.ts`), HUD con proyección en vivo (`ResourcePanel.tsx`) y modal de certificado (`CommanderCertificate.tsx`) integrados en `main`.
+- ✅ **Fase 1:** los 3 bloques están fusionados y compilando.
+- ✅ **Mejoras de arquitectura del Líder (Fase 2):**
+  - `src/hooks/useMission.ts`: **único punto donde la UI toca el motor** (crear misión, decidir, clima real, guardado en `localStorage`). `App.tsx` solo compone componentes.
+  - `src/types/mission.ts`: `MissionState.engine?` (`EngineTelemetry`, `DecisionRecord`) ya es parte del contrato. La UI puede **leer** `engine.history`, nunca escribirlo.
+  - Motor: clima inicial variable por partida, 40% de días tranquilos, **sin tormentas de polvo en la Luna**, y el dilema del Día 1 siempre coincide con el clima.
+  - `npm test` (Vitest): pruebas de contrato y balance en `src/engine/__tests__/`. CI las corre en cada PR y antes de desplegar.
+
+### Arquitectura (flujo de datos en una sola dirección)
+
+```
+services/nasaApi ─┐
+data/nasa-datasets ├─► hooks/useMission ─► App.tsx ─► componentes (solo props)
+engine + scenarios ┘
+```
+
+**Reglas para Bloques B y C:**
+1. Los componentes **no importan** `advanceMissionTurn` ni mutan `MissionState`. Reciben props y emiten callbacks.
+2. `src/App.tsx`, `src/hooks/*`, `src/engine/*`, `src/data/scenarios.ts` y `src/types/mission.ts` son del Líder. Si necesitas un dato nuevo, declara una **prop opcional** en tu componente y descríbela en el PR; Claude la conecta en `App.tsx`.
+3. Toda prop nueva debe ser **opcional** para que `main` siga compilando antes de conectarla.
+4. Antes de subir: `npm test && npm run build` en verde. Un PR por bloque hacia `main`; Claude revisa e integra.
+5. Todo texto visible va en **ES y EN**. Nada de datos NASA inventados: cada cifra lleva fuente.
 
 ---
 
 ## 5. Flujo de Trabajo en Git
 
-1. **Antes de empezar una nueva tarea ordenada por Claude:**
-   ```bash
-   git fetch origin
-   git checkout <tu-rama>
-   git rebase origin/main
-   ```
-2. **Al terminar tu tarea:**
-   Verifica que `npm run build` pase sin errores y sube a tu rama (`git push origin <tu-rama>`) para que **Claude** lo revise e integre en `main`.
+```bash
+git fetch origin && git checkout <tu-rama> && git rebase origin/main   # antes de empezar
+npm test && npm run build && git push origin <tu-rama>                 # al terminar → abre PR a main
+```
+
+---
+
+## 6. 📋 RONDA 2 — Tareas asignadas por Claude (en orden de prioridad)
+
+### 🛰️ Bloque B — Antigravity Compañero (`feat/nasa-data-service`)
+
+| # | Tarea | Hecho cuando… |
+|---|---|---|
+| **B1** | **Glosario completo.** Añadir a `KID_SCIENCE_GLOSSARY` los 5 términos que las tarjetas resaltan y aún no existen: `dust-storm`, `micrometeorite`, `shackleton`, `gravity`, `jezero` (definición corta + analogía para niños + fuente NASA). | Los 5 ids existen y la lista `PENDING_GLOSSARY_IDS` de `src/engine/__tests__/engine.test.ts` queda vacía (puedes editar solo esa línea) con `npm test` en verde. |
+| **B2** | **Enlace directo al término.** `ScienceModal` acepta la prop opcional `focusTermId?: string`: al abrir, muestra la pestaña de glosario con ese término resaltado y en pantalla. Exportar desde `nasa-datasets.ts` el helper `getGlossaryTerm(id): GlossaryTerm \| undefined`. | Abrir el modal con `focusTermId="moxie"` muestra MOXIE resaltado. Sin la prop, todo funciona igual que hoy. |
+| **B3** | **API robusta para el día de los jueces.** Leer la clave de `import.meta.env.VITE_NASA_API_KEY` (fallback `DEMO_KEY`), crear `.env.example`, timeout de 6 s con `AbortController`, y ante 429/errores devolver el archivo verificado **sin lanzar excepciones**. | Con la red cortada o un 429 la app carga igual y marca los datos como "Archivo Real NASA". |
+| **B4** | **Calidad del pool de clima.** Extraer el mapeo DONKI→`SpaceWeatherEvent` a funciones puras y probarlas en `src/services/__tests__/nasaApi.test.ts` con respuestas reales de DONKI como fixtures. Garantizar: ids únicos, `radiationMultiplier` entre 1.0 y 3.5, `solarEfficiencyMultiplier` entre 0.4 y 1.1, al menos un evento `NOMINAL` siempre, y `isLiveNasaData` correcto. | Pruebas nuevas en verde; un pool en vivo nunca rompe el balance del motor. |
+| **B5** | **Quiz conectado al juego.** Ampliar `JUNIOR_ASTRONAUT_QUIZ` a 12+ preguntas que salgan de los dilemas (MOXIE y sus 122 g de O₂, 1.37 mSv/día en la Luna vs 0.67 en Marte, tormenta de polvo −60 %, retraso 1.3 s vs 4–24 min, hielo en sombra permanente). Campo opcional `siteFilter` para preguntar según la base elegida. | 12+ preguntas bilingües, cada una con su fuente NASA. |
+| **B6** | **Accesibilidad del modal.** `role="dialog"`, foco atrapado, cierre con `Esc`, botones ≥ 44 px, `alt` en todas las fotos NASA. | Se puede usar el modal completo solo con teclado. |
+
+### 🎮 Bloque C — Antigravity Principal (`feat/outpost-ui`)
+
+| # | Tarea | Hecho cuando… |
+|---|---|---|
+| **C1** | **Pantalla de bienvenida (Briefing).** Nuevo `MissionHUD/MissionBriefing.tsx` con props `{ lang, sites: OutpostSiteConfig[], onStart(siteId) }`: elegir Luna o Marte con tarjetas grandes y un tutorial de 3 pasos ("reparte la energía → elige → mira la consecuencia de mañana"). Hoy el niño cae directo en un panel lleno de números. | Componente listo y exportado; Claude lo conecta en `App.tsx`. |
+| **C2** | **Móvil primero.** A 390 px hay 42 px de desborde horizontal: eliminarlo. En móvil el orden debe ser: barra compacta de vitales (fija arriba) → tarjeta de decisión → mapa → detalles. Objetivos táctiles ≥ 44 px. | Sin scroll horizontal a 360–430 px y la decisión visible sin bajar más de una pantalla. |
+| **C3** | **Menos carga para 7–12 años.** Los 4 presets de energía pasan a ser botones grandes principales; los sliders quedan bajo "Avanzado". El simulador de retraso y los detalles de cada sistema se pliegan por defecto. | La primera pantalla de juego muestra como máximo: vitales, mapa, clima de hoy y la decisión. |
+| **C4** | **Informe del día.** Nuevo `MissionHUD/TurnReport.tsx` con props `{ lang, previous: CoreResources, current: CoreResources, logs: MissionLogEntry[], onContinue }`: tras decidir, anima cada barra de "antes" a "después" y lista las consecuencias de ayer. Es el momento donde el niño **ve** el trade-off. | Componente listo; Claude lo conecta. Respeta `prefers-reduced-motion`. |
+| **C5** | **El mapa cuenta lo que pasa.** `OutpostMap` cambia según `weather` y `resources`: velo de polvo naranja en `DUST_STORM`, sombra sobre los paneles con `weather.id === 'MOON-RIM-SHADOW-PASS'`, luces apagadas si `power < 15`, invernadero marchito si `food < 25`, cielo y suelo distintos en Marte y Luna. | Cada estado se distingue a simple vista sin leer texto. |
+| **C6** | **Certificado con repaso.** `CommanderCertificate` acepta `history?: DecisionRecord[]` (de `mission.engine.history`) y muestra las decisiones del jugador día por día; campo para el nombre del astronauta y estilo `@media print` para imprimirlo. | Certificado imprimible en una hoja con nombre, rango, insignias y repaso. |
+| **C7** | **Accesibilidad.** Contraste AA, foco visible, `aria-live` en alertas de tormenta y cambios de día, `prefers-reduced-motion` en todas las animaciones. | Navegable por teclado de principio a fin. |
+
+### 👑 Líder (Claude) — en paralelo
+- Conectar en `App.tsx`: `MissionBriefing` (C1), `TurnReport` (C4), `focusTermId` (B2), `history` (C6).
+- Modo "Reto del día" con semilla compartible, README bilingüe para jueces y guion de demo.

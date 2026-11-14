@@ -178,4 +178,36 @@ export interface MissionState {
     resourceDelta: Partial<CoreResources>;
   }>;
   logs: MissionLogEntry[];
+  /**
+   * Telemetría interna del motor (semilla RNG, historial de decisiones, mínimos alcanzados).
+   * La escribe SOLO `src/engine/*`. La UI debe conservarla al copiar el estado (`{ ...state }`)
+   * y puede leerla (p. ej. `history` para una pantalla de repaso), pero nunca modificarla.
+   */
+  engine?: EngineTelemetry;
+}
+
+/** Decisión tomada por el jugador en un día concreto (para repaso y logros). */
+export interface DecisionRecord {
+  day: number;
+  cardId: string;
+  choiceId: string;
+  weatherType: SpaceWeatherEvent['type'];
+}
+
+/** Telemetría que el motor acumula durante la partida para calcular rangos e insignias. */
+export interface EngineTelemetry {
+  rngState: number;
+  usedDilemmaIds: string[];
+  history: DecisionRecord[];
+  minPower: number;
+  minLifeSupport: number;
+  minFood: number;
+  minCrewHealth: number;
+  maxLoad: number;
+  overloadTurns: number;
+  stormDays: number;
+  shieldedStormDays: number;
+  dustStormDays: number;
+  dustStormPowerFloor: number;
+  startingDoseMsv: number;
 }

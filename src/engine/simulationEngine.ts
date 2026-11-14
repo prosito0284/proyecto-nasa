@@ -10,6 +10,7 @@
 
 import {
   CoreResources,
+  EngineTelemetry,
   LocalizedText,
   MissionDilemmaCard,
   MissionLogEntry,
@@ -29,36 +30,10 @@ import {
 
 // ───────────────────────────── Tipos internos del motor ─────────────────────────────
 
-export interface DecisionRecord {
-  day: number;
-  cardId: string;
-  choiceId: string;
-  weatherType: SpaceWeatherEvent['type'];
-}
+export type { DecisionRecord, EngineTelemetry } from '../types/mission';
 
-/**
- * Telemetría interna del motor. Viaja dentro del MissionState como campo extra
- * (`engine`) para no modificar el contrato compartido de `src/types/mission.ts`.
- * `{ ...state }` en la UI la conserva automáticamente.
- */
-export interface EngineTelemetry {
-  rngState: number;
-  usedDilemmaIds: string[];
-  history: DecisionRecord[];
-  minPower: number;
-  minLifeSupport: number;
-  minFood: number;
-  minCrewHealth: number;
-  maxLoad: number;
-  overloadTurns: number;
-  stormDays: number;
-  shieldedStormDays: number;
-  dustStormDays: number;
-  dustStormPowerFloor: number;
-  startingDoseMsv: number;
-}
-
-export type EngineMissionState = MissionState & { engine?: EngineTelemetry };
+/** @deprecated `MissionState` ya incluye el campo opcional `engine`. Se mantiene por compatibilidad. */
+export type EngineMissionState = MissionState;
 
 const STORM_TYPES: SpaceWeatherEvent['type'][] = ['FLR', 'SEP', 'CME'];
 
@@ -113,7 +88,7 @@ function freshTelemetry(state: MissionState, seed: number): EngineTelemetry {
 
 /** Lee la telemetría del estado (o la reconstruye si la UI perdió el campo extra). */
 export function getEngineTelemetry(state: MissionState): EngineTelemetry {
-  const existing = (state as EngineMissionState).engine;
+  const existing = state.engine;
   if (existing) return existing;
   return freshTelemetry(state, state.currentDay * 2654435761);
 }
@@ -145,11 +120,43 @@ export function selectNextWeather(
   state: MissionState,
   pool: SpaceWeatherEvent[]
 ): SpaceWeatherEvent {
-  if (pool.length === 0) return state.currentWeather;
   const tel = getEngineTelemetry(state);
-  const [roll] = nextRandom(tel.rngState ^ 0x9e3779b9);
-  const candidates = pool.length > 1 ? pool.filter((w) => w.id !== state.currentWeather.id) : pool;
-  return candidates[Math.floor(roll * candidates.length)] ?? pool[0];
+  return pickWeather(state.siteId, pool, tel.rngState ^ 0x9e3779b9, state.currentWeather);
+}
+
+/** Clima del Día/Sol 1 de una partida nueva (varía con la semilla para dar rejugabilidad). */
+export function selectStartingWeather(
+  siteId: OutpostSiteId,
+  pool: SpaceWeatherEvent[],
+  seed: number = Date.now()
+): SpaceWeatherEvent {
+  return pickWeather(siteId, pool, seed >>> 0);
+}
+
+/** Probabilidad de día tranquilo: da respiro entre tormentas para que haya días de ciencia y EVA. */
+const CALM_DAY_CHANCE = 0.4;
+
+function pickWeather(
+  siteId: OutpostSiteId,
+  pool: SpaceWeatherEvent[],
+  rngState: number,
+  current?: SpaceWeatherEvent
+): SpaceWeatherEvent {
+  // En la Luna no hay atmósfera: las tormentas de polvo solo existen en Marte.
+  const valid = pool.filter((w) => siteId === 'mars-jezero' || w.type !== 'DUST_STORM');
+  if (valid.length === 0) return current ?? pool[0];
+  const calm = valid.filter((w) => w.type === 'NOMINAL');
+  const active = valid.filter((w) => w.type !== 'NOMINAL' && w.id !== current?.id);
+
+  const [calmRoll, rng] = nextRandom(rngState);
+  const [pickRoll] = nextRandom(rng);
+  const source =
+    calm.length > 0 && (calmRoll < CALM_DAY_CHANCE || active.length === 0)
+      ? calm
+      : active.length > 0
+        ? active
+        : valid;
+  return source[Math.floor(pickRoll * source.length)] ?? valid[0];
 }
 
 /**
@@ -543,7 +550,7 @@ export function advanceMissionTurn(
       status,
       resources: next,
       engine: tel,
-    } as EngineMissionState);
+    });
     const earned = rating.badges.filter((b) => b.earned);
     endLogs.push({
       day,

@@ -29,7 +29,9 @@ jobs:
           node-version: 22
           cache: 'npm'
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+      - name: Run contract & balance tests
+        run: npm test
       - name: Build static web app
         run: npm run build
       - name: Setup Pages

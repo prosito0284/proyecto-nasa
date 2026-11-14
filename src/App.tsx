@@ -1,93 +1,56 @@
-import React, { useEffect, useState } from 'react';
-import {
-  CoreResources,
-  Language,
-  MissionState,
-  OutpostSiteId,
-  PowerAllocation,
-  SpaceWeatherEvent,
-  TradeoffChoice,
-} from './types/mission';
+import React, { useState } from 'react';
+import { CoreResources, Language, OutpostSiteId, TradeoffChoice } from './types/mission';
 import { OUTPOST_SITES } from './data/scenarios';
-import { KID_SCIENCE_GLOSSARY, VERIFIED_NASA_WEATHER_EVENTS } from './data/nasa-datasets';
-import { fetchLiveOrVerifiedSpaceWeather } from './services/nasaApi';
-import {
-  advanceMissionTurn,
-  createInitialMissionState,
-  evaluateCommanderPerformance,
-  projectSystemsTurn,
-  selectNextWeather,
-} from './engine/simulationEngine';
+import { KID_SCIENCE_GLOSSARY } from './data/nasa-datasets';
+import { useMission } from './hooks/useMission';
 import { OutpostMap } from './components/OutpostView/OutpostMap';
 import { ResourcePanel } from './components/MissionHUD/ResourcePanel';
 import { CommanderCertificate } from './components/MissionHUD/CommanderCertificate';
 import { ScienceModal } from './components/ScienceTraceability/ScienceModal';
 import { missionAudio } from './utils/sound';
 
+const SOLAR_STORM_TYPES = ['FLR', 'SEP', 'CME'];
+
 export const App: React.FC = () => {
   const [lang, setLang] = useState<Language>('es');
   const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [weatherPool, setWeatherPool] = useState<SpaceWeatherEvent[]>(VERIFIED_NASA_WEATHER_EVENTS);
-  const [mission, setMission] = useState<MissionState>(() =>
-    createInitialMissionState('moon-shackleton', VERIFIED_NASA_WEATHER_EVENTS[0])
-  );
-  const [hoveredChoice, setHoveredChoice] = useState<TradeoffChoice | null>(null);
   const [isScienceOpen, setIsScienceOpen] = useState(false);
   const [isBadgesOpen, setIsBadgesOpen] = useState(false);
-
-  useEffect(() => {
-    fetchLiveOrVerifiedSpaceWeather().then((events) => {
-      if (events.length > 0) {
-        setWeatherPool(events);
-        setMission((prev) => ({
-          ...prev,
-          currentWeather: events[0],
-        }));
-      }
-    });
-  }, []);
+  const {
+    mission,
+    projection: liveProjection,
+    evaluation: commanderEval,
+    previewChoice: hoveredChoice,
+    setPreviewChoice: setHoveredChoice,
+    startMission,
+    restartMission,
+    setAllocation: handleAllocationChange,
+    decide,
+  } = useMission();
 
   const handleSelectSite = (siteId: OutpostSiteId) => {
     missionAudio.playClick();
-    setHoveredChoice(null);
-    setMission(createInitialMissionState(siteId, weatherPool[0]));
-  };
-
-  const handleAllocationChange = (nextAlloc: PowerAllocation) => {
-    setMission((prev) => ({
-      ...prev,
-      powerAllocation: nextAlloc,
-    }));
+    startMission(siteId);
   };
 
   const handleDecision = (choice: TradeoffChoice) => {
-    setHoveredChoice(null);
-    const nextWeather = selectNextWeather(mission, weatherPool);
-    const updated = advanceMissionTurn(mission, choice, nextWeather, mission.powerAllocation);
-
+    const updated = decide(choice);
     if (updated.status === 'won') {
       missionAudio.playSuccess();
       setIsBadgesOpen(true);
     } else if (updated.status === 'failed') {
       missionAudio.playAlert();
       setIsBadgesOpen(true);
-    } else if (
-      updated.currentWeather.type === 'FLR' ||
-      updated.currentWeather.type === 'SEP' ||
-      updated.currentWeather.type === 'CME'
-    ) {
+    } else if (SOLAR_STORM_TYPES.includes(updated.currentWeather.type)) {
       missionAudio.playStormWarning();
     } else {
       missionAudio.playTurnAdvance();
     }
-
-    setMission(updated);
   };
 
   const handleResetMission = () => {
     missionAudio.playClick();
-    setHoveredChoice(null);
-    setMission(createInitialMissionState(mission.siteId, weatherPool[0]));
+    restartMission();
   };
 
   const handleToggleMute = () => {
@@ -96,12 +59,6 @@ export const App: React.FC = () => {
   };
 
   const currentSite = OUTPOST_SITES[mission.siteId];
-  const liveProjection = projectSystemsTurn(
-    mission,
-    mission.powerAllocation,
-    hoveredChoice?.resourceDelta.shielding ?? 0
-  );
-  const commanderEval = evaluateCommanderPerformance(mission);
 
   const renderChoiceDeltaTags = (delta: Partial<CoreResources>) => {
     const items: Array<{ icon: string; label: string; val: number; invertGood?: boolean }> = [];
@@ -278,6 +235,8 @@ export const App: React.FC = () => {
                     className="choice-box"
                     onMouseEnter={() => setHoveredChoice(choice)}
                     onMouseLeave={() => setHoveredChoice(null)}
+                    onFocus={() => setHoveredChoice(choice)}
+                    onTouchStart={() => setHoveredChoice(choice)}
                   >
                     <div className="choice-top-content">
                       <h4>{choice.label[lang]}</h4>
@@ -294,6 +253,9 @@ export const App: React.FC = () => {
                             ? `Efecto mañana: ${choice.nextTurnEffect.description.es}`
                             : `Tomorrow’s effect: ${choice.nextTurnEffect.description.en}`}
                         </div>
+                      )}
+                      {choice.nextTurnEffect && (
+                        renderChoiceDeltaTags(choice.nextTurnEffect.resourceDelta)
                       )}
                     </div>
 

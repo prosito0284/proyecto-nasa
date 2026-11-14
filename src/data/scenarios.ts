@@ -600,7 +600,7 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
   {
     id: 'greenhouse-harvest-timing',
     siteFilter: 'both',
-    highlightedTermId: 'hydroponics',
+    highlightedTermId: 'veggie',
     title: t(
       '🥬 ¿Cosechar Hoy o Dejar Crecer las Lechugas?',
       '🥬 Harvest Today or Let the Lettuce Grow?'
@@ -725,7 +725,7 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
   {
     id: 'moon-teleop-rover',
     siteFilter: 'moon-shackleton',
-    highlightedTermId: 'comm-delay',
+    highlightedTermId: 'light-delay',
     title: t(
       '📡 ¿Rover Controlado desde la Tierra o por los Astronautas?',
       '📡 Rover Driven from Earth or by the Astronauts?'
@@ -1103,7 +1103,7 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
   {
     id: 'mars-comm-delay-alarm',
     siteFilter: 'mars-jezero',
-    highlightedTermId: 'comm-delay',
+    highlightedTermId: 'light-delay',
     title: t(
       '⏳ Alarma en el Reciclador… ¡y la Tierra Está a 12 Minutos!',
       '⏳ Recycler Alarm… and Earth Is 12 Minutes Away!'
