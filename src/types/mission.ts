@@ -211,3 +211,26 @@ export interface EngineTelemetry {
   dustStormPowerFloor: number;
   startingDoseMsv: number;
 }
+
+/**
+ * RONDA 4 — Tripulación con nombre y cara.
+ * El Líder define los datos (`src/data/crew.ts`) y el estado (`getCrewStatus` en el motor);
+ * el Bloque C dibuja los retratos y el componente `CrewRoster` a partir de `CrewStatus[]`.
+ */
+export type CrewMood = 'great' | 'ok' | 'worried' | 'critical';
+
+export interface CrewMember {
+  /** Identificador estable: 'commander' | 'engineer' | 'botanist' | 'medic' */
+  id: string;
+  name: string;
+  role: LocalizedText;
+  /** Recurso del que esta persona se encarga y sobre el que opina */
+  watches: 'power' | 'lifeSupport' | 'food' | 'shielding' | 'crewHealth';
+}
+
+export interface CrewStatus {
+  member: CrewMember;
+  mood: CrewMood;
+  /** Frase corta que dice ahora mismo (máx. ~90 caracteres) */
+  line: LocalizedText;
+}

@@ -156,3 +156,39 @@ El niño no usa un dashboard: lleva el **cuaderno de vuelo** de su misión, como
 - Revisión final en móvil, tablet y escritorio, y publicación.
 
 **Orden:** C8 y C9 primero (todo lo demás depende de los tokens y los iconos). B8–B10 pueden avanzar en paralelo.
+
+---
+
+## 7. 📋 RONDA 4 — Tripulación, menos texto y más reto
+
+**Diagnóstico del Líder tras la Ronda 3.** La identidad ya es propia. Lo que falta para un niño de 7 a 12 años: (1) no hay personas, la "salud" es solo una barra; (2) hay demasiado texto y todo va en mayúsculas condensadas; (3) el panel izquierdo sigue pareciendo un tablero; (4) el rango máximo sale demasiado fácil.
+
+**Contrato nuevo (ya en `src/types/mission.ts`):** `CrewMood`, `CrewMember`, `CrewStatus`. La tripulación tiene 4 personas con ids fijos: `commander` (vigila `crewHealth`), `engineer` (`power`), `botanist` (`food`), `medic` (`shielding`). El Líder escribe los datos y `getCrewStatus(state)`; los componentes solo reciben `CrewStatus[]`.
+
+**Regla tipográfica nueva (para todos):** mayúsculas solo en rótulos de hasta 3 palabras (etiquetas, códigos, botones cortos). Títulos y frases van en tipo oración con la fuente de rótulo. Texto de cuerpo mínimo 16 px.
+
+### 🎮 Bloque C — Antigravity Principal (`feat/outpost-ui`)
+
+| # | Tarea | Hecho cuando… |
+|---|---|---|
+| **C13** | **Retratos y lista de tripulación.** `src/components/crew/CrewPortrait.tsx` con props `{ memberId, mood, size? }`: 4 personajes de trazo a dos tintas (misma regla que los iconos), cada uno con 4 expresiones (`great`, `ok`, `worried`, `critical`). Diversos y sin estereotipos. `src/components/crew/CrewRoster.tsx` con props `{ lang, crew: CrewStatus[], compact? }`: retrato, nombre, rol y su frase en un globo de cómic de papel. | 16 combinaciones se distinguen a simple vista; el roster funciona a 360 px. |
+| **C14** | **Panel izquierdo como hoja de checklist.** `ResourcePanel` deja de ser un tablero de barras: cada vital es una línea de checklist con casilla de estado (bien / atención / crítico), valor y la proyección de mañana. Acepta la prop opcional `crew?: CrewStatus[]` para mostrar junto a cada vital el retrato pequeño de quien lo vigila. | Sin la prop funciona igual que hoy; con ella cada vital tiene una cara. |
+| **C15** | **Pase tipográfico.** Aplicar la regla nueva en `index.css` y tus componentes: quitar `text-transform: uppercase` de títulos y frases largas, cuerpo a 16 px mínimo, líneas de 45 a 75 caracteres. | Ningún título de más de 3 palabras en mayúsculas en tus componentes. |
+| **C16** | **Informe del día con voz.** `TurnReport` acepta `crewLine?: CrewStatus` y lo muestra arriba: el tripulante más afectado dice una frase sobre lo que pasó. | Con la prop aparece retrato y frase; sin ella, igual que hoy. |
+| **C17** | **Bienvenida y certificado.** Revisar ambos con la identidad y la regla tipográfica: bienvenida que quepa en una pantalla de escritorio sin scroll (máximo 3 datos por base) y certificado con los retratos de la tripulación. Adjuntar capturas en el PR. | Capturas de escritorio y móvil de ambas pantallas. |
+
+### 🛰️ Bloque B — Antigravity Compañero (`feat/nasa-data-service`)
+
+| # | Tarea | Hecho cuando… |
+|---|---|---|
+| **B11** | **Auditoría de fuentes.** Verificar contra la fuente oficial **cada cifra** de `src/data/scenarios.ts` y `src/data/nasa-datasets.ts` (p. ej. 98 % de agua reciclada, 122 g de O₂ de MOXIE, 1.37 y 0.67 mSv/día, límite de 600 mSv, ~1 % de hueso al mes, 800 °C de MOXIE). Entregar `docs/FUENTES.md`: tabla con afirmación, archivo, fuente con URL, y estado (verificada / corregir / sin fuente). **No edites `scenarios.ts`**: lista las correcciones para que Claude las aplique. Corrige tú las de `nasa-datasets.ts`. | Tabla completa; ninguna cifra queda "sin revisar". |
+| **B12** | **Dieta de texto en el panel de ciencia.** Cada ficha muestra como máximo 2 frases; el resto queda tras "Leer más". Aplicar la regla tipográfica nueva en `science.css`. | Ninguna ficha ocupa más de media pantalla de móvil sin desplegar. |
+| **B13** | **Quiz que cuenta.** `ScienceModal` acepta `onQuizComplete?: (correct: number, total: number) => void` y lo llama al terminar el quiz. | Callback probado; sin la prop, igual que hoy. |
+| **B14** | **Galería sin saltos.** Las fotos NASA cargan con `loading="lazy"`, proporción fija y un recuadro de respaldo con el crédito si la imagen falla. | Sin saltos de diseño al cargar ni iconos de imagen rota sin conexión. |
+| **B15** | **Revisión del inglés.** Leer todos los textos en inglés de tus archivos como lo haría un juez nativo: corregir calcos del español y frases largas. | Lista de cambios en el PR. |
+
+### 👑 Líder (Claude)
+- `src/data/crew.ts` y `getCrewStatus(state)` en el motor, con frases por recurso y estado.
+- Conectar `CrewRoster`, `crew` en el panel, `crewLine` en el informe y `onQuizComplete` (parche por quiz perfecto).
+- Rebalanceo de rangos: el máximo debe exigir planificación; prueba automática que lo impida con decisiones al azar.
+- Recorte de texto en las órdenes de trabajo y aplicar las correcciones de B11.
