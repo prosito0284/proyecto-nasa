@@ -100,6 +100,11 @@ function mapGlossarySourceToStamp(
   return 'MARS';
 }
 
+function getFirstSentence(text: string): string {
+  const match = text.match(/^.*?[.!?](?:\s|$)/);
+  return match ? match[0].trim() : text.trim();
+}
+
 export const ScienceModal: React.FC<ScienceModalProps> = ({
   lang,
   isOpen,
@@ -114,6 +119,11 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
   const [glossarySourceFilter, setGlossarySourceFilter] = useState<
     'ALL' | GlossaryTerm['nasaSource']
   >('ALL');
+
+  // B12: Dieta de texto — fichas contraídas por defecto (máximo 2 frases) con botón "Leer más"
+  const [expandedCardIds, setExpandedCardIds] = useState<
+    Record<string, boolean>
+  >({});
 
   // Estado DONKI en vivo (FLR / SEP / CME)
   const [donkiEvents, setDonkiEvents] = useState<SpaceWeatherEvent[]>(
@@ -154,6 +164,14 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
   const modalCardRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  const toggleCardExpanded = (cardKey: string) => {
+    missionAudio.playClick();
+    setExpandedCardIds((prev) => ({
+      ...prev,
+      [cardKey]: !prev[cardKey],
+    }));
+  };
 
   useEffect(() => {
     if (siteId) {
@@ -419,7 +437,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
             <div className="science-annex-doc-meta">
               <span className="science-annex-doc-code">
                 <ScienceIcon size={14} />
-                <span>DOC NASA-STD-3001 / ANEXO CIENTÍFICO</span>
+                <span>ANEXO NASA</span>
               </span>
               <SourceStamp
                 source="DONKI"
@@ -429,19 +447,19 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
               />
               <span>
                 {lang === 'es'
-                  ? `POOL: ${poolStatus.count} EVENTOS (${poolStatus.fetchedAt.slice(0, 16).replace('T', ' ')} UTC)`
-                  : `POOL: ${poolStatus.count} EVENTS (${poolStatus.fetchedAt.slice(0, 16).replace('T', ' ')} UTC)`}
+                  ? `Pool: ${poolStatus.count} eventos (${poolStatus.fetchedAt.slice(0, 16).replace('T', ' ')} UTC)`
+                  : `Pool: ${poolStatus.count} events (${poolStatus.fetchedAt.slice(0, 16).replace('T', ' ')} UTC)`}
               </span>
             </div>
             <h2 id="science-modal-title" className="science-annex-title">
               {lang === 'es'
-                ? 'Anexo del Cuaderno de Vuelo — Trazabilidad Científica NASA'
-                : 'Flight Notebook Annex — NASA Science Traceability'}
+                ? 'Anexo del cuaderno de vuelo — Trazabilidad científica NASA'
+                : 'Flight notebook annex — NASA science traceability'}
             </h2>
             <p className="science-annex-subtitle">
               {lang === 'es'
-                ? 'Datos verificados de NASA DONKI (FLR, SEP, CME), Repositorio Biológico NASA OSDR (OSD-379, BioSentinel, RAD) y Biblioteca Oficial de Imágenes.'
-                : 'Verified data from NASA DONKI (FLR, SEP, CME), NASA OSDR Biological Repository (OSD-379, BioSentinel, RAD), and Official Image Library.'}
+                ? 'Datos verificados de NASA DONKI, el repositorio biológico OSDR y la biblioteca oficial de imágenes.'
+                : 'Verified data from NASA DONKI, the OSDR biological repository, and the official image library.'}
             </p>
           </div>
           <button
@@ -456,12 +474,12 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
             id="close-science-modal-btn"
             aria-label={
               lang === 'es'
-                ? 'Cerrar Anexo de Ciencia Real de la NASA (Esc)'
-                : 'Close Real NASA Science Annex (Esc)'
+                ? 'Cerrar anexo de ciencia real de la NASA (Esc)'
+                : 'Close real NASA science annex (Esc)'
             }
           >
             <CloseIcon size={16} />
-            <span>{lang === 'es' ? 'Cerrar [ESC]' : 'Close [ESC]'}</span>
+            <span>{lang === 'es' ? 'Cerrar [Esc]' : 'Close [Esc]'}</span>
           </button>
         </header>
 
@@ -470,8 +488,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
           role="tablist"
           aria-label={
             lang === 'es'
-              ? 'Secciones del Anexo del Cuaderno de Ciencia NASA'
-              : 'NASA Science Flight Notebook Annex Sections'
+              ? 'Secciones del anexo del cuaderno de ciencia NASA'
+              : 'NASA science flight notebook annex sections'
           }
           className="science-folder-tabs"
         >
@@ -490,8 +508,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
             <SunIcon size={16} />
             <span>
               {lang === 'es'
-                ? 'Clima DONKI & Fichas de Glosario'
-                : 'DONKI Weather & Glossary Cards'}
+                ? 'Clima DONKI y fichas de glosario'
+                : 'DONKI weather & glossary cards'}
             </span>
           </button>
 
@@ -511,7 +529,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
             <span>
               {lang === 'es'
                 ? 'Estudios NASA OSDR (Veggie / RAD)'
-                : 'NASA OSDR Studies (Veggie / RAD)'}
+                : 'NASA OSDR studies (Veggie / RAD)'}
             </span>
           </button>
 
@@ -530,8 +548,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
             <GlobeIcon size={16} />
             <span>
               {lang === 'es'
-                ? 'Archivo Fotográfico NASA'
-                : 'NASA Photographic Archive'}
+                ? 'Archivo fotográfico NASA'
+                : 'NASA photographic archive'}
             </span>
           </button>
 
@@ -550,8 +568,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
             <PatchIcon size={16} />
             <span>
               {lang === 'es'
-                ? `Examen de Vuelo (${correctCount}/${totalQuestions})`
-                : `Flight Check Quiz (${correctCount}/${totalQuestions})`}
+                ? `Examen de vuelo (${correctCount}/${totalQuestions})`
+                : `Flight check quiz (${correctCount}/${totalQuestions})`}
             </span>
           </button>
         </nav>
@@ -571,8 +589,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   <AntennaIcon size={18} />
                   <span>
                     {lang === 'es'
-                      ? 'Parte Meteorológico Espacial Activo (NASA DONKI)'
-                      : 'Active Space Weather Dispatch (NASA DONKI)'}
+                      ? 'Parte meteorológico espacial activo (NASA DONKI)'
+                      : 'Active space weather dispatch (NASA DONKI)'}
                   </span>
                 </h3>
                 <div
@@ -606,8 +624,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                           ? 'Consultando api.nasa.gov/DONKI...'
                           : 'Querying api.nasa.gov/DONKI...'
                         : lang === 'es'
-                          ? 'Sincronizar DONKI en Vivo (FLR/SEP/CME)'
-                          : 'Sync Live DONKI (FLR/SEP/CME)'}
+                          ? 'Sincronizar DONKI en vivo'
+                          : 'Sync live DONKI'}
                     </span>
                   </button>
                 </div>
@@ -617,23 +635,10 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                 ID: {currentWeather.id} | {currentWeather.classOrIntensity}
               </div>
 
-              <p style={{ margin: 0, fontSize: '0.92rem', lineHeight: 1.45 }}>
+              <p style={{ margin: 0, fontSize: '1rem', lineHeight: 1.5 }}>
                 <strong>{currentWeather.title[lang]}:</strong>{' '}
-                {currentWeather.kidFriendlyExplanation[lang]}
-              </p>
-
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.84rem',
-                  paddingTop: '0.35rem',
-                  borderTop: '1px solid var(--rule, rgba(27,31,42,0.25))',
-                }}
-              >
-                <strong>
-                  {lang === 'es' ? 'REGISTRO TÉCNICO: ' : 'TECHNICAL RECORD: '}
-                </strong>
-                {currentWeather.scienceFact[lang]}
+                {getFirstSentence(currentWeather.kidFriendlyExplanation[lang])}{' '}
+                {getFirstSentence(currentWeather.scienceFact[lang])}
               </p>
 
               <div
@@ -648,16 +653,16 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   <RadiationIcon size={15} />
                   <span>
                     {lang === 'es'
-                      ? `Multiplicador Radiación: x${currentWeather.radiationMultiplier.toFixed(1)}`
-                      : `Radiation Multiplier: x${currentWeather.radiationMultiplier.toFixed(1)}`}
+                      ? `Multiplicador radiación: x${currentWeather.radiationMultiplier.toFixed(1)}`
+                      : `Radiation multiplier: x${currentWeather.radiationMultiplier.toFixed(1)}`}
                   </span>
                 </span>
                 <span className="science-telemetry-pill">
                   <BatteryIcon size={15} />
                   <span>
                     {lang === 'es'
-                      ? `Eficiencia Solar: ${Math.round(currentWeather.solarEfficiencyMultiplier * 100)}%`
-                      : `Solar Efficiency: ${Math.round(currentWeather.solarEfficiencyMultiplier * 100)}%`}
+                      ? `Eficiencia solar: ${Math.round(currentWeather.solarEfficiencyMultiplier * 100)}%`
+                      : `Solar efficiency: ${Math.round(currentWeather.solarEfficiencyMultiplier * 100)}%`}
                   </span>
                 </span>
                 {currentWeather.sourceUrl && (
@@ -669,8 +674,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   >
                     <span>
                       {lang === 'es'
-                        ? 'Registro Oficial NASA DONKI [REF]'
-                        : 'Official NASA DONKI Record [REF]'}
+                        ? 'Registro oficial NASA DONKI [REF]'
+                        : 'Official NASA DONKI record [REF]'}
                     </span>
                     <ArrowIcon size={13} direction="right" />
                   </a>
@@ -685,8 +690,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   <SunIcon size={17} />
                   <span>
                     {lang === 'es'
-                      ? 'Bitácora de Eventos Solares y Planetarios (FLR / SEP / CME / MEDA)'
-                      : 'Solar & Planetary Event Log (FLR / SEP / CME / MEDA)'}
+                      ? 'Bitácora de eventos solares y planetarios (FLR / SEP / CME / MEDA)'
+                      : 'Solar & planetary event log (FLR / SEP / CME / MEDA)'}
                   </span>
                 </h4>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
@@ -736,31 +741,70 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
               </div>
 
               <div className="science-library-grid">
-                {filteredDonkiEvents.slice(0, 6).map((ev) => (
-                  <article key={ev.id} className="science-library-card">
-                    <div className="science-library-card-header">
-                      <span>
-                        {ev.type} //{' '}
-                        {ev.isLiveNasaData ? 'EN VIVO' : 'ARCHIVO REAL'}
-                      </span>
-                      <span>{ev.startTime.slice(0, 10)}</span>
-                    </div>
-                    <div className="science-library-card-body">
-                      <h5 className="science-library-card-title">
-                        {ev.title[lang]}
-                      </h5>
-                      <p style={{ margin: 0, fontSize: '0.82rem' }}>
-                        {ev.kidFriendlyExplanation[lang]}
-                      </p>
-                    </div>
-                    <div className="science-library-card-footer">
-                      <span>RAD: x{ev.radiationMultiplier}</span>
-                      <span>
-                        SOLAR: {Math.round(ev.solarEfficiencyMultiplier * 100)}%
-                      </span>
-                    </div>
-                  </article>
-                ))}
+                {filteredDonkiEvents.slice(0, 6).map((ev) => {
+                  const cardKey = `donki-${ev.id}`;
+                  const isExpanded = Boolean(expandedCardIds[cardKey]);
+                  return (
+                    <article key={ev.id} className="science-library-card">
+                      <div className="science-library-card-header">
+                        <span>
+                          {ev.type} //{' '}
+                          {ev.isLiveNasaData ? 'EN VIVO' : 'ARCHIVO'}
+                        </span>
+                        <span>{ev.startTime.slice(0, 10)}</span>
+                      </div>
+                      <div className="science-library-card-body">
+                        <h5 className="science-library-card-title">
+                          {ev.title[lang]}
+                        </h5>
+                        {!isExpanded ? (
+                          <p style={{ margin: 0 }}>
+                            {getFirstSentence(ev.kidFriendlyExplanation[lang])}{' '}
+                            {getFirstSentence(ev.scienceFact[lang])}
+                          </p>
+                        ) : (
+                          <>
+                            <p style={{ margin: 0 }}>
+                              {ev.kidFriendlyExplanation[lang]}
+                            </p>
+                            <div className="science-library-rule-row">
+                              <span className="science-library-field-label">
+                                {lang === 'es' ? 'DATO NASA' : 'NASA FACT'}
+                              </span>
+                              <p style={{ margin: 0 }}>
+                                {ev.scienceFact[lang]}
+                              </p>
+                            </div>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          className="science-read-more-btn"
+                          style={MIN_TOUCH_TARGET_STYLE}
+                          aria-expanded={isExpanded}
+                          onClick={() => toggleCardExpanded(cardKey)}
+                        >
+                          <span>
+                            {isExpanded
+                              ? lang === 'es'
+                                ? 'Leer menos'
+                                : 'Show less'
+                              : lang === 'es'
+                                ? 'Leer más'
+                                : 'Read more'}
+                          </span>
+                        </button>
+                      </div>
+                      <div className="science-library-card-footer">
+                        <span>RAD: x{ev.radiationMultiplier}</span>
+                        <span>
+                          SOLAR:{' '}
+                          {Math.round(ev.solarEfficiencyMultiplier * 100)}%
+                        </span>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             </section>
 
@@ -777,8 +821,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   <ScienceIcon size={18} />
                   <span>
                     {lang === 'es'
-                      ? `Fichas de Biblioteca Científica (${filteredGlossary.length} términos)`
-                      : `Science Library Catalog Cards (${filteredGlossary.length} terms)`}
+                      ? `Fichas de biblioteca científica (${filteredGlossary.length} términos)`
+                      : `Science library catalog cards (${filteredGlossary.length} terms)`}
                   </span>
                 </h3>
                 <input
@@ -827,8 +871,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   >
                     {src === 'ALL'
                       ? lang === 'es'
-                        ? 'Todas las Fuentes'
-                        : 'All Sources'
+                        ? 'Todas las fuentes'
+                        : 'All sources'
                       : `NASA ${src}`}
                   </button>
                 ))}
@@ -841,9 +885,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                 >
                   <div className="science-section-bar">
                     <span className="science-annex-doc-code">
-                      {lang === 'es'
-                        ? 'FICHA VINCULADA AL DILEMA ACTUAL'
-                        : 'CATALOG CARD LINKED TO ACTIVE DILEMMA'}
+                      {lang === 'es' ? 'FICHA ACTIVA' : 'ACTIVE CARD'}
                     </span>
                     <SourceStamp
                       source={mapGlossarySourceToStamp(focusedTerm.nasaSource)}
@@ -856,45 +898,70 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                     style={{
                       fontFamily:
                         "var(--font-display, 'Barlow Condensed', sans-serif)",
-                      fontSize: '1.15rem',
-                      textTransform: 'uppercase',
+                      fontSize: '1.2rem',
                     }}
                   >
                     {focusedTerm.term[lang]}
                   </strong>
-                  <p style={{ margin: 0, fontSize: '0.88rem' }}>
-                    {focusedTerm.shortDefinition[lang]}
+                  <p style={{ margin: 0 }}>
+                    {getFirstSentence(focusedTerm.shortDefinition[lang])}{' '}
+                    {getFirstSentence(focusedTerm.kidAnalogy[lang])}
                   </p>
-                  <p style={{ margin: 0, fontSize: '0.84rem' }}>
-                    <strong>
-                      {lang === 'es'
-                        ? 'Analogía de Vuelo: '
-                        : 'Flight Analogy: '}
-                    </strong>
-                    {focusedTerm.kidAnalogy[lang]}
-                  </p>
-                  {(focusedTerm as GlossaryTermWithEvidence).howWeKnow && (
-                    <p
-                      className="glossary-how-we-know"
-                      style={{
-                        margin: 0,
-                        fontSize: '0.82rem',
-                        paddingTop: '0.35rem',
-                        borderTop: '1px solid var(--rule, rgba(27,31,42,0.25))',
-                      }}
-                    >
-                      <strong>
-                        {lang === 'es'
-                          ? '¿Cómo lo sabemos? '
-                          : 'How do we know? '}
-                      </strong>
-                      {
-                        (focusedTerm as GlossaryTermWithEvidence).howWeKnow?.[
-                          lang
-                        ]
-                      }
-                    </p>
+                  {expandedCardIds[`focused-${focusedTerm.id}`] && (
+                    <>
+                      <p style={{ margin: 0 }}>
+                        {focusedTerm.shortDefinition[lang]}
+                      </p>
+                      <p style={{ margin: 0 }}>
+                        <strong>
+                          {lang === 'es' ? 'Analogía: ' : 'Analogy: '}
+                        </strong>
+                        {focusedTerm.kidAnalogy[lang]}
+                      </p>
+                      {(focusedTerm as GlossaryTermWithEvidence).howWeKnow && (
+                        <p
+                          className="glossary-how-we-know"
+                          style={{
+                            margin: 0,
+                            paddingTop: '0.35rem',
+                            borderTop:
+                              '1px solid var(--rule, rgba(27,31,42,0.25))',
+                          }}
+                        >
+                          <strong>
+                            {lang === 'es'
+                              ? '¿Cómo lo sabemos? '
+                              : 'How do we know? '}
+                          </strong>
+                          {
+                            (focusedTerm as GlossaryTermWithEvidence)
+                              .howWeKnow?.[lang]
+                          }
+                        </p>
+                      )}
+                    </>
                   )}
+                  <button
+                    type="button"
+                    className="science-read-more-btn"
+                    style={MIN_TOUCH_TARGET_STYLE}
+                    aria-expanded={Boolean(
+                      expandedCardIds[`focused-${focusedTerm.id}`]
+                    )}
+                    onClick={() =>
+                      toggleCardExpanded(`focused-${focusedTerm.id}`)
+                    }
+                  >
+                    <span>
+                      {expandedCardIds[`focused-${focusedTerm.id}`]
+                        ? lang === 'es'
+                          ? 'Leer menos'
+                          : 'Show less'
+                        : lang === 'es'
+                          ? 'Leer más'
+                          : 'Read more'}
+                    </span>
+                  </button>
                 </div>
               )}
 
@@ -907,6 +974,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                     (item as GlossaryTermWithEvidence).howWeKnow ||
                     getGlossaryTerm(item.id)?.howWeKnow;
                   const catalogCode = `FICHA-${String(idx + 1).padStart(2, '0')} // ${item.id.toUpperCase()}`;
+                  const cardKey = `glossary-${item.id}`;
+                  const isExpanded = Boolean(expandedCardIds[cardKey]);
 
                   return (
                     <article
@@ -925,36 +994,66 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                           {item.term[lang]}
                         </h4>
 
-                        <div className="science-library-rule-row">
-                          <span className="science-library-field-label">
-                            {lang === 'es'
-                              ? 'Definición Operativa'
-                              : 'Operational Definition'}
-                          </span>
-                          <p style={{ margin: 0 }}>
-                            {item.shortDefinition[lang]}
-                          </p>
-                        </div>
-
-                        <div className="science-library-rule-row">
-                          <span className="science-library-field-label">
-                            {lang === 'es'
-                              ? 'Analogía para Cadetes'
-                              : 'Cadet Analogy'}
-                          </span>
-                          <p style={{ margin: 0 }}>{item.kidAnalogy[lang]}</p>
-                        </div>
-
-                        {howWeKnow && (
-                          <div className="science-library-rule-row glossary-how-we-know">
+                        {!isExpanded ? (
+                          <div className="science-library-rule-row">
                             <span className="science-library-field-label">
-                              {lang === 'es'
-                                ? '¿Cómo lo sabemos? (Instrumentación NASA)'
-                                : 'How do we know? (NASA Instrumentation)'}
+                              {lang === 'es' ? 'RESUMEN' : 'SUMMARY'}
                             </span>
-                            <p style={{ margin: 0 }}>{howWeKnow[lang]}</p>
+                            <p style={{ margin: 0 }}>
+                              {getFirstSentence(item.shortDefinition[lang])}{' '}
+                              {getFirstSentence(item.kidAnalogy[lang])}
+                            </p>
                           </div>
+                        ) : (
+                          <>
+                            <div className="science-library-rule-row">
+                              <span className="science-library-field-label">
+                                {lang === 'es' ? 'DEFINICIÓN' : 'DEFINITION'}
+                              </span>
+                              <p style={{ margin: 0 }}>
+                                {item.shortDefinition[lang]}
+                              </p>
+                            </div>
+
+                            <div className="science-library-rule-row">
+                              <span className="science-library-field-label">
+                                {lang === 'es' ? 'ANALOGÍA' : 'ANALOGY'}
+                              </span>
+                              <p style={{ margin: 0 }}>
+                                {item.kidAnalogy[lang]}
+                              </p>
+                            </div>
+
+                            {howWeKnow && (
+                              <div className="science-library-rule-row glossary-how-we-know">
+                                <span className="science-library-field-label">
+                                  {lang === 'es'
+                                    ? 'INSTRUMENTO NASA'
+                                    : 'NASA INSTRUMENT'}
+                                </span>
+                                <p style={{ margin: 0 }}>{howWeKnow[lang]}</p>
+                              </div>
+                            )}
+                          </>
                         )}
+
+                        <button
+                          type="button"
+                          className="science-read-more-btn"
+                          style={MIN_TOUCH_TARGET_STYLE}
+                          aria-expanded={isExpanded}
+                          onClick={() => toggleCardExpanded(cardKey)}
+                        >
+                          <span>
+                            {isExpanded
+                              ? lang === 'es'
+                                ? 'Leer menos'
+                                : 'Show less'
+                              : lang === 'es'
+                                ? 'Leer más'
+                                : 'Read more'}
+                          </span>
+                        </button>
                       </div>
 
                       <div className="science-library-card-footer">
@@ -998,14 +1097,14 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   <ShieldIcon size={18} />
                   <span>
                     {lang === 'es'
-                      ? 'Escala Comparativa de Dosimetría (Milisieverts - mSv) — NASA RAD & Artemis I'
-                      : 'Comparative Dosimetry Scale (Millisieverts - mSv) — NASA RAD & Artemis I'}
+                      ? 'Escala comparativa de dosimetría (mSv) — NASA RAD y Artemis I'
+                      : 'Comparative dosimetry scale (mSv) — NASA RAD & Artemis I'}
                   </span>
                 </h3>
                 <SourceStamp source="OSDR" live={false} lang={lang} />
               </div>
 
-              <p style={{ margin: 0, fontSize: '0.86rem' }}>
+              <p style={{ margin: 0 }}>
                 {lang === 'es'
                   ? 'Comparación de dosis de radiación medida por instrumentos de la NASA frente a referencias médicas terrestres:'
                   : 'Comparison of radiation doses measured by NASA instruments against Earth medical baselines:'}
@@ -1020,36 +1119,36 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
               >
                 {[
                   {
-                    labelEs: 'Radiografía Dental (Tierra)',
-                    labelEn: 'Dental X-Ray (Earth)',
+                    labelEs: 'Radiografía dental (Tierra)',
+                    labelEn: 'Dental X-ray (Earth)',
                     msv: '0.01 mSv',
                     pct: 4,
                     color: 'var(--ok-green, #2E7D4F)',
                   },
                   {
-                    labelEs: '1 Sol en Marte en Calma (RAD)',
-                    labelEn: '1 Calm Martian Sol (RAD)',
+                    labelEs: '1 Sol en Marte en calma (RAD)',
+                    labelEn: '1 calm Martian Sol (RAD)',
                     msv: '0.67 mSv',
                     pct: 22,
                     color: 'var(--ok-green, #2E7D4F)',
                   },
                   {
-                    labelEs: '1 Día en Superficie Lunar (LND)',
-                    labelEn: '1 Day on Lunar Surface (LND)',
+                    labelEs: '1 día en superficie lunar (LND)',
+                    labelEn: '1 day on lunar surface (LND)',
                     msv: '1.37 mSv',
                     pct: 36,
                     color: 'var(--nasa-blue, #0B3D91)',
                   },
                   {
-                    labelEs: 'Tormenta Solar CON Muro de Agua',
-                    labelEn: 'Solar Storm WITH Water Wall',
+                    labelEs: 'Tormenta solar con muro de agua',
+                    labelEn: 'Solar storm with water wall',
                     msv: '4.0 mSv (-50%)',
                     pct: 58,
                     color: 'var(--nasa-blue, #0B3D91)',
                   },
                   {
-                    labelEs: 'Tormenta SEP SIN Escudo (Mayo 2024)',
-                    labelEn: 'Unshielded SEP Storm (May 2024)',
+                    labelEs: 'Tormenta SEP sin escudo (Mayo 2024)',
+                    labelEn: 'Unshielded SEP storm (May 2024)',
                     msv: '8.1 mGy (8,100 µGy)',
                     pct: 100,
                     color: 'var(--nasa-red, #FC3D21)',
@@ -1066,7 +1165,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   >
                     <div
                       style={{
-                        fontSize: '0.78rem',
+                        fontSize: '0.9rem',
                         fontWeight: 600,
                         marginBottom: '0.3rem',
                       }}
@@ -1110,13 +1209,13 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                 [
                   {
                     id: 'all',
-                    labelEs: 'Todos los Estudios OSDR (5)',
-                    labelEn: 'All OSDR Studies (5)',
+                    labelEs: 'Todos los estudios OSDR (5)',
+                    labelEn: 'All OSDR studies (5)',
                   },
                   {
                     id: 'plants',
-                    labelEs: 'Botánica Espacial (OSD-379 / Veggie / APH)',
-                    labelEn: 'Space Botany (OSD-379 / Veggie / APH)',
+                    labelEs: 'Botánica espacial (OSD-379 / Veggie / APH)',
+                    labelEn: 'Space botany (OSD-379 / Veggie / APH)',
                   },
                   {
                     id: 'radiation',
@@ -1125,8 +1224,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   },
                   {
                     id: 'life-support',
-                    labelEs: 'Soporte Vital (ECLSS 98% / MOXIE)',
-                    labelEn: 'Life Support (ECLSS 98% / MOXIE)',
+                    labelEs: 'Soporte vital (ECLSS 98% / MOXIE)',
+                    labelEn: 'Life support (ECLSS 98% / MOXIE)',
                   },
                 ] as const
               ).map((cat) => (
@@ -1149,77 +1248,110 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
 
             {/* Fichas de Estudios NASA OSDR */}
             <div className="science-library-grid">
-              {filteredStudies.map((study) => (
-                <article key={study.id} className="science-library-card">
-                  <div className="science-library-card-header">
-                    <span>{study.osdrAccession}</span>
-                    <span>{study.missionOrFacility}</span>
-                  </div>
+              {filteredStudies.map((study) => {
+                const cardKey = `osdr-${study.id}`;
+                const isExpanded = Boolean(expandedCardIds[cardKey]);
 
-                  <div className="science-library-card-body">
-                    <h4 className="science-library-card-title">
-                      {study.title[lang]}
-                    </h4>
-
-                    <div className="science-library-rule-row">
-                      <span className="science-library-field-label">
-                        {lang === 'es'
-                          ? 'Sujeto / Instrumento'
-                          : 'Subject / Instrument'}
-                      </span>
-                      <p style={{ margin: 0 }}>
-                        {study.organismOrInstrument[lang]}
-                      </p>
+                return (
+                  <article key={study.id} className="science-library-card">
+                    <div className="science-library-card-header">
+                      <span>{study.osdrAccession}</span>
+                      <span>{study.missionOrFacility}</span>
                     </div>
 
-                    <div className="science-library-rule-row">
-                      <span className="science-library-field-label">
-                        {lang === 'es'
-                          ? 'Hallazgo Científico NASA'
-                          : 'NASA Scientific Finding'}
-                      </span>
-                      <p style={{ margin: 0 }}>{study.keyFinding[lang]}</p>
+                    <div className="science-library-card-body">
+                      <h4 className="science-library-card-title">
+                        {study.title[lang]}
+                      </h4>
+
+                      {!isExpanded ? (
+                        <div className="science-library-rule-row">
+                          <span className="science-library-field-label">
+                            {lang === 'es' ? 'HALLAZGO CLAVE' : 'KEY FINDING'}
+                          </span>
+                          <p style={{ margin: 0 }}>
+                            {getFirstSentence(study.keyFinding[lang])}{' '}
+                            {getFirstSentence(study.kidExplanation[lang])}
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="science-library-rule-row">
+                            <span className="science-library-field-label">
+                              {lang === 'es' ? 'INSTRUMENTO' : 'INSTRUMENT'}
+                            </span>
+                            <p style={{ margin: 0 }}>
+                              {study.organismOrInstrument[lang]}
+                            </p>
+                          </div>
+
+                          <div className="science-library-rule-row">
+                            <span className="science-library-field-label">
+                              {lang === 'es' ? 'HALLAZGO CLAVE' : 'KEY FINDING'}
+                            </span>
+                            <p style={{ margin: 0 }}>
+                              {study.keyFinding[lang]}
+                            </p>
+                          </div>
+
+                          <div className="science-library-rule-row">
+                            <span className="science-library-field-label">
+                              {lang === 'es' ? 'EXPLICACIÓN' : 'EXPLANATION'}
+                            </span>
+                            <p style={{ margin: 0 }}>
+                              {study.kidExplanation[lang]}
+                            </p>
+                          </div>
+
+                          <div className="science-library-rule-row">
+                            <span className="science-library-field-label">
+                              {lang === 'es' ? 'EN TU BASE' : 'AT YOUR BASE'}
+                            </span>
+                            <p style={{ margin: 0, fontWeight: 600 }}>
+                              {study.outpostTradeoffConnection[lang]}
+                            </p>
+                          </div>
+                        </>
+                      )}
+
+                      <button
+                        type="button"
+                        className="science-read-more-btn"
+                        style={MIN_TOUCH_TARGET_STYLE}
+                        aria-expanded={isExpanded}
+                        onClick={() => toggleCardExpanded(cardKey)}
+                      >
+                        <span>
+                          {isExpanded
+                            ? lang === 'es'
+                              ? 'Leer menos'
+                              : 'Show less'
+                            : lang === 'es'
+                              ? 'Leer más'
+                              : 'Read more'}
+                        </span>
+                      </button>
                     </div>
 
-                    <div className="science-library-rule-row">
-                      <span className="science-library-field-label">
-                        {lang === 'es'
-                          ? 'Explicación de Cuaderno'
-                          : 'Notebook Explanation'}
-                      </span>
-                      <p style={{ margin: 0 }}>{study.kidExplanation[lang]}</p>
+                    <div className="science-library-card-footer">
+                      <span>{study.telemetryMetric[lang]}</span>
+                      <a
+                        href={study.officialUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="science-ref-link"
+                      >
+                        <span>
+                          {lang === 'es'
+                            ? 'Abrir en NASA OSDR [REF]'
+                            : 'Open in NASA OSDR [REF]'}
+                        </span>
+                        <ArrowIcon size={12} direction="right" />
+                      </a>
                     </div>
-
-                    <div className="science-library-rule-row">
-                      <span className="science-library-field-label">
-                        {lang === 'es'
-                          ? 'Impacto en tus Órdenes de Trabajo'
-                          : 'Impact on Work Orders'}
-                      </span>
-                      <p style={{ margin: 0, fontWeight: 600 }}>
-                        {study.outpostTradeoffConnection[lang]}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="science-library-card-footer">
-                    <span>{study.telemetryMetric[lang]}</span>
-                    <a
-                      href={study.officialUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="science-ref-link"
-                    >
-                      <span>
-                        {lang === 'es'
-                          ? 'Abrir en NASA OSDR [REF]'
-                          : 'Open in NASA OSDR [REF]'}
-                      </span>
-                      <ArrowIcon size={12} direction="right" />
-                    </a>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           </div>
         )}
@@ -1239,11 +1371,11 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                     <GlobeIcon size={18} />
                     <span>
                       {lang === 'es'
-                        ? 'Archivo Fotográfico Oficial NASA (images-api.nasa.gov)'
-                        : 'Official NASA Photographic Archive (images-api.nasa.gov)'}
+                        ? 'Archivo fotográfico oficial NASA (images-api.nasa.gov)'
+                        : 'Official NASA photographic archive (images-api.nasa.gov)'}
                     </span>
                   </h3>
-                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.84rem' }}>
+                  <p style={{ margin: '0.2rem 0 0' }}>
                     {lang === 'es'
                       ? 'Registro visual de las misiones Artemis, Perseverance, SDO y cámaras botánicas Veggie.'
                       : 'Visual record from Artemis, Perseverance, SDO, and Veggie plant chambers.'}
@@ -1283,8 +1415,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                           ? 'Buscando...'
                           : 'Searching...'
                         : lang === 'es'
-                          ? 'Consultar Archivo NASA'
-                          : 'Query NASA Archive'}
+                          ? 'Consultar archivo NASA'
+                          : 'Query NASA archive'}
                     </span>
                   </button>
                 </form>
@@ -1307,7 +1439,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                     {
                       id: 'solar',
                       labelEs: 'Sol (Llamaradas SDO)',
-                      labelEn: 'Sun (SDO Flares)',
+                      labelEn: 'Sun (SDO flares)',
                     },
                     {
                       id: 'plants',
@@ -1345,6 +1477,9 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
               {galleryImages.map((img) => {
                 const imgFailed = failedImageIds[img.nasaId];
                 const descriptiveAlt = `${img.title[lang]} — ${img.kidCaption[lang]} (NASA ID: ${img.nasaId})`;
+                const cardKey = `photo-${img.nasaId}`;
+                const isExpanded = Boolean(expandedCardIds[cardKey]);
+
                 return (
                   <article key={img.nasaId} className="science-photo-card">
                     <div className="science-photo-frame">
@@ -1411,16 +1546,42 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                         {img.title[lang]}
                       </h4>
 
-                      <p style={{ margin: 0, fontSize: '0.82rem' }}>
-                        {img.kidCaption[lang]}
-                      </p>
+                      {!isExpanded ? (
+                        <p style={{ margin: 0 }}>
+                          {getFirstSentence(img.kidCaption[lang])}{' '}
+                          {getFirstSentence(img.scienceConnection[lang])}
+                        </p>
+                      ) : (
+                        <>
+                          <p style={{ margin: 0 }}>{img.kidCaption[lang]}</p>
+                          <div className="science-library-rule-row">
+                            <span className="science-library-field-label">
+                              {lang === 'es' ? 'CONEXIÓN NASA' : 'NASA LINK'}
+                            </span>
+                            <p style={{ margin: 0, fontWeight: 600 }}>
+                              {img.scienceConnection[lang]}
+                            </p>
+                          </div>
+                        </>
+                      )}
 
-                      <p
-                        className="science-library-rule-row"
-                        style={{ margin: 'auto 0 0', fontWeight: 600 }}
+                      <button
+                        type="button"
+                        className="science-read-more-btn"
+                        style={MIN_TOUCH_TARGET_STYLE}
+                        aria-expanded={isExpanded}
+                        onClick={() => toggleCardExpanded(cardKey)}
                       >
-                        {img.scienceConnection[lang]}
-                      </p>
+                        <span>
+                          {isExpanded
+                            ? lang === 'es'
+                              ? 'Leer menos'
+                              : 'Show less'
+                            : lang === 'es'
+                              ? 'Leer más'
+                              : 'Read more'}
+                        </span>
+                      </button>
                     </div>
 
                     <div className="science-library-card-footer">
@@ -1461,14 +1622,14 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                     <PatchIcon size={18} />
                     <span>
                       {lang === 'es'
-                        ? 'Verificación de Vuelo del Comandante — Ciencia Real NASA'
-                        : 'Commander Flight Verification — Real NASA Science'}
+                        ? 'Verificación de vuelo del comandante'
+                        : 'Commander flight verification'}
                     </span>
                   </h3>
-                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.86rem' }}>
+                  <p style={{ margin: '0.2rem 0 0', fontSize: '1rem' }}>
                     {lang === 'es'
-                      ? `Lista de verificación de ${totalQuestions} preguntas basadas en los dilemas reales de ingeniería (MOXIE, RAD, OSD-379, Shackleton, Jezero y DONKI).`
-                      : `Checklist of ${totalQuestions} questions drawn from real engineering dilemmas (MOXIE, RAD, OSD-379, Shackleton, Jezero & DONKI).`}
+                      ? `${totalQuestions} preguntas basadas en los dilemas reales de ingeniería de la NASA.`
+                      : `${totalQuestions} questions drawn from real NASA engineering dilemmas.`}
                   </p>
                 </div>
 
@@ -1498,8 +1659,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                     >
                       <span>
                         {lang === 'es'
-                          ? 'Reiniciar Verificación'
-                          : 'Reset Checklist'}
+                          ? 'Reiniciar verificación'
+                          : 'Reset checklist'}
                       </span>
                     </button>
                   )}
@@ -1511,18 +1672,18 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   [
                     {
                       id: 'all',
-                      labelEs: 'Todas las Preguntas (14)',
-                      labelEn: 'All Questions (14)',
+                      labelEs: 'Todas las preguntas (14)',
+                      labelEn: 'All questions (14)',
                     },
                     {
                       id: 'moon-shackleton',
-                      labelEs: 'Base Lunar (Shackleton / Artemis)',
-                      labelEn: 'Lunar Base (Shackleton / Artemis)',
+                      labelEs: 'Base lunar (Shackleton)',
+                      labelEn: 'Lunar base (Shackleton)',
                     },
                     {
                       id: 'mars-jezero',
-                      labelEs: 'Base Marciana (Jezero / MOXIE)',
-                      labelEn: 'Martian Base (Jezero / MOXIE)',
+                      labelEs: 'Base marciana (Jezero)',
+                      labelEn: 'Martian base (Jezero)',
                     },
                   ] as const
                 ).map((filterBtn) => (
@@ -1555,15 +1716,15 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                 <strong>
                   {correctCount === totalQuestions
                     ? lang === 'es'
-                      ? 'CERTIFICACIÓN COMPLETA: Comandante Científico Jefe de la NASA. Todas las respuestas verificadas.'
-                      : 'CERTIFICATION COMPLETE: Chief NASA Science Commander. All answers verified.'
+                      ? 'Certificación completa: Comandante científico jefe de la NASA. Todas las respuestas verificadas.'
+                      : 'Certification complete: Chief NASA science commander. All answers verified.'
                     : correctCount >= Math.ceil(totalQuestions * 0.65)
                       ? lang === 'es'
-                        ? 'CERTIFICACIÓN APROBADA: Especialista de Misión Artemis & Marte.'
-                        : 'CERTIFICATION PASSED: Artemis & Mars Mission Specialist.'
+                        ? 'Certificación aprobada: Especialista de misión Artemis y Marte.'
+                        : 'Certification passed: Artemis & Mars mission specialist.'
                       : lang === 'es'
-                        ? 'REVISIÓN RECOMENDADA: Consulta las notas técnicas de la NASA bajo cada pregunta y vuelve a intentarlo.'
-                        : 'REVIEW RECOMMENDED: Check the NASA technical notes below each question and try again.'}
+                        ? 'Revisión recomendada: Consulta las notas de la NASA bajo cada pregunta y vuelve a intentarlo.'
+                        : 'Review recommended: Check the NASA notes below each question and try again.'}
                 </strong>
               </div>
             )}
@@ -1596,11 +1757,11 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                         >
                           {chosenRight
                             ? lang === 'es'
-                              ? '[VERIFICADO: CORRECTO]'
-                              : '[VERIFIED: CORRECT]'
+                              ? '[VERIFICADO]'
+                              : '[VERIFIED]'
                             : lang === 'es'
-                              ? '[REVISAR NOTA TÉCNICA]'
-                              : '[REVIEW TECHNICAL NOTE]'}
+                              ? '[REVISAR NOTA]'
+                              : '[REVIEW NOTE]'}
                         </span>
                       )}
                     </div>
@@ -1609,7 +1770,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                       <h4
                         style={{
                           margin: 0,
-                          fontSize: '0.96rem',
+                          fontSize: '1.05rem',
                           fontWeight: 700,
                         }}
                       >
@@ -1662,9 +1823,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                       {isAnswered && (
                         <div className="science-library-rule-row">
                           <span className="science-library-field-label">
-                            {lang === 'es'
-                              ? 'Nota Técnica de Verificación NASA'
-                              : 'NASA Verification Technical Note'}
+                            {lang === 'es' ? 'NOTA NASA' : 'NASA NOTE'}
                           </span>
                           <p style={{ margin: 0 }}>{q.explanation[lang]}</p>
                         </div>
