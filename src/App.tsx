@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Language, OutpostSiteId, TradeoffChoice } from './types/mission';
 import { OUTPOST_SITES } from './data/scenarios';
 import { KID_SCIENCE_GLOSSARY, getGlossaryTerm } from './data/nasa-datasets';
-import { getCommDelaySeconds } from './engine/simulationEngine';
+import { getCommDelaySeconds, getCrewReaction, getCrewStatus } from './engine/simulationEngine';
 import { buildChallengeUrl, getDailyChallengeSeed, useMission } from './hooks/useMission';
 import { useClassBoard } from './hooks/useClassBoard';
 import { OutpostMap } from './components/OutpostView/OutpostMap';
@@ -12,6 +12,7 @@ import { MissionBriefing } from './components/MissionHUD/MissionBriefing';
 import { TurnReport } from './components/MissionHUD/TurnReport';
 import { ScienceModal } from './components/ScienceTraceability/ScienceModal';
 import { SourceStamp } from './components/ScienceTraceability/SourceStamp';
+import { CrewRoster } from './components/crew';
 import { WorkOrder, inferSource } from './components/Mission/WorkOrder';
 import { ClassBoard } from './components/Mission/ClassBoard';
 import { ArrowIcon, LanguageIcon, PatchIcon, ScienceIcon, SoundIcon } from './components/icons';
@@ -20,6 +21,15 @@ import { missionAudio } from './utils/sound';
 const SOLAR_STORM_TYPES = ['FLR', 'SEP', 'CME'];
 /** Tiempo que el sello "EJECUTADA" queda a la vista antes de avanzar el día. */
 const STAMP_MS = 650;
+
+const QUIZ_ACE_KEY = 'jamt-quiz-ace-v1';
+const readQuizAce = () => {
+  try {
+    return window.localStorage.getItem(QUIZ_ACE_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
 
 const siteShortName = (siteId: OutpostSiteId, lang: Language) =>
   siteId === 'moon-shackleton'
@@ -40,13 +50,14 @@ export const App: React.FC = () => {
   const [executingId, setExecutingId] = useState<string | null>(null);
   const [boardName, setBoardName] = useState('');
   const [boardSaved, setBoardSaved] = useState(false);
+  const [quizAce, setQuizAce] = useState<boolean>(readQuizAce);
   const stampTimer = useRef<number | null>(null);
 
   const {
     mission,
     weatherStatus,
     projection,
-    evaluation,
+    evaluation: baseEvaluation,
     isBriefing,
     challengeSeed,
     lastTurn,
@@ -69,6 +80,42 @@ export const App: React.FC = () => {
   );
 
   const es = lang === 'es';
+
+  // Parche extra por acertar todo el quiz de ciencia (se guarda en este dispositivo).
+  const evaluation = useMemo(
+    () => ({
+      ...baseEvaluation,
+      badges: [
+        ...baseEvaluation.badges,
+        {
+          id: 'quiz-ace',
+          title: { es: 'As del quiz', en: 'Quiz ace' },
+          description: {
+            es: 'Respondiste bien todas las preguntas del quiz de ciencia NASA.',
+            en: 'You answered every NASA science quiz question correctly.',
+          },
+          earned: quizAce,
+        },
+      ],
+    }),
+    [baseEvaluation, quizAce],
+  );
+  const crew = useMemo(() => getCrewStatus(mission), [mission]);
+  const crewReaction = useMemo(
+    () => (lastTurn ? getCrewReaction(lastTurn.previous, lastTurn.current) : null),
+    [lastTurn],
+  );
+
+  const handleQuizComplete = (correct: number, total: number) => {
+    if (total > 0 && correct === total && !quizAce) {
+      setQuizAce(true);
+      try {
+        window.localStorage.setItem(QUIZ_ACE_KEY, '1');
+      } catch {
+        // Sin almacenamiento: el parche dura mientras la pestaña esté abierta.
+      }
+    }
+  };
   const currentSite = OUTPOST_SITES[mission.siteId];
   const todaySeed = getDailyChallengeSeed();
   const weatherIsLive = mission.currentWeather.isLiveNasaData;
@@ -310,6 +357,7 @@ export const App: React.FC = () => {
               evaluation={evaluation}
               onChangeAllocation={setAllocation}
               onOpenBadgesModal={() => setIsBadgesOpen(true)}
+              crew={crew}
             />
 
             <div className="mission-center-col">
@@ -334,6 +382,7 @@ export const App: React.FC = () => {
                   day={lastTurn.day}
                   siteDayName={currentSite.dayName}
                   onContinue={handleContinueAfterReport}
+                  crewLine={crewReaction ?? undefined}
                 />
               )}
 
@@ -374,6 +423,10 @@ export const App: React.FC = () => {
                       {es ? 'Clima de hoy' : 'Today’s weather'}:{' '}
                       {mission.currentWeather.title[lang]}
                     </span>
+                  </div>
+
+                  <div className="crew-strip">
+                    <CrewRoster lang={lang} crew={crew} />
                   </div>
 
                   <div className="choices-grid">
@@ -462,6 +515,40 @@ export const App: React.FC = () => {
                     )}
                   </div>
 
+                  {evaluation.rank.id !== 'star-commander' && (
+                    <div className="top-rank-checks">
+                      <h3>
+                        {es
+                          ? 'Qué pide el rango máximo, Comandante Estelar'
+                          : 'What the top rank, Star Commander, requires'}
+                      </h3>
+                      <ul>
+                        {evaluation.topRankChecks.map((check) => (
+                          <li
+                            key={check.id}
+                            className={check.met ? 'top-rank-met' : 'top-rank-missing'}
+                          >
+                            <span className="top-rank-mark" aria-hidden="true">
+                              {check.met ? '✓' : '·'}
+                            </span>
+                            <span>
+                              {check.label[lang]}
+                              <span className="sr-only">
+                                {check.met
+                                  ? es
+                                    ? ' (cumplido)'
+                                    : ' (met)'
+                                  : es
+                                    ? ' (falta)'
+                                    : ' (missing)'}
+                              </span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
                   {challengeSeed !== null && (
                     <div className="board-entry">
                       <label htmlFor="board-name-input">
@@ -542,6 +629,7 @@ export const App: React.FC = () => {
         currentWeather={mission.currentWeather}
         focusTermId={focusTermId}
         siteId={mission.siteId}
+        onQuizComplete={handleQuizComplete}
       />
 
       <CommanderCertificate
@@ -555,6 +643,7 @@ export const App: React.FC = () => {
         missionStatus={mission.status}
         onRestartMission={handleResetMission}
         history={mission.engine?.history}
+        crew={crew}
       />
     </div>
   );

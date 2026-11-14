@@ -12,6 +12,8 @@ import {
   advanceMissionTurn,
   createInitialMissionState,
   evaluateCommanderPerformance,
+  getCrewReaction,
+  getCrewStatus,
   selectNextWeather,
   selectStartingWeather,
 } from '../simulationEngine';
@@ -194,5 +196,102 @@ describe('balance (Monte Carlo)', () => {
     expect(random).toBeGreaterThanOrEqual(0.55);
     expect(random).toBeLessThanOrEqual(0.97);
     expect(reckless).toBeLessThanOrEqual(0.15);
+  });
+});
+
+describe('rango máximo (Comandante Estelar)', () => {
+  const starRate = (site: (typeof SITES)[number], strat: Strategy, n = 400) => {
+    let stars = 0;
+    for (let i = 0; i < n; i++) {
+      const s = playMission(site, i * 97 + 13, strat);
+      if (evaluateCommanderPerformance(s).rank.id === 'star-commander') stars++;
+    }
+    return stars / n;
+  };
+
+  // Alterna opciones sin mirar: primera, segunda, primera…
+  let turn = 0;
+  const alternate: Strategy = {
+    alloc: () => DEFAULT_POWER_ALLOCATION,
+    pick: (s) => s.currentDilemma!.choices[turn++ % s.currentDilemma!.choices.length],
+  };
+
+  it.each(SITES)('%s: no se consigue jugando al azar ni alternando opciones', (site) => {
+    expect(starRate(site, STRATEGIES.randomDefault)).toBeLessThanOrEqual(0.05);
+    expect(starRate(site, alternate)).toBeLessThanOrEqual(0.05);
+  });
+
+  it.each(SITES)('%s: sí es alcanzable planificando (búsqueda de la mejor ruta)', (site) => {
+    const presets: PowerAllocation[] = [
+      DEFAULT_POWER_ALLOCATION,
+      { lifeSupportAlloc: 25, shieldingAlloc: 40, greenhouseAlloc: 20, scienceAndCommsAlloc: 10 },
+      { lifeSupportAlloc: 20, shieldingAlloc: 20, greenhouseAlloc: 20, scienceAndCommsAlloc: 15 },
+      { lifeSupportAlloc: 35, shieldingAlloc: 20, greenhouseAlloc: 35, scienceAndCommsAlloc: 10 },
+    ];
+    const heuristic = (s: MissionState) => {
+      const r = s.resources;
+      return (
+        evaluateCommanderPerformance(s).score +
+        Math.min(r.power, r.lifeSupport, r.food, r.crewHealth) * 0.5
+      );
+    };
+    const seeds = 12;
+    let reachable = 0;
+    for (let i = 0; i < seeds; i++) {
+      const seed = i * 97 + 13;
+      let beam = [createInitialMissionState(site, selectStartingWeather(site, POOL, seed), seed)];
+      const finished: MissionState[] = [];
+      while (beam.length > 0) {
+        const next: MissionState[] = [];
+        for (const s of beam) {
+          for (const choice of s.currentDilemma!.choices) {
+            for (const alloc of presets) {
+              const n = advanceMissionTurn(s, choice, selectNextWeather(s, POOL), alloc);
+              (n.status === 'playing' ? next : finished).push(n);
+            }
+          }
+        }
+        beam = next.sort((a, b) => heuristic(b) - heuristic(a)).slice(0, 80);
+      }
+      if (finished.some((s) => evaluateCommanderPerformance(s).rank.id === 'star-commander')) {
+        reachable++;
+      }
+    }
+    expect(reachable / seeds).toBeGreaterThanOrEqual(0.5);
+  });
+
+  it('explica qué requisito faltó', () => {
+    const s = playMission('moon-shackleton', 5, STRATEGIES.recklessScience);
+    const ev = evaluateCommanderPerformance(s);
+    expect(ev.rank.id).not.toBe('star-commander');
+    expect(ev.topRankChecks.some((c) => !c.met)).toBe(true);
+  });
+});
+
+describe('tripulación', () => {
+  it('cada tripulante vigila un sistema y siempre tiene frase en los dos idiomas', () => {
+    const s = createInitialMissionState('mars-jezero', POOL[0], 1);
+    const crew = getCrewStatus(s);
+    expect(crew.map((c) => c.member.id)).toEqual(['commander', 'engineer', 'botanist', 'medic']);
+    for (const c of crew) {
+      expect(c.line.es.length).toBeGreaterThan(0);
+      expect(c.line.en.length).toBeGreaterThan(0);
+      expect(c.line.es.length).toBeLessThanOrEqual(90);
+    }
+  });
+
+  it('el ánimo empeora cuando su sistema cae', () => {
+    const s = createInitialMissionState('moon-shackleton', POOL[0], 1);
+    const low = { ...s, resources: { ...s.resources, power: 10, food: 30 } };
+    const crew = getCrewStatus(low);
+    expect(crew.find((c) => c.member.id === 'engineer')!.mood).toBe('critical');
+    expect(crew.find((c) => c.member.id === 'botanist')!.mood).toBe('worried');
+  });
+
+  it('comenta el turno quien más cambió, o nadie si no cambió nada', () => {
+    const s = createInitialMissionState('moon-shackleton', POOL[0], 1);
+    const after = { ...s.resources, power: s.resources.power - 20, food: s.resources.food - 4 };
+    expect(getCrewReaction(s.resources, after)?.member.id).toBe('engineer');
+    expect(getCrewReaction(s.resources, s.resources)).toBeNull();
   });
 });

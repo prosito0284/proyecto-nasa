@@ -77,12 +77,15 @@ Este repositorio está configurado para el trabajo simultáneo de **2 desarrolla
 
 ---
 
-## 4. Estado Actual de Integración (Fase 4 en `main`)
+## 4. Estado Actual de Integración (Fase 5 en `main`)
 
-- ✅ **Ronda 3 integrada:** C8–C12 y B7–B10 revisados y fusionados sin conflictos. Identidad "Cuaderno de Vuelo" aplicada; cero emoji en toda la app.
-- ✅ **Conexiones del Líder:** cada opción es una orden de trabajo (`components/Mission/WorkOrder.tsx`, columnas Ganas / Pagas y sello al firmar), sellos de procedencia en dilemas y bitácora, estado de DONKI en vivo o archivo, y tabla del aula del Reto del día (`components/Mission/ClassBoard.tsx`, solo en el dispositivo).
-- ✅ `npm test`: 19 pruebas. Verificado en móvil, tablet y escritorio con partida completa en Luna y Marte.
-- Estilos del Líder en `src/styles/lead.css` (usa los tokens de `index.css`).
+- ✅ **Ronda 4 integrada:** C13–C17 y B11–B15 fusionados sin conflictos; cada bloque tocó solo sus archivos.
+- ✅ **Tripulación:** `src/data/crew.ts` (4 personas) y `getCrewStatus` / `getCrewReaction` en el motor. Conectada al panel de vitales, a la decisión del día, al informe y al certificado.
+- ✅ **Rango máximo con disciplina:** Comandante Estelar exige 73 puntos y no dejar caer ningún vital en toda la misión (`TOP_RANK`). La pantalla final muestra qué requisito faltó.
+- ✅ Parche "As del quiz" por acertar todo el quiz; órdenes de trabajo sin la nota repetida; regla tipográfica aplicada en `lead.css`.
+- ✅ Corregido: el botón "Firmar y ejecutar" se escapaba del cursor porque el panel de vitales cambiaba de alto al previsualizar (scroll anchoring).
+- ✅ `npm test`: 28 pruebas.
+- ⚠️ **`docs/FUENTES.md` no es fiable para `scenarios.ts`:** varias filas citan textos que no existen en ese archivo. Ver la nota del Líder al inicio del documento. Queda pendiente una verificación humana de las cifras.
 
 ### Arquitectura (flujo de datos en una sola dirección)
 
@@ -159,7 +162,7 @@ El niño no usa un dashboard: lleva el **cuaderno de vuelo** de su misión, como
 
 ---
 
-## 7. 📋 RONDA 4 — Tripulación, menos texto y más reto
+## 7. Ronda 4 (completada) — Tripulación, menos texto y más reto
 
 **Diagnóstico del Líder tras la Ronda 3.** La identidad ya es propia. Lo que falta para un niño de 7 a 12 años: (1) no hay personas, la "salud" es solo una barra; (2) hay demasiado texto y todo va en mayúsculas condensadas; (3) el panel izquierdo sigue pareciendo un tablero; (4) el rango máximo sale demasiado fácil.
 
@@ -192,3 +195,14 @@ El niño no usa un dashboard: lleva el **cuaderno de vuelo** de su misión, como
 - Conectar `CrewRoster`, `crew` en el panel, `crewLine` en el informe y `onQuizComplete` (parche por quiz perfecto).
 - Rebalanceo de rangos: el máximo debe exigir planificación; prueba automática que lo impida con decisiones al azar.
 - Recorte de texto en las órdenes de trabajo y aplicar las correcciones de B11.
+
+---
+
+## 8. Pendientes conocidos para la entrega
+
+| Dueño | Pendiente |
+|---|---|
+| Equipo humano | Abrir las fuentes y confirmar las cifras que el juego muestra (ver nota en `docs/FUENTES.md`). |
+| Bloque C | Checklist de vitales: las etiquetas se parten en varias líneas en el panel estrecho; en `TurnReport` falta un separador entre nombre y rol del tripulante. |
+| Bloque B | Repetir la auditoría de `scenarios.ts` citando el texto real del archivo. |
+| Líder | Grabar la demo con `docs/DEMO.md` y revisar los textos en inglés de `scenarios.ts`. |

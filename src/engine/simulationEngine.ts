@@ -10,6 +10,8 @@
 
 import {
   CoreResources,
+  CrewMood,
+  CrewStatus,
   EngineTelemetry,
   LocalizedText,
   MissionDilemmaCard,
@@ -20,6 +22,7 @@ import {
   SpaceWeatherEvent,
   TradeoffChoice,
 } from '../types/mission';
+import { CREW_LINES, CREW_MEMBERS, CREW_REACTIONS, CREW_WEATHER_LINES } from '../data/crew';
 import {
   INITIAL_DILEMMA_CARDS,
   OUTPOST_SITES,
@@ -395,7 +398,6 @@ export function advanceMissionTurn(
       title: { es: 'Consecuencia de ayer', en: 'Yesterday’s consequence' },
       detail: eff.description,
       severity: 'watch',
-      nasaTag: 'CHAIN',
     });
   }
 
@@ -567,7 +569,6 @@ export function advanceMissionTurn(
           : 'No badges earned yet. Try another strategy!',
       },
       severity: status === 'won' ? 'nominal' : 'critical',
-      nasaTag: 'COMMANDER',
     });
   }
 
@@ -599,7 +600,7 @@ export interface CommanderRank {
 export const COMMANDER_RANKS: CommanderRank[] = [
   {
     id: 'star-commander',
-    minScore: 80,
+    minScore: 73,
     title: { es: 'Comandante Estelar', en: 'Star Commander' },
     message: {
       es: '¡Equilibraste todos los sistemas como un verdadero director de vuelo de la NASA!',
@@ -663,10 +664,20 @@ export interface CommanderEvaluation {
     science: number;
   };
   missionDoseMsv: number;
+  /** Lista de requisitos del rango máximo y cuáles se cumplen (para mostrar qué faltó). */
+  topRankChecks: Array<{ id: string; met: boolean; label: LocalizedText }>;
 }
 
 const ISRU_CHOICES = ['launch-eva', 'psr-rover-ice-run', 'build-berm', 'regolith-sandbags'];
 const SCIENCE_TARGET = 120;
+
+/** Requisitos del rango máximo (Comandante Estelar): puntos Y disciplina durante toda la misión. */
+export const TOP_RANK = {
+  minScore: 73,
+  minPower: 25,
+  minSupplies: 40,
+  minCrewHealth: 70,
+};
 
 /**
  * Calcula la puntuación (0-100), el rango de Comandante Junior y las insignias.
@@ -691,7 +702,49 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
   const science = Math.round(Math.min(1, sciEarned / SCIENCE_TARGET) * 15);
 
   const score = Math.max(0, Math.min(100, survival + resources + crew + radiation + science));
-  const rank = COMMANDER_RANKS.find((rk) => score >= rk.minScore) ?? COMMANDER_RANKS[COMMANDER_RANKS.length - 1];
+  // El rango máximo no se gana solo con puntos: exige haber planificado toda la misión,
+  // sin dejar que ningún sistema vital llegue a zona de riesgo en ningún día.
+  const topRankChecks: CommanderEvaluation['topRankChecks'] = [
+    {
+      id: 'won',
+      met: state.status === 'won',
+      label: { es: 'Completar los 8 días', en: 'Complete all 8 days' },
+    },
+    {
+      id: 'score',
+      met: score >= TOP_RANK.minScore,
+      label: { es: `Lograr ${TOP_RANK.minScore} puntos o más`, en: `Score ${TOP_RANK.minScore} or more` },
+    },
+    {
+      id: 'power',
+      met: tel.minPower >= TOP_RANK.minPower,
+      label: {
+        es: `La batería nunca bajó de ${TOP_RANK.minPower}%`,
+        en: `Battery never fell below ${TOP_RANK.minPower}%`,
+      },
+    },
+    {
+      id: 'supplies',
+      met: tel.minLifeSupport >= TOP_RANK.minSupplies && tel.minFood >= TOP_RANK.minSupplies,
+      label: {
+        es: `Aire, agua y comida nunca bajaron de ${TOP_RANK.minSupplies}%`,
+        en: `Air, water and food never fell below ${TOP_RANK.minSupplies}%`,
+      },
+    },
+    {
+      id: 'crew',
+      met: tel.minCrewHealth >= TOP_RANK.minCrewHealth,
+      label: {
+        es: `La salud de la tripulación nunca bajó de ${TOP_RANK.minCrewHealth}%`,
+        en: `Crew health never fell below ${TOP_RANK.minCrewHealth}%`,
+      },
+    },
+  ];
+  const earnsTopRank = topRankChecks.every((c) => c.met);
+  const rank =
+    COMMANDER_RANKS.find(
+      (rk) => score >= rk.minScore && (rk.id !== 'star-commander' || earnsTopRank)
+    ) ?? COMMANDER_RANKS[COMMANDER_RANKS.length - 1];
 
   const finished = state.status === 'won';
   const choices = tel.history.map((h) => h.choiceId);
@@ -789,8 +842,65 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
     badges,
     breakdown: { survival, resources, crew, radiation, science },
     missionDoseMsv,
+    topRankChecks,
   };
 }
 
 /** Compatibilidad: listado completo de tarjetas por si la UI lo necesita. */
 export const ALL_DILEMMA_CARDS = INITIAL_DILEMMA_CARDS;
+
+// ───────────────────────────── Tripulación ─────────────────────────────
+
+function moodFor(value: number): CrewMood {
+  if (value >= 70) return 'great';
+  if (value >= 45) return 'ok';
+  if (value >= 25) return 'worried';
+  return 'critical';
+}
+
+/**
+ * Estado de cada tripulante según el sistema que vigila y el clima de hoy.
+ * La UI lo usa para mostrar caras y frases en lugar de solo barras.
+ */
+export function getCrewStatus(state: MissionState): CrewStatus[] {
+  const weather = state.currentWeather;
+  const isStorm = weather.radiationMultiplier > 1.5;
+  const isDim = weather.solarEfficiencyMultiplier < 0.7;
+
+  return CREW_MEMBERS.map((member) => {
+    const value = state.resources[member.watches];
+    let mood = moodFor(value);
+    let line = CREW_LINES[member.id][mood];
+
+    if (member.id === 'medic' && isStorm && value < STORM_SAFE_SHIELDING) {
+      if (mood === 'great' || mood === 'ok') mood = 'worried';
+      line = CREW_WEATHER_LINES.medicStorm;
+    } else if (member.id === 'engineer' && isDim && mood !== 'critical') {
+      if (mood === 'great') mood = 'ok';
+      line = CREW_WEATHER_LINES.engineerDim;
+    }
+    return { member, mood, line };
+  });
+}
+
+/**
+ * Tripulante que comenta el turno recién jugado: aquel cuyo sistema cambió más.
+ * Devuelve null si nada cambió de forma apreciable.
+ */
+export function getCrewReaction(previous: CoreResources, current: CoreResources): CrewStatus | null {
+  let best: { index: number; delta: number } | null = null;
+  CREW_MEMBERS.forEach((member, index) => {
+    const delta = current[member.watches] - previous[member.watches];
+    if (Math.abs(delta) >= 3 && (!best || Math.abs(delta) > Math.abs(best.delta))) {
+      best = { index, delta };
+    }
+  });
+  if (!best) return null;
+  const { index, delta } = best as { index: number; delta: number };
+  const member = CREW_MEMBERS[index];
+  return {
+    member,
+    mood: moodFor(current[member.watches]),
+    line: delta < 0 ? CREW_REACTIONS[member.id].drop : CREW_REACTIONS[member.id].rise,
+  };
+}

@@ -438,8 +438,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
       'Coronal mass ejection inbound'
     ),
     situation: t(
-      'El modelo WSA-ENLIL de la NASA calcula que una nube gigante de plasma solar (CME) llegará en pocas horas. Tienes tiempo para prepararte… pero prepararse cuesta.',
-      'NASA’s WSA-ENLIL model predicts a giant cloud of solar plasma (CME) will arrive within hours. You have time to prepare… but preparing has a cost.'
+      'El modelo WSA-ENLIL de la NASA calcula que una nube gigante de plasma solar (CME) llegará en menos de un día. Hay tiempo para prepararse, pero prepararse cuesta.',
+      'NASA’s WSA-ENLIL model predicts a giant cloud of solar plasma (CME) will arrive in less than a day. There is time to prepare, but preparing has a cost.'
     ),
     choices: [
       {
@@ -1060,8 +1060,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           resourceDelta: { food: -12 },
         },
         outcomeFeedback: t(
-          'El MOXIE real produjo 122 gramos de oxígeno en 16 pruebas: ¡lo que respira un perro en 10 horas! Una base necesitaría una versión 200 veces más grande.',
-          'The real MOXIE made 122 grams of oxygen over 16 runs—what a dog breathes in 10 hours! A base would need a version 200 times bigger.'
+          'El MOXIE real produjo 122 gramos de oxígeno en 16 pruebas: lo que respira un perro pequeño en unas 10 horas. Una base con personas necesitaría una versión mucho más grande.',
+          'The real MOXIE made 122 grams of oxygen over 16 runs—about what a small dog breathes in 10 hours. A crewed base would need a much bigger version.'
         ),
         nasaDataReference: 'NASA MOXIE (Mars 2020) — 122 g O₂ over 16 runs, up to 12 g/h',
       },

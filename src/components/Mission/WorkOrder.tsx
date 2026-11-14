@@ -148,8 +148,6 @@ export const WorkOrder: React.FC<WorkOrderProps> = ({
         </section>
       </div>
 
-      <p className="wo-note">{choice.tradeoffWarning[lang]}</p>
-
       <footer className="wo-foot">
         <div className="wo-source">
           {source && (

@@ -2,6 +2,13 @@
 
 Este documento registra la verificación exhaustiva de **cada cifra y afirmación científica** incluida en `src/data/scenarios.ts` (Bloque A / Líder) y `src/data/nasa-datasets.ts` (Bloque B / Datos NASA), contrastada directamente contra su publicación, estándar técnico o comunicado oficial de la NASA.
 
+> **Nota del Líder (revisión de esta auditoría).** Al contrastar esta tabla con el código encontré que varias filas citan textos y números de línea de `src/data/scenarios.ts` que **no existen en ese archivo** (por ejemplo: percloratos de Phoenix, escudos Whipple, "muro de bolsas de agua de 10-15 cm", "más de 1,000 genes", "~28 días", "1/6 g", o el dilema `moon-dilemma-solar-storm-cme`). Por eso:
+> - Las filas sobre `src/data/nasa-datasets.ts` y las correcciones hechas ahí se aceptan tal como las reporta el Bloque B, pero **no fueron verificadas de forma independiente**: el entorno del Líder no tiene acceso a los sitios de la NASA.
+> - Las filas que atribuyen citas a `scenarios.ts` deben tratarse como **no auditadas** hasta repetir la revisión contra el texto real del archivo.
+> - Las dos "sugerencias para el Líder" no se aplicaron: la primera se refiere a un texto que no existe y la segunda confirma que -180 °C es un redondeo válido.
+> - Cambios que sí hizo el Líder en `scenarios.ts` por prudencia: "perro pequeño en unas 10 horas" (frase de la NASA según esta auditoría), se quitó "200 veces más grande" (cifra sin fuente comprobada) y la llegada de una CME pasó de "pocas horas" a "menos de un día".
+> - **Pendiente antes de entregar:** que una persona abra las fuentes y confirme las cifras que el juego muestra a los niños.
+
 ## Resumen de la Auditoría
 
 | Categoría | Cantidad | Acción tomada |
