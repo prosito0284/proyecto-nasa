@@ -395,7 +395,7 @@ export const VERIFIED_NASA_GALLERY_IMAGES: NasaGalleryImage[] = [
       es: 'Conecta con: Base Lunar Artemis (89.9°S) y extracción de hielo en regolito (ISRU).',
       en: 'Connects to: Artemis Lunar Outpost (89.9°S) and regolith ice extraction (ISRU).',
     },
-    fallbackEmoji: '🌕',
+    fallbackEmoji: 'LRO-MOON',
   },
   {
     nasaId: 'PIA24486',
@@ -416,7 +416,7 @@ export const VERIFIED_NASA_GALLERY_IMAGES: NasaGalleryImage[] = [
       es: 'Conecta con: Estación Marciana Jezero, tormentas de polvo MEDA y retraso de luz.',
       en: 'Connects to: Jezero Martian Outpost, MEDA dust storms, and light-time comm delay.',
     },
-    fallbackEmoji: '🔴',
+    fallbackEmoji: 'MARS-2020',
   },
   {
     nasaId: 'GSFC_20171208_Archive_e001435',
@@ -431,14 +431,14 @@ export const VERIFIED_NASA_GALLERY_IMAGES: NasaGalleryImage[] = [
       'https://images-assets.nasa.gov/image/GSFC_20171208_Archive_e001435/GSFC_20171208_Archive_e001435~orig.jpg',
     sourcePageUrl: 'https://images.nasa.gov/details/GSFC_20171208_Archive_e001435',
     kidCaption: {
-      es: '¡Mira ese destello brillante! El satélite SDO fotografía el Sol en luz ultravioleta extrema cada 12 segundos para alimentar el sistema de alertas NASA DONKI.',
-      en: 'Look at that bright flash! The SDO satellite photographs the Sun in extreme ultraviolet light every 12 seconds to feed the NASA DONKI alert system.',
+      es: 'El satélite SDO fotografía el Sol en luz ultravioleta extrema cada 12 segundos para alimentar el sistema de alertas NASA DONKI.',
+      en: 'The SDO satellite photographs the Sun in extreme ultraviolet light every 12 seconds to feed the NASA DONKI alert system.',
     },
     scienceConnection: {
       es: 'Conecta con: Telemetría NASA DONKI (eventos FLR, SEP y CME) y escudo de radiación.',
       en: 'Connects to: NASA DONKI telemetry (FLR, SEP, and CME events) and radiation shielding.',
     },
-    fallbackEmoji: '☀️',
+    fallbackEmoji: 'SDO-SOLAR',
   },
   {
     nasaId: 'iss044e045595',
@@ -459,7 +459,7 @@ export const VERIFIED_NASA_GALLERY_IMAGES: NasaGalleryImage[] = [
       es: 'Conecta con: Estudio NASA OSDR OSD-379 / Veggie y el presupuesto de energía del invernadero.',
       en: 'Connects to: NASA OSDR Study OSD-379 / Veggie and greenhouse power budgeting.',
     },
-    fallbackEmoji: '🌱',
+    fallbackEmoji: 'OSDR-VEGGIE',
   },
   {
     nasaId: 'PIA24321',
@@ -480,7 +480,7 @@ export const VERIFIED_NASA_GALLERY_IMAGES: NasaGalleryImage[] = [
       es: 'Conecta con: Soporte Vital en Marte y el alto costo eléctrico de producir oxígeno.',
       en: 'Connects to: Mars Life Support and the high electrical cost of producing oxygen.',
     },
-    fallbackEmoji: '⚙️',
+    fallbackEmoji: 'ISRU-MOXIE',
   },
   {
     nasaId: 'PIA16938',
@@ -501,11 +501,15 @@ export const VERIFIED_NASA_GALLERY_IMAGES: NasaGalleryImage[] = [
       es: 'Conecta con: Dosis acumulada en mSv y protección de la salud de los astronautas.',
       en: 'Connects to: Accumulated mSv dose and protecting astronaut crew health.',
     },
-    fallbackEmoji: '🛡️',
+    fallbackEmoji: 'MSL-RAD',
   },
 ];
 
-export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
+export type GlossaryTermWithEvidence = GlossaryTerm & {
+  howWeKnow?: LocalizedText;
+};
+
+export const KID_SCIENCE_GLOSSARY: GlossaryTermWithEvidence[] = [
   {
     id: 'sep',
     term: {
@@ -519,6 +523,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
     kidAnalogy: {
       es: 'Imagina una lluvia de granizo invisible: en la Tierra nuestro campo magnético nos sirve de paraguas, pero en la Luna y Marte necesitas paredes llenas de agua para frenarlas.',
       en: 'Imagine invisible hailstones: on Earth our magnetic field acts like an umbrella, but on the Moon and Mars you need water-filled walls to stop them.',
+    },
+    howWeKnow: {
+      es: 'Medido en órbita por los sensores de partículas SEISS de los satélites GOES-16/18 y ERNE en SOHO, y en el suelo de Marte por el detector RAD del rover Curiosity (NASA DONKI / MSL-RAD).',
+      en: 'Measured in orbit by SEISS particle sensors aboard GOES-16/18 and ERNE on SOHO, and on the Martian surface by the Curiosity rover’s RAD detector (NASA DONKI / MSL-RAD).',
     },
     nasaSource: 'DONKI',
     nasaStudyOrUrl: 'https://kauai.ccmc.gsfc.nasa.gov/DONKI/',
@@ -537,6 +545,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
       es: 'Es como el flash de una cámara colosal en el Sol: su luz llega en minutos y avisa a los astronautas que una tormenta de partículas puede venir detrás.',
       en: 'It’s like a colossal camera flash on the Sun: its light arrives in minutes and warns astronauts that a particle storm might be right behind it.',
     },
+    howWeKnow: {
+      es: 'Clasificado en tiempo real por los sensores de rayos X (1–8 Å) de los satélites GOES y fotografiado cada 12 segundos en ultravioleta extremo por el telescopio AIA del observatorio SDO de la NASA.',
+      en: 'Classified in real time by X-ray sensors (1–8 Å) on GOES satellites and photographed every 12 seconds in extreme ultraviolet by the AIA telescope on NASA’s Solar Dynamics Observatory (SDO).',
+    },
     nasaSource: 'DONKI',
     nasaStudyOrUrl: 'https://kauai.ccmc.gsfc.nasa.gov/DONKI/',
   },
@@ -553,6 +565,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
     kidAnalogy: {
       es: 'Si la llamarada (FLR) es el relámpago de luz, la CME es la bola de cañón gigante que tarda de 1 a 3 días en llegar y sacudir los sistemas eléctricos.',
       en: 'If a solar flare (FLR) is the lightning flash, a CME is the giant cannonball that takes 1 to 3 days to arrive and rattle electrical grids.',
+    },
+    howWeKnow: {
+      es: 'Su velocidad en km/s se mide con los coronógrafos LASCO de la sonda SOHO y las cámaras SECCHI de STEREO-A, que tapan el disco solar para ver expandir el plasma (NASA DONKI / CCMC).',
+      en: 'Its speed in km/s is measured by LASCO coronagraphs on the SOHO spacecraft and SECCHI cameras on STEREO-A, which block the solar disk to track expanding plasma (NASA DONKI / CCMC).',
     },
     nasaSource: 'DONKI',
     nasaStudyOrUrl: 'https://kauai.ccmc.gsfc.nasa.gov/DONKI/',
@@ -571,6 +587,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
       es: 'Una radiografía del dentista es apenas 0.01 mSv. En la Tierra recibimos ~3 mSv en todo un año, ¡pero en Marte o la Luna una sola tormenta solar sin refugio puede darte mucho más!',
       en: 'A dental X-ray is tiny (0.01 mSv). On Earth we get ~3 mSv per year, but on the Moon or Mars a single unshielded solar storm can deliver much more!',
     },
+    howWeKnow: {
+      es: 'Medido en Marte por el instrumento RAD de Curiosity (~0.64 mSv/día en calma; 8.1 mSv el 20 de mayo de 2024) y en la órbita lunar por los sensores HERA y los maniquíes Helga y Zohar en Artemis I (NASA OSDR).',
+      en: 'Measured on Mars by Curiosity’s RAD instrument (~0.64 mSv/day calm baseline; 8.1 mSv on May 20, 2024) and in lunar orbit by HERA sensors and mannequins Helga and Zohar on Artemis I (NASA OSDR).',
+    },
     nasaSource: 'OSDR',
     nasaStudyOrUrl: 'https://osdr.nasa.gov/bio/repo/search?q=radiation+dosimetry',
   },
@@ -587,6 +607,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
     kidAnalogy: {
       es: 'Como los canarios que ayudaban a los mineros a detectar gases, estas pequeñas levaduras viajan por el espacio avisándonos cómo proteger las células humanas.',
       en: 'Like canaries that helped miners detect gases, these tiny yeast cells travel through deep space teaching us how to protect human cells.',
+    },
+    howWeKnow: {
+      es: 'Medido a más de 1 millón de km de la Tierra por el CubeSat BioSentinel (Artemis I) mediante tarjetas microfluídicas ópticas con levadura Saccharomyces cerevisiae y un espectrómetro LET (NASA Ames / OSDR).',
+      en: 'Measured over 1 million km from Earth by the BioSentinel CubeSat (Artemis I) using optical microfluidic cards with Saccharomyces cerevisiae yeast paired with a LET spectrometer (NASA Ames / OSDR).',
     },
     nasaSource: 'OSDR',
     nasaStudyOrUrl: 'https://www.nasa.gov/mission/biosentinel/',
@@ -605,6 +629,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
       es: 'Es una huerta portátil iluminada con focos LED rosas. Da vitaminas frescas a los astronautas y los hace sentir más cerca de la Tierra.',
       en: 'It’s a portable garden lit by pink LED bulbs. It gives astronauts fresh vitamins and makes them feel closer to home on Earth.',
     },
+    howWeKnow: {
+      es: 'Verificado en las cámaras Veggie y APH de la Estación Espacial Internacional y mediante secuenciación genética ARN (estudio NASA OSDR OSD-379) en plantas cultivadas en suelo lunar real de Apolo 11, 12 y 17.',
+      en: 'Verified inside the Veggie and APH chambers on the International Space Station and via RNA sequencing (NASA OSDR study OSD-379) of plants grown in real Apollo 11, 12, and 17 lunar soil.',
+    },
     nasaSource: 'OSDR',
     nasaStudyOrUrl: 'https://osdr.nasa.gov/bio/repo/data/studies/OSD-379',
   },
@@ -621,6 +649,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
     kidAnalogy: {
       es: 'Como no hay ríos ni tiendas en el espacio, el café de ayer se purifica para convertirse en el café y el oxígeno de mañana. ¡Pero esas máquinas gastan mucha batería!',
       en: 'Since there are no rivers or stores in space, yesterday’s water is purified into tomorrow’s drinking water and oxygen—but those machines use lots of battery power!',
+    },
+    howWeKnow: {
+      es: 'Medido por telemetría del Procesador de Agua (WPA) y el Procesador de Salmuera (BPA) en el módulo Destiny de la EEI, donde la NASA certificó un 98% de recuperación de agua en junio de 2023 (NASA Marshall).',
+      en: 'Measured by telemetry from the Water Processor Assembly (WPA) and Brine Processor Assembly (BPA) in the ISS Destiny module, where NASA certified 98% water recovery in June 2023 (NASA Marshall).',
     },
     nasaSource: 'ECLSS',
     nasaStudyOrUrl: 'https://www.nasa.gov/reference/environmental-control-and-life-support-system/',
@@ -639,6 +671,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
       es: 'Funciona como un árbol mecánico en Marte: inhala el aire de CO₂ marciano, lo calienta a 800°C y exhala oxígeno puro para los astronautas.',
       en: 'It works like a mechanical tree on Mars: it inhales Martian CO₂ air, heats it to 800°C, and exhales pure oxygen for astronauts.',
     },
+    howWeKnow: {
+      es: 'Medido en el Cráter Jezero por el electrolizador de óxido sólido MOXIE a bordo del rover Perseverance, que produjo 122 gramos de O₂ con 98% de pureza en 16 pruebas entre 2021 y 2023 (NASA JPL / MIT).',
+      en: 'Measured inside Jezero Crater by the MOXIE solid-oxide electrolyzer aboard the Perseverance rover, which produced 122 grams of O₂ at 98% purity across 16 runs between 2021 and 2023 (NASA JPL / MIT).',
+    },
     nasaSource: 'MARS_ROVER',
     nasaStudyOrUrl: 'https://mars.nasa.gov/mars2020/spacecraft/instruments/moxie/',
   },
@@ -655,6 +691,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
     kidAnalogy: {
       es: 'Sirve para dos cosas: podemos hornearlo para extraer hielo de agua oculto, o apilarlo encima del techo de la base como un escudo grueso contra la radiación.',
       en: 'It serves two purposes: we can bake it to extract hidden water ice, or pile it over our habitat roof as a thick radiation shield.',
+    },
+    howWeKnow: {
+      es: 'Analizado directamente en los 382 kg de muestras lunares de las misiones Apolo en el Laboratorio de Muestras Lunares de JSC y en Marte por los espectrómetros PIXL y SuperCam de Perseverance (NASA Astromaterials).',
+      en: 'Analyzed directly in the 382 kg of Apollo lunar samples at JSC’s Lunar Sample Laboratory and on Mars by Perseverance’s PIXL and SuperCam spectrometers (NASA Astromaterials).',
     },
     nasaSource: 'ARTEMIS',
     nasaStudyOrUrl: 'https://osdr.nasa.gov/bio/repo/data/studies/OSD-379',
@@ -673,6 +713,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
       es: 'Cuando vas de campamento no cargas un río entero en tu mochila; llevas un filtro para usar el agua que encuentras allá. ¡Eso es ISRU!',
       en: 'When you go camping you don’t carry a whole river in your backpack; you bring a filter to use the water you find there. That’s ISRU!',
     },
+    howWeKnow: {
+      es: 'Demostrado en Marte por el instrumento MOXIE de Perseverance y respaldado en la Luna por las detecciones de hielo de agua del impactador LCROSS y el detector de neutrones LEND de la sonda LRO (NASA STMD).',
+      en: 'Demonstrated on Mars by Perseverance’s MOXIE instrument and backed on the Moon by water-ice detections from the LCROSS impactor and the LEND neutron detector on the LRO spacecraft (NASA STMD).',
+    },
     nasaSource: 'ARTEMIS',
     nasaStudyOrUrl: 'https://www.nasa.gov/overview-in-situ-resource-utilization/',
   },
@@ -689,6 +733,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
     kidAnalogy: {
       es: 'Si vivieras en Marte, ¡tu reloj tendría 39 minutos extra cada día para jugar o investigar antes de ir a dormir!',
       en: 'If you lived on Mars, your clock would have 39 bonus minutes every single day before bedtime!',
+    },
+    howWeKnow: {
+      es: 'Medido con precisión de milisegundos mediante seguimiento Doppler de radio desde las sondas Viking, Spirit, Opportunity y Perseverance (24 h 39 m 35.244 s) y mapas láser LOLA en la Luna (NASA JPL / GSFC).',
+      en: 'Measured to millisecond precision via Doppler radio tracking of the Viking, Spirit, Opportunity, and Perseverance landers (24 h 39 m 35.244 s) and LOLA laser maps at the Moon (NASA JPL / GSFC).',
     },
     nasaSource: 'MARS_ROVER',
     nasaStudyOrUrl: 'https://mars.nasa.gov/all-about-mars/facts/mars-time/',
@@ -707,6 +755,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
       es: 'En la Luna puedes hablar casi como por teléfono, pero en Marte si preguntas "¿Qué hago en esta tormenta?", ¡la respuesta de la Tierra puede tardar 40 minutos en ir y volver!',
       en: 'On the Moon you can chat almost like a phone call, but on Mars if you ask "What do I do in this storm?", Earth’s reply can take 40 minutes round-trip!',
     },
+    howWeKnow: {
+      es: 'Cronometrado a diario en los enlaces de radio en banda X y banda Ka por las antenas gigantes de 70 metros de la Red del Espacio Profundo (DSN) de la NASA en Goldstone, Madrid y Canberra.',
+      en: 'Timed daily across X-band and Ka-band radio links by the giant 70-meter dishes of NASA’s Deep Space Network (DSN) in Goldstone, Madrid, and Canberra.',
+    },
     nasaSource: 'MARS_ROVER',
     nasaStudyOrUrl: 'https://mars.nasa.gov/mars2020/timeline/cruise/communications/',
   },
@@ -723,6 +775,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
     kidAnalogy: {
       es: 'Es como si una cortina de polvo rojizo tapara el cielo durante días: no te golpea fuerte porque el aire marciano es muy delgado, ¡pero deja tus paneles solares a oscuras como le pasó al rover Opportunity en 2018!',
       en: 'It’s like a curtain of red dust covering the sky for days: the wind won’t knock you over because Martian air is super thin, but it starves your solar panels of light just like what happened to the Opportunity rover in 2018!',
+    },
+    howWeKnow: {
+      es: 'Medido en la superficie marciana por los fotodiodos RDS de la estación meteorológica MEDA en Perseverance y por la caída de corriente en los paneles solares del módulo InSight en 2022 (NASA JPL / CAB).',
+      en: 'Measured on the Martian surface by the RDS photodiodes of Perseverance’s MEDA weather station and by solar array current drops on the InSight lander in 2022 (NASA JPL / CAB).',
     },
     nasaSource: 'MARS_ROVER',
     nasaStudyOrUrl: 'https://mars.nasa.gov/mars2020/spacecraft/instruments/meda/',
@@ -741,6 +797,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
       es: 'En la Tierra se queman en el aire y los vemos como "estrellas fugaces", pero en la Luna no hay aire que los frene, así que un granito diminuto golpea más rápido que una bala.',
       en: 'On Earth they burn up in the air as "shooting stars," but on the Moon there is no air to slow them down—so a tiny grain hits faster than a speeding bullet.',
     },
+    howWeKnow: {
+      es: 'Registrado por los sismómetros pasivos de las misiones Apolo, por cráteres nuevos fotografiados por las cámaras NAC de la sonda LRO y recreado con cañones de gas ligero en el laboratorio HVIT de la NASA.',
+      en: 'Recorded by Apollo passive seismometers, new impact craters imaged by LRO’s Narrow Angle Cameras (NAC), and recreated with light-gas guns at NASA’s Hypervelocity Impact Technology (HVIT) lab.',
+    },
     nasaSource: 'ARTEMIS',
     nasaStudyOrUrl: 'https://www.nasa.gov/centers-and-facilities/marshall/nasa-meteoroid-environment-office/',
   },
@@ -757,6 +817,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
     kidAnalogy: {
       es: 'Es el campamento perfecto para Artemis: arriba en la montaña tienes enchufe solar casi todo el año, y abajo en la cueva oscura tienes un congelador gigante con agua lista para extraer.',
       en: 'It’s the ultimate campsite for Artemis: up on the rim you get a solar power plug almost all year, and down in the dark crater floor you have a giant freezer full of water ice.',
+    },
+    howWeKnow: {
+      es: 'Cartografiado en 3D por el altímetro láser LOLA, el radiómetro térmico Diviner y la cámara ShadowCam a bordo de las sondas LRO y Danuri (NASA GSFC / KARI).',
+      en: 'Mapped in 3D by the LOLA laser altimeter, the Diviner thermal radiometer, and the ShadowCam instrument aboard the LRO and Danuri orbiters (NASA GSFC / KARI).',
     },
     nasaSource: 'ARTEMIS',
     nasaStudyOrUrl: 'https://lunar.gsfc.nasa.gov/',
@@ -775,6 +839,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
       es: 'Si pesas 36 kg en la Tierra, en la Luna pesarías solo 6 kg y en Marte unos 14 kg. ¡Saltar es divertidísimo, pero como tus huesos trabajan menos se vuelven flojos si no haces gimnasio espacial!',
       en: 'If you weigh 36 kg on Earth, you’d weigh only 6 kg on the Moon and about 14 kg on Mars. Jumping is super fun, but because your bones work less they get weak unless you use the space gym!',
     },
+    howWeKnow: {
+      es: 'El campo gravitatorio lunar fue medido por las sondas gemelas GRAIL de la NASA, y la pérdida ósea de ~1% mensual se midió con densitometría DEXA en astronautas de la EEI (NASA HRP / OSDR).',
+      en: 'Lunar gravity was mapped by NASA’s twin GRAIL spacecraft, and the ~1% monthly bone loss rate was measured via DEXA bone scans of ISS astronauts (NASA HRP / OSDR).',
+    },
     nasaSource: 'OSDR',
     nasaStudyOrUrl: 'https://www.nasa.gov/hrp/',
   },
@@ -792,6 +860,10 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
       es: 'Es el fondo seco de un lago prehistórico en Marte: el barro antiguo atrapó minerales como una cápsula del tiempo donde los científicos buscan huellas de microbios marcianos.',
       en: 'It’s the dried-up bed of a prehistoric Martian lake: ancient mud trapped minerals like a time capsule where scientists hunt for clues of ancient Martian microbes.',
     },
+    howWeKnow: {
+      es: 'Detectado desde órbita por el espectrómetro CRISM del Mars Reconnaissance Orbiter (MRO) y confirmado en superficie por las cámaras Mastcam-Z y el radar subterráneo RIMFAX de Perseverance (NASA JPL).',
+      en: 'Detected from orbit by the CRISM spectrometer on the Mars Reconnaissance Orbiter (MRO) and confirmed on the ground by Perseverance’s Mastcam-Z cameras and RIMFAX ground-penetrating radar (NASA JPL).',
+    },
     nasaSource: 'MARS_ROVER',
     nasaStudyOrUrl: 'https://mars.nasa.gov/mars2020/',
   },
@@ -800,7 +872,7 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
 /**
  * Helper para buscar un término del glosario científico por su ID.
  */
-export function getGlossaryTerm(id?: string | null): GlossaryTerm | undefined {
+export function getGlossaryTerm(id?: string | null): GlossaryTermWithEvidence | undefined {
   if (!id) return undefined;
   return KID_SCIENCE_GLOSSARY.find((term) => term.id === id);
 }

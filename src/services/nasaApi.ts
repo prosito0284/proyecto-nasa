@@ -23,6 +23,18 @@ interface CacheEnvelope<T> {
   payload: T;
 }
 
+export interface WeatherPoolStatus {
+  live: boolean;
+  fetchedAt: string;
+  count: number;
+}
+
+let lastWeatherPoolStatus: WeatherPoolStatus = {
+  live: false,
+  fetchedAt: new Date().toISOString(),
+  count: VERIFIED_NASA_WEATHER_EVENTS.length,
+};
+
 export interface DonkiFlrItem {
   flrID?: string;
   classType?: string;
@@ -101,7 +113,7 @@ export async function fetchWithTimeout(
   }
 }
 
-function readCache<T>(key: string): T | null {
+function readCacheEnvelope<T>(key: string): CacheEnvelope<T> | null {
   try {
     if (typeof window === 'undefined' || !window.localStorage) return null;
     const raw = window.localStorage.getItem(key);
@@ -111,23 +123,46 @@ function readCache<T>(key: string): T | null {
       window.localStorage.removeItem(key);
       return null;
     }
-    return parsed.payload;
+    return parsed;
   } catch {
     return null;
   }
 }
 
-function writeCache<T>(key: string, payload: T): void {
+function readCache<T>(key: string): T | null {
+  const env = readCacheEnvelope<T>(key);
+  return env ? env.payload : null;
+}
+
+function writeCache<T>(key: string, payload: T): number {
+  const timestamp = Date.now();
   try {
-    if (typeof window === 'undefined' || !window.localStorage) return;
-    const envelope: CacheEnvelope<T> = {
-      timestamp: Date.now(),
-      payload,
-    };
-    window.localStorage.setItem(key, JSON.stringify(envelope));
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const envelope: CacheEnvelope<T> = {
+        timestamp,
+        payload,
+      };
+      window.localStorage.setItem(key, JSON.stringify(envelope));
+    }
   } catch {
     // Ignore storage quota or private mode restrictions
   }
+  return timestamp;
+}
+
+/**
+ * Describe el estado del último pool de clima espacial cargado (en vivo vs archivo verificado).
+ */
+export function getWeatherPoolStatus(): WeatherPoolStatus {
+  const cachedEnv = readCacheEnvelope<SpaceWeatherEvent[]>(DONKI_CACHE_KEY);
+  if (cachedEnv && Array.isArray(cachedEnv.payload) && cachedEnv.payload.length > 0 && !lastWeatherPoolStatus.live) {
+    return {
+      live: cachedEnv.payload.some((ev) => Boolean(ev.isLiveNasaData)),
+      fetchedAt: new Date(cachedEnv.timestamp).toISOString(),
+      count: cachedEnv.payload.length,
+    };
+  }
+  return { ...lastWeatherPoolStatus };
 }
 
 export function clampNumber(value: number, min: number, max: number): number {
@@ -153,12 +188,12 @@ export function mapDonkiFlareToEvent(flr: DonkiFlrItem, idx = 0): SpaceWeatherEv
     isLiveNasaData: true,
     severity: isXClass ? 'critical' : isMClass ? 'warning' : 'watch',
     title: {
-      es: `📡 DONKI en Vivo: Llamarada Solar Clase ${rawClass}`,
-      en: `📡 Live DONKI: ${rawClass}-Class Solar Flare`,
+      es: `DONKI en Vivo: Llamarada Solar Clase ${rawClass}`,
+      en: `Live DONKI: ${rawClass}-Class Solar Flare`,
     },
     kidFriendlyExplanation: {
-      es: `¡Telemetría real recibida de la NASA! El Sol emitió una llamarada clase ${rawClass} en la región ${regionLabel}. Ajusta el blindaje de tu base para proteger a tus astronautas.`,
-      en: `Live telemetry straight from NASA! The Sun emitted a class ${rawClass} flare from ${regionLabel}. Adjust your outpost shielding to protect your astronauts.`,
+      es: `Telemetría real recibida de la NASA. El Sol emitió una llamarada clase ${rawClass} en la región ${regionLabel}. Ajusta el blindaje de tu base para proteger a tus astronautas.`,
+      en: `Live telemetry straight from NASA. The Sun emitted a class ${rawClass} flare from ${regionLabel}. Adjust your outpost shielding to protect your astronauts.`,
     },
     scienceFact: {
       es: `Evento oficial NASA DONKI ID: ${id} detectado en rayos X por satélites GOES/SDO.`,
@@ -183,12 +218,12 @@ export function mapDonkiSepToEvent(sep: DonkiSepItem, idx = 0): SpaceWeatherEven
     isLiveNasaData: true,
     severity: 'warning',
     title: {
-      es: `📡 DONKI en Vivo: Tormenta de Protones Solares (SEP)`,
-      en: `📡 Live DONKI: Solar Energetic Particle (SEP) Storm`,
+      es: `DONKI en Vivo: Tormenta de Protones Solares (SEP)`,
+      en: `Live DONKI: Solar Energetic Particle (SEP) Storm`,
     },
     kidFriendlyExplanation: {
-      es: `¡Alerta real de partículas solares! El detector ${instrument} captó protones veloces viajando por el sistema solar. Usa paredes de agua para frenar la dosis en mSv.`,
-      en: `Live solar particle alert! Detector ${instrument} captured fast protons racing across the solar system. Use water walls to block the mSv radiation dose.`,
+      es: `Alerta real de partículas solares. El detector ${instrument} captó protones veloces viajando por el sistema solar. Usa paredes de agua para frenar la dosis en mSv.`,
+      en: `Live solar particle alert. Detector ${instrument} captured fast protons racing across the solar system. Use water walls to block the mSv radiation dose.`,
     },
     scienceFact: {
       es: `Evento oficial NASA DONKI SEP (${id}). Los protones energéticos pueden atravesar trajes espaciales durante una caminata EVA.`,
@@ -222,12 +257,12 @@ export function mapDonkiCmeToEvent(cme: DonkiCmeItem, idx = 0): SpaceWeatherEven
     isLiveNasaData: true,
     severity: isFast ? 'critical' : 'warning',
     title: {
-      es: `📡 DONKI en Vivo: Eyección de Masa Coronal (${speed} km/s)`,
-      en: `📡 Live DONKI: Coronal Mass Ejection (${speed} km/s)`,
+      es: `DONKI en Vivo: Eyección de Masa Coronal (${speed} km/s)`,
+      en: `Live DONKI: Coronal Mass Ejection (${speed} km/s)`,
     },
     kidFriendlyExplanation: {
-      es: `¡Una nube real de plasma solar viaja a ${speed} km por segundo! Puede sobrecargar los sistemas eléctricos de la base y elevar la radiación.`,
-      en: `A real cloud of solar plasma is traveling at ${speed} km per second! It can strain outpost power grids and increase radiation.`,
+      es: `Una nube real de plasma solar viaja a ${speed} km por segundo. Puede sobrecargar los sistemas eléctricos de la base y elevar la radiación.`,
+      en: `A real cloud of solar plasma is traveling at ${speed} km per second. It can strain outpost power grids and increase radiation.`,
     },
     scienceFact: {
       es: `Evento oficial NASA DONKI CME (${id}) medido por coronógrafos SOHO/STEREO a ${speed} km/s.`,
@@ -355,9 +390,14 @@ export async function fetchLiveOrVerifiedSpaceWeather(
   const verifiedFallback = buildWeatherPoolFromDonki({});
 
   if (!forceRefresh) {
-    const cached = readCache<SpaceWeatherEvent[]>(DONKI_CACHE_KEY);
-    if (cached && cached.length > 0) {
-      return cached;
+    const cachedEnv = readCacheEnvelope<SpaceWeatherEvent[]>(DONKI_CACHE_KEY);
+    if (cachedEnv && cachedEnv.payload.length > 0) {
+      lastWeatherPoolStatus = {
+        live: cachedEnv.payload.some((ev) => Boolean(ev.isLiveNasaData)),
+        fetchedAt: new Date(cachedEnv.timestamp).toISOString(),
+        count: cachedEnv.payload.length,
+      };
+      return cachedEnv.payload;
     }
   }
 
@@ -384,6 +424,11 @@ export async function fetchLiveOrVerifiedSpaceWeather(
       (res) => res.status === 'fulfilled' && res.value.status === 429
     );
     if (hitRateLimit) {
+      lastWeatherPoolStatus = {
+        live: false,
+        fetchedAt: new Date().toISOString(),
+        count: verifiedFallback.length,
+      };
       return verifiedFallback;
     }
 
@@ -424,6 +469,11 @@ export async function fetchLiveOrVerifiedSpaceWeather(
       (cmeData && cmeData.length > 0);
 
     if (!hasAnyLive) {
+      lastWeatherPoolStatus = {
+        live: false,
+        fetchedAt: new Date().toISOString(),
+        count: verifiedFallback.length,
+      };
       return verifiedFallback;
     }
 
@@ -433,9 +483,19 @@ export async function fetchLiveOrVerifiedSpaceWeather(
       cme: cmeData,
     });
 
-    writeCache(DONKI_CACHE_KEY, mergedPool);
+    const cachedTimestamp = writeCache(DONKI_CACHE_KEY, mergedPool);
+    lastWeatherPoolStatus = {
+      live: mergedPool.some((ev) => Boolean(ev.isLiveNasaData)),
+      fetchedAt: new Date(cachedTimestamp).toISOString(),
+      count: mergedPool.length,
+    };
     return mergedPool;
   } catch {
+    lastWeatherPoolStatus = {
+      live: false,
+      fetchedAt: new Date().toISOString(),
+      count: verifiedFallback.length,
+    };
     return verifiedFallback;
   }
 }
@@ -545,14 +605,14 @@ export async function fetchNasaGalleryImages(
           },
           fallbackEmoji:
             inferredCategory === 'mars'
-              ? '🔴'
+              ? 'MARS-IMG'
               : inferredCategory === 'solar'
-                ? '☀️'
+                ? 'SDO-IMG'
                 : inferredCategory === 'plants'
-                  ? '🌱'
+                  ? 'OSDR-IMG'
                   : inferredCategory === 'radiation'
-                    ? '🛡️'
-                    : '🛰️',
+                    ? 'RAD-IMG'
+                    : 'LRO-IMG',
           isLiveApiResult: true,
         };
       })

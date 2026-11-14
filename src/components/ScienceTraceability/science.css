@@ -1,0 +1,474 @@
+/**
+ * BLOQUE B — Estilos del "Anexo del Cuaderno de Vuelo del Comandante" (Tarea B7)
+ * Identidad inspirada en los planes de vuelo de papel de Apolo y el manual gráfico NASA de 1975.
+ * Reglas estrictas:
+ * - Superficie de papel crema, tinta oscura, líneas de formulario.
+ * - Esquinas de 2 px como máximo, bordes de 1.5 px.
+ * - Cero degradados, cero sombras difusas (box-shadow: none).
+ * - Todas las variables incluyen su valor de respaldo obligatorio.
+ */
+
+.science-annex-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background-color: rgba(27, 31, 42, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.science-annex-sheet {
+  width: 100%;
+  max-width: 1040px;
+  max-height: 92vh;
+  overflow-y: auto;
+  background-color: var(--paper, #F2EBDD);
+  color: var(--ink, #1B1F2A);
+  border: 2px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  box-shadow: none;
+  background-image: none;
+  font-family: var(--font-body, 'Barlow', sans-serif);
+  padding: 1.25rem 1.5rem 1.5rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.science-annex- sheet *,
+.science-annex-sheet * {
+  box-sizing: border-box;
+  box-shadow: none;
+}
+
+/* Cabecera del Anexo Técnico */
+.science-annex-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 2px solid var(--ink, #1B1F2A);
+  flex-wrap: wrap;
+}
+
+.science-annex-doc-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink, #1B1F2A);
+}
+
+.science-annex-doc-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.45rem;
+  background-color: var(--ink, #1B1F2A);
+  color: var(--paper, #F2EBDD);
+  border-radius: 2px;
+  font-weight: 700;
+}
+
+.science-annex-title {
+  margin: 0;
+  font-family: var(--font-display, 'Barlow Condensed', sans-serif);
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink, #1B1F2A);
+  line-height: 1.15;
+}
+
+.science-annex-subtitle {
+  margin: 0.25rem 0 0;
+  font-family: var(--font-body, 'Barlow', sans-serif);
+  font-size: 0.88rem;
+  color: var(--ink, #1B1F2A);
+}
+
+/* Botones de formulario técnico (44px mínimo) */
+.science-annex-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.45rem 0.85rem;
+  background-color: var(--paper, #F2EBDD);
+  color: var(--ink, #1B1F2A);
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.science-annex-btn:hover:not(:disabled) {
+  background-color: var(--ink, #1B1F2A);
+  color: var(--paper, #F2EBDD);
+}
+
+.science-annex-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.science-annex-btn--primary {
+  background-color: var(--nasa-red, #FC3D21);
+  color: var(--paper, #F2EBDD);
+  border-color: var(--nasa-red, #FC3D21);
+}
+
+.science-annex-btn--primary:hover:not(:disabled) {
+  background-color: var(--ink, #1B1F2A);
+  border-color: var(--ink, #1B1F2A);
+  color: var(--paper, #F2EBDD);
+}
+
+.science-annex-btn--active {
+  background-color: var(--nasa-blue, #0B3D91);
+  color: var(--paper, #F2EBDD);
+  border-color: var(--nasa-blue, #0B3D91);
+}
+
+.science-annex-sheet button:focus-visible,
+.science-annex-sheet a:focus-visible,
+.science-annex-sheet input:focus-visible {
+  outline: 2px solid var(--nasa-red, #FC3D21);
+  outline-offset: 2px;
+}
+
+/* Pestañas de Carpeta (Folder Tabs) */
+.science-folder-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  border-bottom: 2px solid var(--ink, #1B1F2A);
+  padding-top: 0.2rem;
+}
+
+.science-folder-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.5rem 0.9rem;
+  background-color: var(--paper, #F2EBDD);
+  color: var(--ink, #1B1F2A);
+  border: 1.5px solid var(--rule, rgba(27, 31, 42, 0.25));
+  border-bottom: none;
+  border-radius: 2px 2px 0 0;
+  font-family: var(--font-display, 'Barlow Condensed', sans-serif);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  position: relative;
+  bottom: -2px;
+}
+
+.science-folder-tab:hover {
+  border-color: var(--ink, #1B1F2A);
+}
+
+.science-folder-tab[aria-selected='true'] {
+  background-color: var(--ink, #1B1F2A);
+  color: var(--paper, #F2EBDD);
+  border-color: var(--ink, #1B1F2A);
+}
+
+.science-folder-tab-code {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.68rem;
+  padding: 0.1rem 0.3rem;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+}
+
+/* Bloques de Formulario / Secciones del Cuaderno */
+.science-form-box {
+  background-color: var(--paper, #F2EBDD);
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.science-form-box--alert {
+  border-left: 5px solid var(--nasa-red, #FC3D21);
+}
+
+.science-form-box--blue {
+  border-left: 5px solid var(--nasa-blue, #0B3D91);
+}
+
+.science-form-box--green {
+  border-left: 5px solid var(--ok-green, #2E7D4F);
+}
+
+.science-section-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1.5px solid var(--rule, rgba(27, 31, 42, 0.25));
+}
+
+.science-section-title {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-display, 'Barlow Condensed', sans-serif);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink, #1B1F2A);
+}
+
+.science-mono-meta {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.75rem;
+  color: var(--ink, #1B1F2A);
+  letter-spacing: 0.03em;
+}
+
+.science-telemetry-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.55rem;
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.74rem;
+  font-weight: 700;
+  background-color: var(--paper, #F2EBDD);
+  color: var(--ink, #1B1F2A);
+}
+
+/* Buscador de formulario */
+.science-search-input {
+  min-height: 44px;
+  min-width: 240px;
+  padding: 0.45rem 0.75rem;
+  background-color: var(--paper, #F2EBDD);
+  color: var(--ink, #1B1F2A);
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.8rem;
+}
+
+.science-search-input::placeholder {
+  color: var(--ink, #1B1F2A);
+  opacity: 0.65;
+}
+
+/* Cuadrícula y Fichas de Término Tipo Tarjeta de Biblioteca (Library Catalog Cards) */
+.science-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 0.85rem;
+}
+
+.science-library-card {
+  background-color: var(--paper, #F2EBDD);
+  color: var(--ink, #1B1F2A);
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.science-library-card[data-highlighted='true'] {
+  border: 2px solid var(--nasa-red, #FC3D21);
+}
+
+.science-library-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1.5px solid var(--ink, #1B1F2A);
+  background-color: var(--paper, #F2EBDD);
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.science-library-card[data-highlighted='true'] .science-library-card-header {
+  background-color: var(--nasa-red, #FC3D21);
+  color: var(--paper, #F2EBDD);
+  border-bottom-color: var(--nasa-red, #FC3D21);
+}
+
+.science-library-card-body {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.science-library-card-title {
+  margin: 0;
+  font-family: var(--font-display, 'Barlow Condensed', sans-serif);
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink, #1B1F2A);
+}
+
+.science-library-rule-row {
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--rule, rgba(27, 31, 42, 0.25));
+  font-size: 0.84rem;
+  line-height: 1.42;
+  color: var(--ink, #1B1F2A);
+}
+
+.science-library-field-label {
+  display: block;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nasa-blue, #0B3D91);
+  margin-bottom: 0.15rem;
+}
+
+.science-library-card-footer {
+  padding: 0.45rem 0.75rem;
+  border-top: 1.5px solid var(--rule, rgba(27, 31, 42, 0.25));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.72rem;
+}
+
+.science-ref-link {
+  color: var(--nasa-blue, #0B3D91);
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.73rem;
+  font-weight: 700;
+  text-decoration: underline;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Galería Fotográfica Técnica */
+.science-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.9rem;
+}
+
+.science-photo-card {
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  background-color: var(--paper, #F2EBDD);
+  display: flex;
+  flex-direction: column;
+}
+
+.science-photo-frame {
+  position: relative;
+  height: 185px;
+  border-bottom: 1.5px solid var(--ink, #1B1F2A);
+  background-color: var(--ink, #1B1F2A);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.science-photo-stamp {
+  position: absolute;
+  top: 0.45rem;
+  left: 0.45rem;
+  background-color: var(--paper, #F2EBDD);
+  color: var(--ink, #1B1F2A);
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  padding: 0.12rem 0.4rem;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+/* Opciones del Quiz estilo Checklist de Vuelo */
+.science-quiz-option {
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  padding: 0.55rem 0.75rem;
+  background-color: var(--paper, #F2EBDD);
+  color: var(--ink, #1B1F2A);
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  font-family: var(--font-body, 'Barlow', sans-serif);
+  font-size: 0.86rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.science-quiz-option--correct {
+  border: 2px solid var(--ok-green, #2E7D4F);
+  background-color: var(--paper, #F2EBDD);
+  font-weight: 700;
+}
+
+.science-quiz-option--wrong {
+  border: 2px solid var(--nasa-red, #FC3D21);
+  background-color: var(--paper, #F2EBDD);
+}
+
+.science-quiz-check-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
