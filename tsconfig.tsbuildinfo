@@ -1,1 +1,0 @@
-{"root":["./src/App.tsx","./src/main.tsx","./src/components/MissionHUD/ResourcePanel.tsx","./src/components/OutpostView/OutpostMap.tsx","./src/components/ScienceTraceability/ScienceModal.tsx","./src/data/nasa-datasets.ts","./src/data/scenarios.ts","./src/engine/simulationEngine.ts","./src/services/nasaApi.ts","./src/types/mission.ts","./src/utils/sound.ts"],"version":"5.6.3"}
