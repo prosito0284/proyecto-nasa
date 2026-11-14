@@ -2815,3 +2815,32 @@ button:active,
   color: var(--ink);
 }
 
+/* ============================================================================
+   C16: Informe del día con voz (.turn-crew-voice)
+   ============================================================================ */
+.turn-crew-voice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--paper-sheet);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+.turn-crew-voice.mood-critical {
+  border-color: var(--nasa-red);
+  background: var(--alert-red-tint);
+}
+
+.turn-crew-voice.mood-worried {
+  border-color: var(--warn-ochre);
+  background: var(--warn-ochre-tint);
+}
+
+.turn-crew-voice-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
