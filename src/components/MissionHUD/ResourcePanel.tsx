@@ -1,10 +1,11 @@
 /**
  * BLOQUE C (Asignado a: Antigravity Principal - Rama: feat/outpost-ui)
- * Panel de Recursos Vitales, Proyección de Turno en Tiempo Real (TurnProjection),
- * Barra Compacta Fija para Móvil (C2), Presupuesto de Energía y Alertas Encadenadas.
+ * C2 & C3 — Panel de Recursos Vitales y Presupuesto de Energía Simplificado para 7–12 años.
+ * Los 4 presets de energía son botones grandes principales y los sliders individuales
+ * quedan plegados por defecto bajo "Avanzado".
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   CoreResources,
   Language,
@@ -15,7 +16,7 @@ import {
 import type { CommanderEvaluation, TurnProjection } from '../../engine/simulationEngine';
 import { missionAudio } from '../../utils/sound';
 
-interface ResourcePanelProps {
+export interface ResourcePanelProps {
   lang: Language;
   resources: CoreResources;
   allocation: PowerAllocation;
@@ -30,6 +31,74 @@ interface ResourcePanelProps {
   onOpenBadgesModal: () => void;
 }
 
+interface PowerPresetOption {
+  id: string;
+  icon: string;
+  title: LocalizedText;
+  subtitle: LocalizedText;
+  alloc: PowerAllocation;
+}
+
+const POWER_PRESETS: PowerPresetOption[] = [
+  {
+    id: 'balanced',
+    icon: '⚖️',
+    title: { es: 'Equilibrado', en: 'Balanced' },
+    subtitle: { es: 'Todo estable (100% carga)', en: 'All steady (100% load)' },
+    alloc: {
+      lifeSupportAlloc: 25,
+      shieldingAlloc: 25,
+      greenhouseAlloc: 25,
+      scienceAndCommsAlloc: 25,
+    },
+  },
+  {
+    id: 'storm-shield',
+    icon: '🛡️',
+    title: { es: 'Modo Tormenta', en: 'Storm Shield' },
+    subtitle: { es: 'Máximo escudo solar', en: 'Max radiation shield' },
+    alloc: {
+      lifeSupportAlloc: 25,
+      shieldingAlloc: 45,
+      greenhouseAlloc: 15,
+      scienceAndCommsAlloc: 15,
+    },
+  },
+  {
+    id: 'boost-o2',
+    icon: '🫧',
+    title: { es: 'Prioridad O₂ y Cultivo', en: 'Boost O₂ & Crops' },
+    subtitle: { es: '+Aire y comida vital', en: '+Air & greenhouse' },
+    alloc: {
+      lifeSupportAlloc: 35,
+      shieldingAlloc: 20,
+      greenhouseAlloc: 30,
+      scienceAndCommsAlloc: 15,
+    },
+  },
+  {
+    id: 'save-battery',
+    icon: '🔋',
+    title: { es: 'Recargar Batería', en: 'Save Battery' },
+    subtitle: { es: 'Bajo consumo (75% carga)', en: 'Low drain (75% load)' },
+    alloc: {
+      lifeSupportAlloc: 20,
+      shieldingAlloc: 20,
+      greenhouseAlloc: 20,
+      scienceAndCommsAlloc: 15,
+    },
+  },
+];
+
+function isSameAllocation(a: PowerAllocation, b: PowerAllocation): boolean {
+  return (
+    a.lifeSupportAlloc === b.lifeSupportAlloc &&
+    a.shieldingAlloc === b.shieldingAlloc &&
+    a.greenhouseAlloc === b.greenhouseAlloc &&
+    a.scienceAndCommsAlloc === b.scienceAndCommsAlloc
+  );
+}
+
 export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   lang,
   resources,
@@ -41,6 +110,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   onChangeAllocation,
   onOpenBadgesModal,
 }) => {
+  const [showAdvancedSliders, setShowAdvancedSliders] = useState(false);
   const totalPowerUsed = projection.load;
 
   const updateSlider = (key: keyof PowerAllocation, val: number) => {
@@ -71,7 +141,6 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   const metrics: Array<{
     id: 'power' | 'lifeSupport' | 'shielding' | 'food' | 'crewHealth';
     shortIcon: string;
-    shortLabel: string;
     label: string;
     value: number;
     unit: string;
@@ -79,7 +148,6 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
     {
       id: 'power',
       shortIcon: '⚡',
-      shortLabel: lang === 'es' ? 'Energía' : 'Power',
       label: lang === 'es' ? '⚡ Energía (Baterías)' : '⚡ Power (Batteries)',
       value: resources.power,
       unit: '%',
@@ -87,7 +155,6 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
     {
       id: 'lifeSupport',
       shortIcon: '🫧',
-      shortLabel: 'O₂/H₂O',
       label: lang === 'es' ? '🫧 Soporte Vital (O₂/H₂O)' : '🫧 Life Support (O₂/H₂O)',
       value: resources.lifeSupport,
       unit: '%',
@@ -95,7 +162,6 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
     {
       id: 'shielding',
       shortIcon: '🛡️',
-      shortLabel: lang === 'es' ? 'Escudo' : 'Shield',
       label: lang === 'es' ? '🛡️ Blindaje Radiación' : '🛡️ Radiation Shielding',
       value: resources.shielding,
       unit: '%',
@@ -103,7 +169,6 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
     {
       id: 'food',
       shortIcon: '🌱',
-      shortLabel: lang === 'es' ? 'Comida' : 'Food',
       label: lang === 'es' ? '🌱 Cultivos / Comida' : '🌱 Crops / Food',
       value: resources.food,
       unit: '%',
@@ -111,7 +176,6 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
     {
       id: 'crewHealth',
       shortIcon: '❤️',
-      shortLabel: lang === 'es' ? 'Salud' : 'Health',
       label: lang === 'es' ? '❤️ Salud Tripulación' : '❤️ Crew Health',
       value: resources.crewHealth,
       unit: '%',
@@ -119,6 +183,8 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   ];
 
   const earnedBadgesCount = evaluation.badges.filter((b) => b.earned).length;
+  const scienceDelta =
+    projection.delta.sciencePoints + (hoveredChoice?.resourceDelta.sciencePoints ?? 0);
 
   return (
     <aside className="hud-panel" aria-label="Mission Resource Telemetry">
@@ -171,7 +237,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
         </div>
       </div>
 
-      {/* Contenedor de controles y detalles (en móvil pasa debajo del mapa con order: 4) */}
+      {/* Contenedor de vitales y modos de energía */}
       <div className="hud-details-panel">
         {/* Tarjeta de Rango Actual e Insignias */}
         <div className="commander-mini-card">
@@ -203,18 +269,10 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
         {/* Vitales con Proyección en Tiempo Real */}
         <div className="panel-section">
           <div className="section-title-row">
-            <h2>{lang === 'es' ? '📊 Vitales + Proyección' : '📊 Vitals & Projection'}</h2>
+            <h2>{lang === 'es' ? '📊 Vitales de la Base' : '📊 Outpost Vitals'}</h2>
             <span className="science-score-badge">
-              🔬 {resources.sciencePoints}{' '}
-              {projection.delta.sciencePoints +
-                (hoveredChoice?.resourceDelta.sciencePoints ?? 0) >
-              0
-                ? `(+${
-                    projection.delta.sciencePoints +
-                    (hoveredChoice?.resourceDelta.sciencePoints ?? 0)
-                  })`
-                : ''}{' '}
-              {lang === 'es' ? 'Pts' : 'Pts'}
+              🔬 {resources.sciencePoints}
+              {scienceDelta > 0 ? ` (+${scienceDelta})` : ''} Pts
             </span>
           </div>
 
@@ -277,12 +335,12 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
           {/* Efectos Encadenados del Día Anterior */}
           {pendingEffects.length > 0 && (
-            <div className="pending-effects-box" role="status">
+            <div className="pending-effects-box" role="status" aria-live="polite">
               <strong>
                 ⏱️{' '}
                 {lang === 'es'
-                  ? 'Consecuencias de Ayer Activas Hoy:'
-                  : 'Yesterday’s Chained Consequences Today:'}
+                  ? 'Consecuencia de Ayer Activa Hoy:'
+                  : 'Yesterday’s Consequence Active Today:'}
               </strong>
               {pendingEffects.map((eff, i) => (
                 <p key={i}>• {eff.description[lang]}</p>
@@ -291,151 +349,143 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
           )}
         </div>
 
-        {/* Presupuesto de Energía (4 Sliders + Presets) */}
+        {/* C3: Modos de Energía como Botones Grandes Principales + Sliders Plegados bajo "Avanzado" */}
         <div className="panel-section">
           <div className="section-title-row">
-            <h2>
-              {lang === 'es' ? '🎛️ Presupuesto de Energía' : '🎛️ Power Budget Trade-Off'}
-            </h2>
+            <h2>{lang === 'es' ? '⚡ Modo de Energía' : '⚡ Power Mode'}</h2>
             <span className={totalPowerUsed > 100 ? 'alloc-warn' : 'alloc-ok'}>
               {totalPowerUsed}% {lang === 'es' ? 'Carga' : 'Load'}
             </span>
           </div>
-          <p className="helper-note">
-            {lang === 'es'
-              ? `Generación solar hoy: +${projection.solarGain}%. Si pasas de 100% de carga, gastas batería extra.`
-              : `Solar gain today: +${projection.solarGain}%. Exceeding 100% grid load drains extra battery.`}
-          </p>
 
-          {/* Botones de Presets Rápidos para niños */}
-          <div className="preset-chips-row">
-            <button
-              type="button"
-              className="preset-chip"
-              onClick={() =>
-                applyPreset({
-                  lifeSupportAlloc: 25,
-                  shieldingAlloc: 25,
-                  greenhouseAlloc: 25,
-                  scienceAndCommsAlloc: 25,
-                })
-              }
-            >
-              ⚖️ {lang === 'es' ? 'Equilibrado' : 'Balanced'}
-            </button>
-            <button
-              type="button"
-              className="preset-chip"
-              onClick={() =>
-                applyPreset({
-                  lifeSupportAlloc: 25,
-                  shieldingAlloc: 45,
-                  greenhouseAlloc: 15,
-                  scienceAndCommsAlloc: 15,
-                })
-              }
-            >
-              🛡️ {lang === 'es' ? 'Modo Tormenta' : 'Storm Shield'}
-            </button>
-            <button
-              type="button"
-              className="preset-chip"
-              onClick={() =>
-                applyPreset({
-                  lifeSupportAlloc: 40,
-                  shieldingAlloc: 20,
-                  greenhouseAlloc: 25,
-                  scienceAndCommsAlloc: 15,
-                })
-              }
-            >
-              🫧 {lang === 'es' ? 'Prioridad O₂' : 'Boost O₂'}
-            </button>
-            <button
-              type="button"
-              className="preset-chip"
-              onClick={() =>
-                applyPreset({
-                  lifeSupportAlloc: 20,
-                  shieldingAlloc: 20,
-                  greenhouseAlloc: 20,
-                  scienceAndCommsAlloc: 15,
-                })
-              }
-            >
-              🔋 {lang === 'es' ? 'Ahorro (75%)' : 'Save Battery'}
-            </button>
+          <div className="power-presets-large-grid">
+            {POWER_PRESETS.map((preset) => {
+              const isActive = isSameAllocation(allocation, preset.alloc);
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  id={`power-preset-${preset.id}-btn`}
+                  className={`preset-large-btn ${isActive ? 'preset-large-active' : ''}`}
+                  aria-pressed={isActive}
+                  onClick={() => applyPreset(preset.alloc)}
+                >
+                  <span className="preset-large-icon" aria-hidden="true">
+                    {preset.icon}
+                  </span>
+                  <span className="preset-large-text">
+                    <strong>{preset.title[lang]}</strong>
+                    <small>{preset.subtitle[lang]}</small>
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          <div className="slider-group">
-            <label htmlFor="slider-lifesupport">
-              <span>
-                {lang === 'es' ? '🫧 Oxígeno y Agua (ECLSS)' : '🫧 Oxygen & Water (ECLSS)'}
-              </span>
-              <strong>{allocation.lifeSupportAlloc}%</strong>
-            </label>
-            <input
-              id="slider-lifesupport"
-              type="range"
-              min={10}
-              max={50}
-              step={5}
-              value={allocation.lifeSupportAlloc}
-              onChange={(e) => updateSlider('lifeSupportAlloc', Number(e.target.value))}
-            />
-          </div>
+          {/* Botón plegable "Avanzado" para los 4 sliders individuales */}
+          <button
+            type="button"
+            id="toggle-advanced-power-btn"
+            className="btn-secondary advanced-toggle-btn"
+            aria-expanded={showAdvancedSliders}
+            onClick={() => {
+              missionAudio.playClick();
+              setShowAdvancedSliders((prev) => !prev);
+            }}
+          >
+            ⚙️{' '}
+            {showAdvancedSliders
+              ? lang === 'es'
+                ? 'Ocultar Ajustes Avanzados ▲'
+                : 'Hide Advanced Sliders ▲'
+              : lang === 'es'
+                ? 'Avanzado: Ajustar Sliders por Sistema ▼'
+                : 'Advanced: Fine-Tune System Sliders ▼'}
+          </button>
 
-          <div className="slider-group">
-            <label htmlFor="slider-shielding">
-              <span>{lang === 'es' ? '🛡️ Escudo Anti-Radiación' : '🛡️ Radiation Shielding'}</span>
-              <strong>{allocation.shieldingAlloc}%</strong>
-            </label>
-            <input
-              id="slider-shielding"
-              type="range"
-              min={10}
-              max={50}
-              step={5}
-              value={allocation.shieldingAlloc}
-              onChange={(e) => updateSlider('shieldingAlloc', Number(e.target.value))}
-            />
-          </div>
+          {showAdvancedSliders && (
+            <div className="advanced-sliders-drawer">
+              <p className="helper-note">
+                {lang === 'es'
+                  ? `Generación solar hoy: +${projection.solarGain}%. Si pasas de 100% de carga, gastas batería extra.`
+                  : `Solar gain today: +${projection.solarGain}%. Exceeding 100% grid load drains extra battery.`}
+              </p>
 
-          <div className="slider-group">
-            <label htmlFor="slider-greenhouse">
-              <span>
-                {lang === 'es' ? '🌱 Invernadero Hidropónico' : '🌱 Hydroponic Greenhouse'}
-              </span>
-              <strong>{allocation.greenhouseAlloc}%</strong>
-            </label>
-            <input
-              id="slider-greenhouse"
-              type="range"
-              min={10}
-              max={50}
-              step={5}
-              value={allocation.greenhouseAlloc}
-              onChange={(e) => updateSlider('greenhouseAlloc', Number(e.target.value))}
-            />
-          </div>
+              <div className="slider-group">
+                <label htmlFor="slider-lifesupport">
+                  <span>
+                    {lang === 'es' ? '🫧 Oxígeno y Agua (ECLSS)' : '🫧 Oxygen & Water (ECLSS)'}
+                  </span>
+                  <strong>{allocation.lifeSupportAlloc}%</strong>
+                </label>
+                <input
+                  id="slider-lifesupport"
+                  type="range"
+                  min={10}
+                  max={50}
+                  step={5}
+                  value={allocation.lifeSupportAlloc}
+                  onChange={(e) => updateSlider('lifeSupportAlloc', Number(e.target.value))}
+                />
+              </div>
 
-          <div className="slider-group">
-            <label htmlFor="slider-science">
-              <span>
-                {lang === 'es' ? '🔬 Ciencia, Rovers y Antena' : '🔬 Science, Rovers & Comms'}
-              </span>
-              <strong>{allocation.scienceAndCommsAlloc}%</strong>
-            </label>
-            <input
-              id="slider-science"
-              type="range"
-              min={10}
-              max={45}
-              step={5}
-              value={allocation.scienceAndCommsAlloc}
-              onChange={(e) => updateSlider('scienceAndCommsAlloc', Number(e.target.value))}
-            />
-          </div>
+              <div className="slider-group">
+                <label htmlFor="slider-shielding">
+                  <span>
+                    {lang === 'es' ? '🛡️ Escudo Anti-Radiación' : '🛡️ Radiation Shielding'}
+                  </span>
+                  <strong>{allocation.shieldingAlloc}%</strong>
+                </label>
+                <input
+                  id="slider-shielding"
+                  type="range"
+                  min={10}
+                  max={50}
+                  step={5}
+                  value={allocation.shieldingAlloc}
+                  onChange={(e) => updateSlider('shieldingAlloc', Number(e.target.value))}
+                />
+              </div>
+
+              <div className="slider-group">
+                <label htmlFor="slider-greenhouse">
+                  <span>
+                    {lang === 'es' ? '🌱 Invernadero Hidropónico' : '🌱 Hydroponic Greenhouse'}
+                  </span>
+                  <strong>{allocation.greenhouseAlloc}%</strong>
+                </label>
+                <input
+                  id="slider-greenhouse"
+                  type="range"
+                  min={10}
+                  max={50}
+                  step={5}
+                  value={allocation.greenhouseAlloc}
+                  onChange={(e) => updateSlider('greenhouseAlloc', Number(e.target.value))}
+                />
+              </div>
+
+              <div className="slider-group">
+                <label htmlFor="slider-science">
+                  <span>
+                    {lang === 'es'
+                      ? '🔬 Ciencia, Rovers y Antena'
+                      : '🔬 Science, Rovers & Comms'}
+                  </span>
+                  <strong>{allocation.scienceAndCommsAlloc}%</strong>
+                </label>
+                <input
+                  id="slider-science"
+                  type="range"
+                  min={10}
+                  max={45}
+                  step={5}
+                  value={allocation.scienceAndCommsAlloc}
+                  onChange={(e) => updateSlider('scienceAndCommsAlloc', Number(e.target.value))}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </aside>

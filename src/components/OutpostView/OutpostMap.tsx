@@ -1,7 +1,7 @@
 /**
  * BLOQUE C (Asignado a: Antigravity Principal - Rama: feat/outpost-ui)
- * Mapa visual SVG interactivo del Hábitat Espacial (Luna Shackleton / Marte Jezero),
- * Inspector de Ingeniería de Módulos y Simulador de Retraso de Señal Tierra-Base (Light-Time Delay).
+ * C3 — Mapa visual interactivo del Hábitat Espacial con detalles de módulos
+ * y simulador de retraso de señal plegados por defecto para reducir carga cognitiva (7–12 años).
  */
 
 import React, { useEffect, useState } from 'react';
@@ -12,10 +12,10 @@ import {
   PowerAllocation,
   SpaceWeatherEvent,
 } from '../../types/mission';
-import { TurnProjection, getCommDelaySeconds } from '../../engine/simulationEngine';
+import type { TurnProjection } from '../../engine/simulationEngine';
 import { missionAudio } from '../../utils/sound';
 
-interface OutpostMapProps {
+export interface OutpostMapProps {
   lang: Language;
   site: OutpostSiteConfig;
   currentDay: number;
@@ -24,6 +24,8 @@ interface OutpostMapProps {
   weather: SpaceWeatherEvent;
   projection: TurnProjection;
   onOpenScienceModal?: () => void;
+  /** Retraso orbital opcional en segundos (si no se envía, se calcula a partir de site.commDelaySeconds) */
+  commDelaySeconds?: number;
 }
 
 type ModuleKey = 'solar' | 'eclss' | 'shielding' | 'greenhouse';
@@ -92,8 +94,11 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   weather,
   projection,
   onOpenScienceModal,
+  commDelaySeconds,
 }) => {
   const [selectedModule, setSelectedModule] = useState<ModuleKey>('shielding');
+  const [showSystemDetails, setShowSystemDetails] = useState(false);
+  const [showCommSimulator, setShowCommSimulator] = useState(false);
   const [selectedPresetIdx, setSelectedPresetIdx] = useState(0);
   const [commState, setCommState] = useState<'idle' | 'transmitting' | 'received'>('idle');
   const [commProgress, setCommProgress] = useState(0);
@@ -102,7 +107,12 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   const isSolarStorm =
     weather.type === 'FLR' || weather.type === 'SEP' || weather.type === 'CME';
   const isDustStorm = weather.type === 'DUST_STORM';
-  const realDelaySec = getCommDelaySeconds(site.id, currentDay);
+
+  const realDelaySec =
+    commDelaySeconds ??
+    (isLunar
+      ? site.commDelaySeconds
+      : Math.round(site.commDelaySeconds + Math.sin(currentDay * 0.7) * 120));
   const realDelayMin = (realDelaySec / 60).toFixed(1);
 
   useEffect(() => {
@@ -110,13 +120,18 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
     setCommProgress(0);
   }, [site.id, currentDay]);
 
+  const handleSelectModuleFromSvg = (mod: ModuleKey) => {
+    missionAudio.playClick();
+    setSelectedModule(mod);
+    setShowSystemDetails(true);
+  };
+
   const handleTestComms = () => {
     if (commState === 'transmitting') return;
     missionAudio.playCommPing(true);
     setCommState('transmitting');
     setCommProgress(0);
 
-    // En la Luna dura 1.3s reales; en Marte hacemos una simulación visual de 3.6s con velocímetro acelerado
     const totalSimMs = isLunar ? 1300 : 3600;
     const stepMs = 60;
     let elapsed = 0;
@@ -238,7 +253,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   return (
     <section className="outpost-stage" aria-label="Outpost Interactive Schematic">
       <div className={`surface-canvas ${isLunar ? 'surface-lunar' : 'surface-mars'}`}>
-        {/* Cabecera del Mapa Planetario */}
+        {/* Cabecera del Mapa Planetario + Clima de Hoy */}
         <div className="surface-header">
           <div>
             <div className="coord-row">
@@ -264,7 +279,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 : 'Click to inspect NASA DONKI science telemetry'
             }
           >
-            <span className="weather-icon">
+            <span className="weather-icon" aria-hidden="true">
               {isSolarStorm ? '⚡' : isDustStorm ? '🌪️' : '☀️'}
             </span>
             <div>
@@ -358,7 +373,14 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   strokeWidth="1.5"
                   opacity="0.6"
                 />
-                <text x="0" y="38" textAnchor="middle" fill="#93c5fd" fontSize="10" fontFamily="monospace">
+                <text
+                  x="0"
+                  y="38"
+                  textAnchor="middle"
+                  fill="#93c5fd"
+                  fontSize="10"
+                  fontFamily="monospace"
+                >
                   EARTH (1.3s)
                 </text>
               </g>
@@ -366,7 +388,14 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
               <g transform="translate(745, 52)">
                 <circle cx="-18" cy="-4" r="9" fill="#d6b89c" />
                 <circle cx="18" cy="10" r="5" fill="#b89b82" />
-                <text x="0" y="34" textAnchor="middle" fill="#fdba74" fontSize="10" fontFamily="monospace">
+                <text
+                  x="0"
+                  y="34"
+                  textAnchor="middle"
+                  fill="#fdba74"
+                  fontSize="10"
+                  fontFamily="monospace"
+                >
                   PHOBOS &amp; DEIMOS
                 </text>
               </g>
@@ -390,7 +419,14 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 strokeWidth="2"
                 strokeDasharray="4 4"
               />
-              <text x="0" y="44" textAnchor="middle" fill="#fde68a" fontSize="10" fontFamily="monospace">
+              <text
+                x="0"
+                y="44"
+                textAnchor="middle"
+                fill="#fde68a"
+                fontSize="10"
+                fontFamily="monospace"
+              >
                 {weather.type === 'NOMINAL' ? 'QUIET SUN' : `DONKI ${weather.type}`}
               </text>
             </g>
@@ -419,43 +455,95 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
             {/* Depósito de Hielo Polar (Luna) o Sedimentos del Delta (Marte) */}
             {isLunar ? (
               <g transform="translate(740, 218)">
-                <ellipse cx="0" cy="0" rx="68" ry="16" fill="#0f172a" stroke="#38bdf8" strokeWidth="1.2" />
+                <ellipse
+                  cx="0"
+                  cy="0"
+                  rx="68"
+                  ry="16"
+                  fill="#0f172a"
+                  stroke="#38bdf8"
+                  strokeWidth="1.2"
+                />
                 <path d="M-40,2 L-25,-6 L-10,3 L12,-7 L32,3 Z" fill="#38bdf8" opacity="0.65" />
-                <text x="0" y="25" textAnchor="middle" fill="#7dd3fc" fontSize="10" fontFamily="monospace">
+                <text
+                  x="0"
+                  y="25"
+                  textAnchor="middle"
+                  fill="#7dd3fc"
+                  fontSize="10"
+                  fontFamily="monospace"
+                >
                   HIELO CRÁTER SHACKLETON
                 </text>
               </g>
             ) : (
               <g transform="translate(742, 220)">
-                <ellipse cx="0" cy="0" rx="68" ry="15" fill="#3b160c" stroke="#fb923c" strokeWidth="1.2" />
-                <text x="0" y="24" textAnchor="middle" fill="#fdba74" fontSize="10" fontFamily="monospace">
+                <ellipse
+                  cx="0"
+                  cy="0"
+                  rx="68"
+                  ry="15"
+                  fill="#3b160c"
+                  stroke="#fb923c"
+                  strokeWidth="1.2"
+                />
+                <text
+                  x="0"
+                  y="24"
+                  textAnchor="middle"
+                  fill="#fdba74"
+                  fontSize="10"
+                  fontFamily="monospace"
+                >
                   REGOLITO RICO EN CO₂ / H₂O
                 </text>
               </g>
             )}
 
-            {/* MÓDULO 1: Granja Solar y Baterías (Interactivo) */}
+            {/* MÓDULO 1: Granja Solar y Baterías */}
             <g
               transform="translate(135, 145)"
               className={`svg-module-node ${selectedModule === 'solar' ? 'svg-node-selected' : ''}`}
-              onClick={() => {
-                missionAudio.playClick();
-                setSelectedModule('solar');
-              }}
+              onClick={() => handleSelectModuleFromSvg('solar')}
             >
-              {/* Paneles Solares */}
-              <rect x="-48" y="0" width="42" height="52" rx="3" fill="#1e3a8a" stroke="#60a5fa" strokeWidth="2" />
+              <rect
+                x="-48"
+                y="0"
+                width="42"
+                height="52"
+                rx="3"
+                fill="#1e3a8a"
+                stroke="#60a5fa"
+                strokeWidth="2"
+              />
               <line x1="-27" y1="0" x2="-27" y2="52" stroke="#93c5fd" strokeWidth="1" />
               <line x1="-48" y1="18" x2="-6" y2="18" stroke="#93c5fd" strokeWidth="1" />
               <line x1="-48" y1="35" x2="-6" y2="35" stroke="#93c5fd" strokeWidth="1" />
 
-              <rect x="6" y="0" width="42" height="52" rx="3" fill="#1e3a8a" stroke="#60a5fa" strokeWidth="2" />
+              <rect
+                x="6"
+                y="0"
+                width="42"
+                height="52"
+                rx="3"
+                fill="#1e3a8a"
+                stroke="#60a5fa"
+                strokeWidth="2"
+              />
               <line x1="27" y1="0" x2="27" y2="52" stroke="#93c5fd" strokeWidth="1" />
               <line x1="6" y1="18" x2="48" y2="18" stroke="#93c5fd" strokeWidth="1" />
               <line x1="6" y1="35" x2="48" y2="35" stroke="#93c5fd" strokeWidth="1" />
 
-              {/* Banco de baterías en la base */}
-              <rect x="-32" y="54" width="64" height="20" rx="4" fill="#1e293b" stroke="#f59e0b" strokeWidth="1.8" />
+              <rect
+                x="-32"
+                y="54"
+                width="64"
+                height="20"
+                rx="4"
+                fill="#1e293b"
+                stroke="#f59e0b"
+                strokeWidth="1.8"
+              />
               <rect
                 x="-28"
                 y="58"
@@ -471,27 +559,21 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
 
             {/* MÓDULO 2 y 3: Domo Central ECLSS/MOXIE + Escudo de Agua Anti-Radiación */}
             <g transform="translate(415, 165)">
-              {/* Cúpula de Escudo Magnético / Agua (se ilumina fuerte cuando effectiveShielding >= 60) */}
               <path
                 d="M-105,40 A110,95 0 0,1 105,40"
                 fill="url(#shieldAura)"
                 stroke={projection.effectiveShielding >= 60 ? '#38bdf8' : '#f59e0b'}
                 strokeWidth={projection.effectiveShielding >= 60 ? '3.5' : '1.8'}
                 strokeDasharray={projection.effectiveShielding >= 60 ? 'none' : '6 4'}
-                onClick={() => {
-                  missionAudio.playClick();
-                  setSelectedModule('shielding');
-                }}
+                onClick={() => handleSelectModuleFromSvg('shielding')}
                 className="svg-module-node"
               />
 
-              {/* Domo Habitable Presurizado ECLSS */}
               <g
-                className={`svg-module-node ${selectedModule === 'eclss' ? 'svg-node-selected' : ''}`}
-                onClick={() => {
-                  missionAudio.playClick();
-                  setSelectedModule('eclss');
-                }}
+                className={`svg-module-node ${
+                  selectedModule === 'eclss' ? 'svg-node-selected' : ''
+                }`}
+                onClick={() => handleSelectModuleFromSvg('eclss')}
               >
                 <path
                   d="M-72,40 A72,62 0 0,1 72,40 Z"
@@ -499,7 +581,6 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   stroke="#f8fafc"
                   strokeWidth="2.5"
                 />
-                {/* Paredes de agua interna (Blindaje Hidrógeno) */}
                 <path
                   d="M-64,38 A64,54 0 0,1 64,38"
                   fill="none"
@@ -507,23 +588,37 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   strokeWidth={Math.max(2, Math.round((projection.effectiveShielding / 100) * 8))}
                   opacity="0.75"
                 />
-                {/* Ventana y Esclusa */}
-                <rect x="-18" y="10" width="36" height="30" rx="5" fill="#1e293b" stroke="#94a3b8" strokeWidth="2" />
+                <rect
+                  x="-18"
+                  y="10"
+                  width="36"
+                  height="30"
+                  rx="5"
+                  fill="#1e293b"
+                  stroke="#94a3b8"
+                  strokeWidth="2"
+                />
                 <circle cx="0" cy="-6" r="10" fill="#38bdf8" opacity="0.85" />
-                <text x="0" y="58" textAnchor="middle" fill="#f8fafc" fontSize="11" fontWeight="bold">
+                <text
+                  x="0"
+                  y="58"
+                  textAnchor="middle"
+                  fill="#f8fafc"
+                  fontSize="11"
+                  fontWeight="bold"
+                >
                   🫧 O₂ {resources.lifeSupport}% | 🛡️ {projection.effectiveShielding}%
                 </text>
               </g>
             </g>
 
-            {/* MÓDULO 4: Invernadero Hidropónico Veggie (Interactivo) */}
+            {/* MÓDULO 4: Invernadero Hidropónico Veggie */}
             <g
               transform="translate(625, 172)"
-              className={`svg-module-node ${selectedModule === 'greenhouse' ? 'svg-node-selected' : ''}`}
-              onClick={() => {
-                missionAudio.playClick();
-                setSelectedModule('greenhouse');
-              }}
+              className={`svg-module-node ${
+                selectedModule === 'greenhouse' ? 'svg-node-selected' : ''
+              }`}
+              onClick={() => handleSelectModuleFromSvg('greenhouse')}
             >
               <rect
                 x="-58"
@@ -535,7 +630,6 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 stroke="#34d399"
                 strokeWidth="2.2"
               />
-              {/* Plantas hidropónicas iluminadas con LEDs */}
               <circle cx="-32" cy="18" r="8" fill="#22c55e" />
               <circle cx="-10" cy="16" r="9" fill="#4ade80" />
               <circle cx="14" cy="18" r="8" fill="#22c55e" />
@@ -545,7 +639,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
               </text>
             </g>
 
-            {/* Antena de Espacio Profundo (Deep Space Network) */}
+            {/* Antena de Espacio Profundo */}
             <g transform="translate(275, 158)">
               <line x1="0" y1="45" x2="0" y2="15" stroke="#94a3b8" strokeWidth="3" />
               <path d="M-16,8 Q0,24 16,8" fill="none" stroke="#f59e0b" strokeWidth="2.5" />
@@ -555,20 +649,8 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 r="3.5"
                 fill={commState === 'transmitting' ? '#22c55e' : '#f59e0b'}
               />
-              {commState === 'transmitting' && (
-                <circle
-                  cx="0"
-                  cy="6"
-                  r="14"
-                  fill="none"
-                  stroke="#22c55e"
-                  strokeWidth="1.8"
-                  className="pulse-sun"
-                />
-              )}
             </g>
 
-            {/* Nube de polvo si hay tormenta marciana */}
             {isDustStorm && (
               <rect
                 x="0"
@@ -582,119 +664,171 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
           </svg>
         </div>
 
-        {/* Tarjetas selectoras de los 4 módulos + Inspector de Ingeniería */}
-        <div className="modules-grid">
-          {(Object.keys(moduleDetails) as ModuleKey[]).map((key) => {
-            const mod = moduleDetails[key];
-            const isSelected = selectedModule === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                id={`module-card-${key}`}
-                className={`outpost-module ${isSelected ? 'module-selected' : ''}`}
-                onClick={() => {
-                  missionAudio.playClick();
-                  setSelectedModule(key);
-                }}
-              >
-                <div className="module-top">
-                  <span className="module-icon">{mod.icon}</span>
-                  <span className="module-alloc">{mod.allocLabel}</span>
-                </div>
-                <h4>{mod.title[lang]}</h4>
-                <div className={`module-delta-pill ${mod.isPositive ? 'delta-pos' : 'delta-neg'}`}>
-                  {mod.deltaLabel}
-                </div>
-              </button>
-            );
-          })}
+        {/* C3: Botones plegables para Detalles de Módulos y Simulador de Retraso (plegados por defecto) */}
+        <div className="map-drawers-bar">
+          <button
+            type="button"
+            id="toggle-system-details-btn"
+            className="btn-secondary map-drawer-toggle"
+            aria-expanded={showSystemDetails}
+            onClick={() => {
+              missionAudio.playClick();
+              setShowSystemDetails((prev) => !prev);
+            }}
+          >
+            🔍{' '}
+            {showSystemDetails
+              ? lang === 'es'
+                ? 'Ocultar Detalles de Sistemas ▲'
+                : 'Hide System Details ▲'
+              : lang === 'es'
+                ? 'Ver Detalles de los 4 Módulos ▼'
+                : 'Inspect 4 Outpost Modules ▼'}
+          </button>
+
+          <button
+            type="button"
+            id="toggle-comm-simulator-btn"
+            className="btn-secondary map-drawer-toggle"
+            aria-expanded={showCommSimulator}
+            onClick={() => {
+              missionAudio.playClick();
+              setShowCommSimulator((prev) => !prev);
+            }}
+          >
+            📡{' '}
+            {showCommSimulator
+              ? lang === 'es'
+                ? 'Ocultar Radio con Houston ▲'
+                : 'Hide Houston Radio ▲'
+              : lang === 'es'
+                ? `Retraso de Señal (${isLunar ? '1.3 s' : realDelayMin + ' min'}) ▼`
+                : `Signal Delay (${isLunar ? '1.3 s' : realDelayMin + ' min'}) ▼`}
+          </button>
         </div>
 
-        {/* Inspector de Ingeniería del Módulo Seleccionado */}
-        <div className="module-inspector" role="region" aria-live="polite">
-          <div className="inspector-header">
-            <strong>
-              {activeDetail.icon} {activeDetail.title[lang]}
-            </strong>
-            <span className="inspector-telemetry">{activeDetail.statusText[lang]}</span>
-          </div>
-          <p className="inspector-note">🔬 {activeDetail.nasaEngineeringNote[lang]}</p>
-        </div>
-
-        {/* Simulador interactivo de Retraso de Señal Tierra-Base (Light-Time Delay) */}
-        <div className="comm-delay-bar">
-          <div className="comm-info-col">
-            <div className="comm-header-line">
-              <strong>
-                📡{' '}
-                {lang === 'es'
-                  ? 'Simulador de Retraso de Luz Tierra ↔ Base:'
-                  : 'Earth ↔ Outpost Light-Time Delay Simulator:'}{' '}
-                <span className="comm-highlight">
-                  {isLunar
-                    ? `${realDelaySec} s (${lang === 'es' ? 'Luna' : 'Moon'})`
-                    : `${realDelayMin} min / ${realDelaySec} s (${lang === 'es' ? 'Marte Día ' + currentDay : 'Mars Sol ' + currentDay})`}
-                </span>
-              </strong>
+        {/* Cajón Plegable 1: Tarjetas de los 4 Módulos + Inspector de Ingeniería */}
+        {showSystemDetails && (
+          <div className="system-details-drawer">
+            <div className="modules-grid">
+              {(Object.keys(moduleDetails) as ModuleKey[]).map((key) => {
+                const mod = moduleDetails[key];
+                const isSelected = selectedModule === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    id={`module-card-${key}`}
+                    className={`outpost-module ${isSelected ? 'module-selected' : ''}`}
+                    onClick={() => {
+                      missionAudio.playClick();
+                      setSelectedModule(key);
+                    }}
+                  >
+                    <div className="module-top">
+                      <span className="module-icon">{mod.icon}</span>
+                      <span className="module-alloc">{mod.allocLabel}</span>
+                    </div>
+                    <h4>{mod.title[lang]}</h4>
+                    <div
+                      className={`module-delta-pill ${mod.isPositive ? 'delta-pos' : 'delta-neg'}`}
+                    >
+                      {mod.deltaLabel}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="comm-preset-row">
-              <label htmlFor="comm-preset-select" className="sr-only">
-                {lang === 'es' ? 'Mensaje para Control de Misión' : 'Message for Mission Control'}
-              </label>
-              <select
-                id="comm-preset-select"
-                className="comm-select"
-                value={selectedPresetIdx}
-                onChange={(e) => {
-                  missionAudio.playClick();
-                  setSelectedPresetIdx(Number(e.target.value));
-                  setCommState('idle');
-                }}
-              >
-                {RADIO_PRESETS.map((p, idx) => (
-                  <option key={p.id} value={idx}>
-                    {p.label[lang]}
-                  </option>
-                ))}
-              </select>
-
-              <button
-                className="btn-secondary"
-                onClick={handleTestComms}
-                disabled={commState === 'transmitting'}
-                id="test-comm-delay-btn"
-              >
-                {commState === 'transmitting'
-                  ? lang === 'es'
-                    ? `Viajando por el espacio (${commProgress}%)...`
-                    : `Traveling in deep space (${commProgress}%)...`
-                  : lang === 'es'
-                    ? 'Enviar Radio a Houston'
-                    : 'Transmit to Houston'}
-              </button>
-            </div>
-
-            {commState === 'transmitting' && (
-              <div className="comm-wave-track" aria-label="Radio signal progress">
-                <span>👨‍🚀 {isLunar ? 'Artemis' : 'Jezero'}</span>
-                <div className="comm-track-bar">
-                  <div className="comm-track-fill" style={{ width: `${commProgress}%` }} />
-                </div>
-                <span>🌎 Houston</span>
+            <div className="module-inspector" role="region" aria-live="polite">
+              <div className="inspector-header">
+                <strong>
+                  {activeDetail.icon} {activeDetail.title[lang]}
+                </strong>
+                <span className="inspector-telemetry">{activeDetail.statusText[lang]}</span>
               </div>
-            )}
-
-            {commState === 'received' && (
-              <p className="comm-reply-box">
-                {isLunar
-                  ? currentPreset.houstonReplyLunar[lang]
-                  : currentPreset.houstonReplyMars[lang]}
-              </p>
-            )}
+              <p className="inspector-note">🔬 {activeDetail.nasaEngineeringNote[lang]}</p>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Cajón Plegable 2: Simulador de Retraso de Señal Tierra-Base */}
+        {showCommSimulator && (
+          <div className="comm-delay-bar">
+            <div className="comm-info-col">
+              <div className="comm-header-line">
+                <strong>
+                  📡{' '}
+                  {lang === 'es'
+                    ? 'Simulador de Retraso de Luz Tierra ↔ Base:'
+                    : 'Earth ↔ Outpost Light-Time Delay Simulator:'}{' '}
+                  <span className="comm-highlight">
+                    {isLunar
+                      ? `${realDelaySec} s (${lang === 'es' ? 'Luna' : 'Moon'})`
+                      : `${realDelayMin} min / ${realDelaySec} s (${
+                          lang === 'es' ? 'Marte Día ' + currentDay : 'Mars Sol ' + currentDay
+                        })`}
+                  </span>
+                </strong>
+              </div>
+
+              <div className="comm-preset-row">
+                <label htmlFor="comm-preset-select" className="sr-only">
+                  {lang === 'es' ? 'Mensaje para Control de Misión' : 'Message for Mission Control'}
+                </label>
+                <select
+                  id="comm-preset-select"
+                  className="comm-select"
+                  value={selectedPresetIdx}
+                  onChange={(e) => {
+                    missionAudio.playClick();
+                    setSelectedPresetIdx(Number(e.target.value));
+                    setCommState('idle');
+                  }}
+                >
+                  {RADIO_PRESETS.map((p, idx) => (
+                    <option key={p.id} value={idx}>
+                      {p.label[lang]}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  className="btn-secondary"
+                  onClick={handleTestComms}
+                  disabled={commState === 'transmitting'}
+                  id="test-comm-delay-btn"
+                >
+                  {commState === 'transmitting'
+                    ? lang === 'es'
+                      ? `Viajando por el espacio (${commProgress}%)...`
+                      : `Traveling in deep space (${commProgress}%)...`
+                    : lang === 'es'
+                      ? 'Enviar Radio a Houston'
+                      : 'Transmit to Houston'}
+                </button>
+              </div>
+
+              {commState === 'transmitting' && (
+                <div className="comm-wave-track" aria-label="Radio signal progress">
+                  <span>👨‍🚀 {isLunar ? 'Artemis' : 'Jezero'}</span>
+                  <div className="comm-track-bar">
+                    <div className="comm-track-fill" style={{ width: `${commProgress}%` }} />
+                  </div>
+                  <span>🌎 Houston</span>
+                </div>
+              )}
+
+              {commState === 'received' && (
+                <p className="comm-reply-box" role="status" aria-live="polite">
+                  {isLunar
+                    ? currentPreset.houstonReplyLunar[lang]
+                    : currentPreset.houstonReplyMars[lang]}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
