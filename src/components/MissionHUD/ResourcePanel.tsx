@@ -192,6 +192,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
       <div
         className="mobile-vitals-sticky"
         role="region"
+        aria-live="polite"
         aria-label={lang === 'es' ? 'Resumen rápido de vitales' : 'Quick vitals summary'}
       >
         <div className="mobile-vitals-pills">
@@ -211,11 +212,13 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                 </span>
                 <span className="mv-val">
                   {m.value}%
-                  {delta !== 0 && (
-                    <small className={delta > 0 ? 'mv-delta-up' : 'mv-delta-down'}>
-                      {delta > 0 ? `+${delta}` : delta}
-                    </small>
-                  )}
+                  <small
+                    className={
+                      delta > 0 ? 'mv-delta-up' : delta < 0 ? 'mv-delta-down' : 'mv-delta-flat'
+                    }
+                  >
+                    {delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : '±0'}
+                  </small>
                 </span>
               </div>
             );
@@ -270,9 +273,8 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
         <div className="panel-section">
           <div className="section-title-row">
             <h2>{lang === 'es' ? '📊 Vitales de la Base' : '📊 Outpost Vitals'}</h2>
-            <span className="science-score-badge">
-              🔬 {resources.sciencePoints}
-              {scienceDelta > 0 ? ` (+${scienceDelta})` : ''} Pts
+            <span className="science-score-badge" aria-live="polite">
+              🔬 {resources.sciencePoints} ({scienceDelta >= 0 ? `+${scienceDelta}` : scienceDelta}) Pts
             </span>
           </div>
 

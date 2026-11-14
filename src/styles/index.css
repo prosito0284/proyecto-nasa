@@ -12,8 +12,8 @@
   --surface-mars-tint: hsl(18, 28%, 14%);
 
   --text-primary: hsl(210, 25%, 96%);
-  --text-secondary: hsl(215, 16%, 74%);
-  --text-muted: hsl(215, 12%, 56%);
+  --text-secondary: hsl(215, 22%, 80%);
+  --text-muted: hsl(215, 18%, 70%);
 
   --accent-amber: hsl(38, 95%, 56%);
   --accent-orange-nasa: hsl(16, 88%, 54%);
@@ -1929,6 +1929,64 @@ body {
     gap: 0.45rem !important;
   }
 }
+
+/* C7: Accessibility (WCAG AA, Keyboard Focus, Zero Layout Shift & Reduced Motion) */
+.mv-val small {
+  display: inline-block;
+  min-width: 26px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.mv-delta-flat {
+  color: var(--text-muted);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[role='button']:focus-visible {
+  outline: 3px solid var(--accent-amber);
+  outline-offset: 2px;
+}
+
+.svg-module-node:focus-visible {
+  outline: 3px solid var(--accent-amber);
+  outline-offset: 3px;
+  opacity: 1;
+}
+
+/* Ensure no button or card ever translates or resizes on hover/active */
+button:hover,
+button:active,
+.choice-box:hover,
+.outpost-module:hover,
+.briefing-site-card:hover {
+  transform: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .pulse-sun,
+  .solar-ray-anim {
+    animation: none !important;
+  }
+
+  .progress-fill,
+  .turn-bar-fill,
+  .comm-track-fill {
+    transition: none !important;
+  }
+}
+
 
 
 
