@@ -1502,45 +1502,35 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                           src={img.imageUrl}
                           alt={descriptiveAlt}
                           loading="lazy"
+                          decoding="async"
+                          width={480}
+                          height={300}
+                          className="science-photo-img"
                           onError={() =>
                             setFailedImageIds((prev) => ({
                               ...prev,
                               [img.nasaId]: true,
                             }))
                           }
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                          }}
                         />
                       ) : (
                         <div
                           role="img"
                           aria-label={descriptiveAlt}
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                            padding: '1rem',
-                            textAlign: 'center',
-                            color: 'var(--paper, #F2EBDD)',
-                            fontFamily:
-                              "var(--font-mono, 'IBM Plex Mono', monospace)",
-                          }}
+                          className="science-photo-fallback"
                         >
-                          <GlobeIcon size={28} />
-                          <span style={{ fontSize: '0.78rem', fontWeight: 700 }}>
-                            {img.fallbackEmoji}
-                          </span>
-                          <span style={{ fontSize: '0.72rem' }}>
-                            NASA ID: {img.nasaId}
-                          </span>
+                          <p className="science-photo-fallback-title">
+                            {img.title[lang]}
+                          </p>
+                          <p className="science-photo-fallback-credit">
+                            {lang === 'es'
+                              ? `Crédito: ${img.center} · NASA ID: ${img.nasaId} (${img.dateCreated})`
+                              : `Credit: ${img.center} · NASA ID: ${img.nasaId} (${img.dateCreated})`}
+                          </p>
                         </div>
                       )}
                       <span className="science-photo-stamp">
-                        {img.isLiveApiResult ? 'LIVE NASA API' : img.center}
+                        {img.isLiveApiResult ? 'NASA API' : img.center}
                       </span>
                     </div>
 
