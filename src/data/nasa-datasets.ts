@@ -183,7 +183,7 @@ export const VERIFIED_NASA_WEATHER_EVENTS: SpaceWeatherEvent[] = [
       es: 'La estación meteorológica MEDA del rover Perseverance y el módulo InSight registraron en 2022 una tormenta que redujo un 35–55% la energía solar disponible.',
       en: 'Perseverance’s MEDA weather station and the InSight lander recorded a 2022 dust storm that cut solar energy generation by 35–55%.',
     },
-    radiationMultiplier: 0.95,
+    radiationMultiplier: 1.0,
     solarEfficiencyMultiplier: 0.5,
   },
   {
