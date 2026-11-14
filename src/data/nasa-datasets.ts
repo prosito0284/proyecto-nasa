@@ -38,6 +38,7 @@ export interface NasaGalleryImage {
 export interface ScienceQuizQuestion {
   id: string;
   badgeSource: string;
+  siteFilter?: OutpostSiteId | 'both';
   question: LocalizedText;
   options: Array<{
     id: string;
@@ -183,7 +184,7 @@ export const VERIFIED_NASA_WEATHER_EVENTS: SpaceWeatherEvent[] = [
       es: 'La estación meteorológica MEDA del rover Perseverance y el módulo InSight registraron en 2022 una tormenta que redujo un 35–55% la energía solar disponible.',
       en: 'Perseverance’s MEDA weather station and the InSight lander recorded a 2022 dust storm that cut solar energy generation by 35–55%.',
     },
-    radiationMultiplier: 0.95,
+    radiationMultiplier: 1.0,
     solarEfficiencyMultiplier: 0.5,
   },
   {
@@ -709,12 +710,106 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
     nasaSource: 'MARS_ROVER',
     nasaStudyOrUrl: 'https://mars.nasa.gov/mars2020/timeline/cruise/communications/',
   },
+  {
+    id: 'dust-storm',
+    term: {
+      es: 'Tormenta de Polvo Marciano (Opacidad τ MEDA)',
+      en: 'Martian Dust Storm (MEDA Optical Depth τ)',
+    },
+    shortDefinition: {
+      es: 'Vientos marcianos que levantan polvo fino de óxido de hierro hasta cubrir regiones enteras o todo el planeta, reduciendo la luz solar en los paneles hasta un 60% o más.',
+      en: 'Martian winds that lift fine iron-oxide dust to blanket entire regions or the whole planet, cutting sunlight reaching solar arrays by 60% or more.',
+    },
+    kidAnalogy: {
+      es: 'Es como si una cortina de polvo rojizo tapara el cielo durante días: no te golpea fuerte porque el aire marciano es muy delgado, ¡pero deja tus paneles solares a oscuras como le pasó al rover Opportunity en 2018!',
+      en: 'It’s like a curtain of red dust covering the sky for days: the wind won’t knock you over because Martian air is super thin, but it starves your solar panels of light just like what happened to the Opportunity rover in 2018!',
+    },
+    nasaSource: 'MARS_ROVER',
+    nasaStudyOrUrl: 'https://mars.nasa.gov/mars2020/spacecraft/instruments/meda/',
+  },
+  {
+    id: 'micrometeorite',
+    term: {
+      es: 'Micrometeorito (Impacto Hiperveloz MMOD)',
+      en: 'Micrometeorite (Hypervelocity MMOD Impact)',
+    },
+    shortDefinition: {
+      es: 'Partículas de roca o polvo espacial del tamaño de un grano de arena que viajan entre 10 y 70 km por segundo y golpean la Luna sin frenarse porque no hay atmósfera.',
+      en: 'Sand-sized grains of space rock or dust traveling at 10 to 70 km per second that strike the Moon at full speed because there is no atmosphere to burn them up.',
+    },
+    kidAnalogy: {
+      es: 'En la Tierra se queman en el aire y los vemos como "estrellas fugaces", pero en la Luna no hay aire que los frene, así que un granito diminuto golpea más rápido que una bala.',
+      en: 'On Earth they burn up in the air as "shooting stars," but on the Moon there is no air to slow them down—so a tiny grain hits faster than a speeding bullet.',
+    },
+    nasaSource: 'ARTEMIS',
+    nasaStudyOrUrl: 'https://www.nasa.gov/centers-and-facilities/marshall/nasa-meteoroid-environment-office/',
+  },
+  {
+    id: 'shackleton',
+    term: {
+      es: 'Cráter Shackleton (Polo Sur Lunar 89.9°S)',
+      en: 'Shackleton Crater (Lunar South Pole 89.9°S)',
+    },
+    shortDefinition: {
+      es: 'Cráter de 21 km de ancho en el Polo Sur de la Luna cuyos bordes reciben luz solar más del 80% del año, mientras su fondo en sombra eterna a -180°C conserva hielo de agua.',
+      en: 'A 21-km-wide crater at the Lunar South Pole whose rim peaks receive sunlight over 80% of the year, while its permanently shadowed floor at -180°C traps ancient water ice.',
+    },
+    kidAnalogy: {
+      es: 'Es el campamento perfecto para Artemis: arriba en la montaña tienes enchufe solar casi todo el año, y abajo en la cueva oscura tienes un congelador gigante con agua lista para extraer.',
+      en: 'It’s the ultimate campsite for Artemis: up on the rim you get a solar power plug almost all year, and down in the dark crater floor you have a giant freezer full of water ice.',
+    },
+    nasaSource: 'ARTEMIS',
+    nasaStudyOrUrl: 'https://lunar.gsfc.nasa.gov/',
+  },
+  {
+    id: 'gravity',
+    term: {
+      es: 'Gravedad Parcial y Masa Ósea (0.166 g Luna / 0.378 g Marte)',
+      en: 'Partial Gravity & Bone Density (0.166 g Moon / 0.378 g Mars)',
+    },
+    shortDefinition: {
+      es: 'La fuerza de atracción en la Luna es 1/6 de la terrestre (0.166 g) y en Marte es poco más de 1/3 (0.378 g). Sin ejercicio diario, los huesos pierden ~1% de masa por mes.',
+      en: 'Surface gravity on the Moon is 1/6 of Earth’s (0.166 g) and on Mars is just over 1/3 (0.378 g). Without daily resistance exercise, astronauts lose ~1% of bone mass per month.',
+    },
+    kidAnalogy: {
+      es: 'Si pesas 36 kg en la Tierra, en la Luna pesarías solo 6 kg y en Marte unos 14 kg. ¡Saltar es divertidísimo, pero como tus huesos trabajan menos se vuelven flojos si no haces gimnasio espacial!',
+      en: 'If you weigh 36 kg on Earth, you’d weigh only 6 kg on the Moon and about 14 kg on Mars. Jumping is super fun, but because your bones work less they get weak unless you use the space gym!',
+    },
+    nasaSource: 'OSDR',
+    nasaStudyOrUrl: 'https://www.nasa.gov/hrp/',
+  },
+  {
+    id: 'jezero',
+    term: {
+      es: 'Cráter Jezero (Antiguo Lago y Delta en Marte)',
+      en: 'Jezero Crater (Ancient Martian Lake & River Delta)',
+    },
+    shortDefinition: {
+      es: 'Cráter marciano de 45 km de ancho (18.38°N, 77.58°E) donde hace 3,500 millones de años desembocaba un río formando un delta de arcillas y carbonatos explorado por Perseverance.',
+      en: 'A 45-km-wide Martian crater (18.38°N, 77.58°E) where a river flowed into a lake 3.5 billion years ago, leaving a clay-and-carbonate delta explored by the Perseverance rover.',
+    },
+    kidAnalogy: {
+      es: 'Es el fondo seco de un lago prehistórico en Marte: el barro antiguo atrapó minerales como una cápsula del tiempo donde los científicos buscan huellas de microbios marcianos.',
+      en: 'It’s the dried-up bed of a prehistoric Martian lake: ancient mud trapped minerals like a time capsule where scientists hunt for clues of ancient Martian microbes.',
+    },
+    nasaSource: 'MARS_ROVER',
+    nasaStudyOrUrl: 'https://mars.nasa.gov/mars2020/',
+  },
 ];
+
+/**
+ * Helper para buscar un término del glosario científico por su ID.
+ */
+export function getGlossaryTerm(id?: string | null): GlossaryTerm | undefined {
+  if (!id) return undefined;
+  return KID_SCIENCE_GLOSSARY.find((term) => term.id === id);
+}
 
 export const JUNIOR_ASTRONAUT_QUIZ: ScienceQuizQuestion[] = [
   {
     id: 'quiz-water-shield',
     badgeSource: 'NASA DONKI & Artemis I (OSDR)',
+    siteFilter: 'both',
     question: {
       es: '1. Cuando la API NASA DONKI detecta una tormenta de protones solares (SEP), ¿por qué los astronautas se refugian detrás de paredes llenas de agua?',
       en: '1. When the NASA DONKI API detects a Solar Energetic Particle (SEP) storm, why do astronauts shelter behind water-filled walls?',
@@ -753,6 +848,7 @@ export const JUNIOR_ASTRONAUT_QUIZ: ScienceQuizQuestion[] = [
   {
     id: 'quiz-osd-379',
     badgeSource: 'NASA OSDR (Estudio OSD-379)',
+    siteFilter: 'both',
     question: {
       es: '2. ¿Qué descubrieron los científicos en el estudio real OSD-379 de NASA OSDR al plantar semillas en regolito (suelo) lunar traído por las misiones Apolo?',
       en: '2. What did scientists discover in real NASA OSDR study OSD-379 when they planted seeds in lunar regolith brought back by Apollo?',
@@ -791,44 +887,46 @@ export const JUNIOR_ASTRONAUT_QUIZ: ScienceQuizQuestion[] = [
   {
     id: 'quiz-comm-delay',
     badgeSource: 'NASA Deep Space Network (DSN)',
+    siteFilter: 'both',
     question: {
-      es: '3. Si ocurre una emergencia en el Cráter Jezero en Marte, ¿por qué los astronautas deben resolver el trade-off por sí mismos sin esperar al Control de Misión?',
-      en: '3. If an emergency strikes Jezero Crater on Mars, why must astronauts solve the trade-off themselves without waiting for Mission Control?',
+      es: '3. ¿Cuál es la diferencia real de retraso de comunicación por tiempo-luz entre la Luna y Marte cuando hablas con el Control de Misión?',
+      en: '3. What is the real one-way light-time communication delay difference between the Moon and Mars when talking to Mission Control?',
     },
     options: [
       {
         id: 'a',
         text: {
-          es: 'Porque en Marte no existen las antenas de radio.',
-          en: 'Because radio antennas do not work on Mars.',
+          es: 'En ambos lugares los mensajes llegan al instante sin ningún retraso.',
+          en: 'In both places messages arrive instantly with zero delay.',
         },
         isCorrect: false,
       },
       {
         id: 'b',
         text: {
-          es: 'Porque la señal de radio tarda de 4 a 24 minutos solo de ida (contra 1.3 segundos en la Luna).',
-          en: 'Because radio signals take 4 to 24 minutes one-way (compared to 1.3 seconds on the Moon).',
+          es: '1.3 segundos desde la Luna (casi instantáneo) frente a 4–24 minutos solo de ida desde Marte.',
+          en: '1.3 seconds from the Moon (nearly instant) vs. 4–24 minutes one-way from Mars.',
         },
         isCorrect: true,
       },
       {
         id: 'c',
         text: {
-          es: 'Porque el Control de Misión solo abre los fines de semana.',
-          en: 'Because Mission Control is only open on weekends.',
+          es: '2 horas desde la Luna y 1 segundo desde Marte.',
+          en: '2 hours from the Moon and 1 second from Mars.',
         },
         isCorrect: false,
       },
     ],
     explanation: {
-      es: '¡Correcto! Aunque la radio viaja a la velocidad de la luz (300,000 km/s), Marte está tan lejos que una pregunta y su respuesta pueden tardar hasta 48 minutos en ir y volver.',
-      en: 'Correct! Even though radio travels at the speed of light (300,000 km/s), Mars is so far away that a question and its reply can take up to 48 minutes round-trip.',
+      es: '¡Correcto! Con 1.3 s en la Luna la Tierra puede incluso teleoperar un rover, pero en Marte (4 a 24 min por vía) la tripulación debe ser autónoma en emergencias.',
+      en: 'Correct! With a 1.3 s delay on the Moon, Earth can even teleoperate a rover, whereas on Mars (4 to 24 min one-way) the crew must be autonomous during emergencies.',
     },
   },
   {
     id: 'quiz-biosentinel',
     badgeSource: 'NASA BioSentinel & OSDR',
+    siteFilter: 'both',
     question: {
       es: '4. ¿Qué ser vivo diminuto viajó en el satélite BioSentinel de Artemis I para ayudar a la NASA a medir el daño de la radiación en el ADN?',
       en: '4. What tiny living organism flew aboard Artemis I’s BioSentinel satellite to help NASA measure radiation DNA damage?',
@@ -866,40 +964,404 @@ export const JUNIOR_ASTRONAUT_QUIZ: ScienceQuizQuestion[] = [
   },
   {
     id: 'quiz-eclss-moxie',
-    badgeSource: 'NASA ECLSS & Mars 2020 MOXIE',
+    badgeSource: 'NASA ECLSS (ISS Water Recovery 98%)',
+    siteFilter: 'both',
     question: {
-      es: '5. ¿Cuál es el sacrificio (trade-off) real de usar el sistema ECLSS (que recicla 98% del agua) y MOXIE (que fabrica oxígeno en Marte)?',
-      en: '5. What is the real engineering trade-off of running ECLSS (98% water recycling) and MOXIE (making oxygen on Mars)?',
+      es: '5. ¿Cuánto porcentaje del agua (incluyendo sudor y humedad del aliento) logra reciclar el sistema ECLSS real de la NASA y cuál es su trade-off?',
+      en: '5. What percentage of water (including sweat and breath moisture) does NASA’s real ECLSS system recycle, and what is its trade-off?',
     },
     options: [
       {
         id: 'a',
         text: {
-          es: 'No tienen ningún costo: funcionan gratis sin usar las baterías de la base.',
-          en: 'They have zero cost: they run for free without using base batteries.',
+          es: 'Recicla solo el 10% del agua y funciona con viento.',
+          en: 'It recycles only 10% of water and runs on wind.',
         },
         isCorrect: false,
       },
       {
         id: 'b',
         text: {
-          es: 'Mantienen viva a la tripulación con oxígeno y agua limpia, pero consumen mucha energía eléctrica (kWh).',
-          en: 'They keep the crew alive with oxygen and clean water, but consume heavy electrical power (kWh).',
+          es: 'Recicla hasta el 98% del agua, pero sus bombas y filtros consumen mucha energía eléctrica.',
+          en: 'It recycles up to 98% of water, but its pumps and filters consume heavy electrical power.',
         },
         isCorrect: true,
       },
       {
         id: 'c',
         text: {
-          es: 'Atraen meteoritos hacia los paneles solares.',
-          en: 'They attract meteorites toward the solar panels.',
+          es: 'Fabrica agua mágicamente sin usar baterías.',
+          en: 'It magically creates water without using batteries.',
         },
         isCorrect: false,
       },
     ],
     explanation: {
-      es: '¡Regla de oro de la ingeniería espacial! Ninguna decisión es gratis: producir oxígeno a 800°C con MOXIE o purificar el 98% del agua con ECLSS requiere gran parte de tu presupuesto de energía.',
-      en: 'Golden rule of space engineering! No decision is free: producing oxygen at 800°C with MOXIE or purifying 98% of water with ECLSS requires a big share of your power budget.',
+      es: '¡Regla de oro de la ingeniería espacial! En 2023 la NASA alcanzó el 98% de recuperación de agua en la EEI con el sistema ECLSS, pero mantenerlo activo exige cuidar el presupuesto de energía.',
+      en: 'Golden rule of space engineering! In 2023 NASA achieved 98% water recovery on the ISS with ECLSS, but keeping it running requires careful power budgeting.',
+    },
+  },
+  {
+    id: 'quiz-moxie-122g',
+    badgeSource: 'NASA MOXIE (Mars 2020 Perseverance)',
+    siteFilter: 'mars-jezero',
+    question: {
+      es: '6. En el Cráter Jezero, el experimento MOXIE del rover Perseverance fabricó oxígeno del aire marciano (CO₂). ¿Cuánto produjo y a qué temperatura trabaja?',
+      en: '6. In Jezero Crater, Perseverance’s MOXIE experiment made oxygen from Martian CO₂ air. How much did it produce and at what temperature does it run?',
+    },
+    options: [
+      {
+        id: 'a',
+        text: {
+          es: 'Produjo 122 gramos de oxígeno puro en 16 pruebas calentando el CO₂ a unos 800°C.',
+          en: 'It generated 122 grams of pure oxygen across 16 runs by heating CO₂ to about 800°C.',
+        },
+        isCorrect: true,
+      },
+      {
+        id: 'b',
+        text: {
+          es: 'Produjo 100 toneladas de oxígeno congelando el aire a -200°C sin usar electricidad.',
+          en: 'It made 100 tons of oxygen by freezing air at -200°C with zero electricity.',
+        },
+        isCorrect: false,
+      },
+      {
+        id: 'c',
+        text: {
+          es: 'Exprimió rocas marcianas con una prensa hidráulica.',
+          en: 'It squeezed Martian rocks with a hydraulic press.',
+        },
+        isCorrect: false,
+      },
+    ],
+    explanation: {
+      es: '¡Exacto! MOXIE produjo 122 g de O₂ (lo que respira un perrito en 10 horas) mediante electrólisis a 800°C. Por eso encender MOXIE a toda potencia en el juego gasta tanta batería.',
+      en: 'Exact! MOXIE produced 122 g of O₂ (what a small dog breathes in 10 hours) via 800°C solid oxide electrolysis. That’s why running MOXIE at full power drains so much battery.',
+    },
+  },
+  {
+    id: 'quiz-lunar-vs-mars-msv',
+    badgeSource: 'NASA Curiosity RAD & Chang’e-4 LND Dosimetry',
+    siteFilter: 'both',
+    question: {
+      es: '7. Según los detectores reales en superficie, ¿por qué en un día tranquilo la Luna recibe ~1.37 mSv/día mientras que Marte recibe aproximadamente la mitad (~0.67 mSv/Sol)?',
+      en: '7. According to real surface detectors, why does the Moon receive ~1.37 mSv/day on a calm day while Mars receives roughly half (~0.67 mSv/Sol)?',
+    },
+    options: [
+      {
+        id: 'a',
+        text: {
+          es: 'Porque Marte tiene una delgada atmósfera de CO₂ encima que frena parte de los rayos cósmicos, y la Luna no tiene atmósfera.',
+          en: 'Because Mars has a thin CO₂ atmosphere overhead that blocks some cosmic rays, whereas the Moon has zero atmosphere.',
+        },
+        isCorrect: true,
+      },
+      {
+        id: 'b',
+        text: {
+          es: 'Porque en Marte nunca sale el Sol.',
+          en: 'Because the Sun never shines on Mars.',
+        },
+        isCorrect: false,
+      },
+      {
+        id: 'c',
+        text: {
+          es: 'Porque la Luna está hecha de material radiactivo brillante.',
+          en: 'Because the Moon is made of glowing radioactive cheese.',
+        },
+        isCorrect: false,
+      },
+    ],
+    explanation: {
+      es: '¡Muy bien! El instrumento LND midió ~1.37 mSv/día en la Luna y el detector RAD de Curiosity midió ~0.67 mSv/Sol en Marte gracias al escudo parcial que ofrece el aire marciano.',
+      en: 'Well done! The LND instrument measured ~1.37 mSv/day on the Moon while Curiosity’s RAD measured ~0.67 mSv/Sol on Mars thanks to partial shielding from the Martian atmosphere.',
+    },
+  },
+  {
+    id: 'quiz-mars-dust-storm',
+    badgeSource: 'NASA Mars 2020 MEDA & Opportunity (2018)',
+    siteFilter: 'mars-jezero',
+    question: {
+      es: '8. Cuando ocurre una tormenta regional de polvo en Marte (como las medidas por el sensor MEDA), ¿qué le pasa a la energía solar de tu base?',
+      en: '8. When a regional dust storm hits Mars (like those measured by the MEDA sensor), what happens to your outpost’s solar power?',
+    },
+    options: [
+      {
+        id: 'a',
+        text: {
+          es: 'La generación solar cae hasta un 60% (paneles al ~40%), obligando a hibernar laboratorios o limpiar paneles.',
+          en: 'Solar generation drops by up to 60% (panels at ~40%), forcing you to hibernate labs or brush off panels.',
+        },
+        isCorrect: true,
+      },
+      {
+        id: 'b',
+        text: {
+          es: 'El polvo carga las baterías al 200% automáticamente.',
+          en: 'The dust automatically charges batteries to 200%.',
+        },
+        isCorrect: false,
+      },
+      {
+        id: 'c',
+        text: {
+          es: 'La tormenta convierte el polvo en comida para el invernadero.',
+          en: 'The storm turns dust into food for the greenhouse.',
+        },
+        isCorrect: false,
+      },
+    ],
+    explanation: {
+      es: '¡Así es! En 2018 una tormenta global dejó sin energía a Opportunity y en 2022 el polvo agotó al módulo InSight. En una misión tripulada, los astronautas pueden limpiar los paneles o ahorrar energía.',
+      en: 'That’s right! In 2018 a global storm ended Opportunity and in 2022 dust accumulation ended InSight. On a crewed mission, astronauts can brush panels or ration power.',
+    },
+  },
+  {
+    id: 'quiz-shackleton-psr-ice',
+    badgeSource: 'NASA LCROSS (2009) & LRO Diviner/LOLA',
+    siteFilter: 'moon-shackleton',
+    question: {
+      es: '9. ¿Por qué la NASA eligió el borde del Cráter Shackleton en el Polo Sur Lunar para las misiones Artemis?',
+      en: '9. Why did NASA select the rim of Shackleton Crater at the Lunar South Pole for the Artemis missions?',
+    },
+    options: [
+      {
+        id: 'a',
+        text: {
+          es: 'Porque sus picos tienen luz solar >80% del año para energía y su fondo en sombra permanente a -180°C guarda hielo de agua.',
+          en: 'Because its peaks get sunlight >80% of the year for power while its permanently shadowed floor at -180°C traps water ice.',
+        },
+        isCorrect: true,
+      },
+      {
+        id: 'b',
+        text: {
+          es: 'Porque allí hace calor tropical de 30°C y hay ríos líquidos.',
+          en: 'Because it has warm 30°C tropical weather and liquid rivers.',
+        },
+        isCorrect: false,
+      },
+      {
+        id: 'c',
+        text: {
+          es: 'Porque en el Polo Sur Lunar la gravedad es igual a la de la Tierra.',
+          en: 'Because gravity at the Lunar South Pole is identical to Earth’s.',
+        },
+        isCorrect: false,
+      },
+    ],
+    explanation: {
+      es: '¡Brillante! Las misiones LRO y LCROSS confirmaron hielo de agua en las trampas frías permanentes y picos iluminados casi todo el año, pero bajar al cráter a -180°C congela las baterías del rover.',
+      en: 'Brilliant! LRO and LCROSS confirmed water ice in permanent cold traps right next to sunlit peaks, though driving into the -180°C crater drains rover batteries.',
+    },
+  },
+  {
+    id: 'quiz-low-gravity-bones',
+    badgeSource: 'NASA Human Research Program (ISS ARED)',
+    siteFilter: 'both',
+    question: {
+      es: '10. En baja gravedad (0.166 g en la Luna y 0.378 g en Marte), ¿qué ocurre si la tripulación se salta las 2 horas de ejercicio diario para hacer más ciencia?',
+      en: '10. In low gravity (0.166 g on the Moon and 0.378 g on Mars), what happens if the crew skips their 2-hour daily workout to do extra science?',
+    },
+    options: [
+      {
+        id: 'a',
+        text: {
+          es: 'Ganan puntos de ciencia hoy, pero pierden hasta ~1% de masa ósea por mes y su salud baja al día siguiente.',
+          en: 'They gain science points today, but lose up to ~1% bone mass per month and crew health drops the next day.',
+        },
+        isCorrect: true,
+      },
+      {
+        id: 'b',
+        text: {
+          es: 'Sus músculos se vuelven de acero sin mover un dedo.',
+          en: 'Their muscles turn to steel without lifting a finger.',
+        },
+        isCorrect: false,
+      },
+      {
+        id: 'c',
+        text: {
+          es: 'El ejercicio no gasta nada de energía ni comida.',
+          en: 'Exercise uses zero power and zero extra food calories.',
+        },
+        isCorrect: false,
+      },
+    ],
+    explanation: {
+      es: '¡Correcto! El Programa de Investigación Humana (HRP) de la NASA demostró que el ejercicio diario es indispensable para proteger huesos y músculos, aunque gaste energía y calorías extra.',
+      en: 'Correct! NASA’s Human Research Program (HRP) showed that daily resistance exercise is essential to protect bones and muscles, even though it costs power and extra food calories.',
+    },
+  },
+  {
+    id: 'quiz-micrometeorite-mmod',
+    badgeSource: 'NASA Meteoroid Environment Office (MEO)',
+    siteFilter: 'moon-shackleton',
+    question: {
+      es: '11. ¿Por qué un diminuto micrometeorito puede perforar el radiador de las baterías en la Luna y qué pasa si pospones su reparación?',
+      en: '11. Why can a tiny micrometeorite puncture the battery radiator on the Moon, and what happens if you postpone repairing it?',
+    },
+    options: [
+      {
+        id: 'a',
+        text: {
+          es: 'Sin atmósfera que lo frene, golpea más rápido que una bala; si no lo reparas hoy, mañana las baterías se sobrecalientan y pierden carga.',
+          en: 'With no atmosphere to slow it down, it hits faster than a bullet; if you skip repairs today, tomorrow the batteries overheat and lose charge.',
+        },
+        isCorrect: true,
+      },
+      {
+        id: 'b',
+        text: {
+          es: 'Los tubos se reparan solos durante la noche lunar.',
+          en: 'Radiator tubes heal themselves during the lunar night.',
+        },
+        isCorrect: false,
+      },
+      {
+        id: 'c',
+        text: {
+          es: 'Los micrometeoritos caen despacio como copos de nieve.',
+          en: 'Micrometeorites float down gently like snowflakes.',
+        },
+        isCorrect: false,
+      },
+    ],
+    explanation: {
+      es: '¡Lección clave de ingeniería! Posponer una reparación crítica se llama "deuda técnica": ahorras recursos hoy, pero pagas una caída mayor de batería y salud mañana.',
+      en: 'Key engineering lesson! Postponing a critical repair is called "technical debt": you save resources today, but pay a much steeper battery and health penalty tomorrow.',
+    },
+  },
+  {
+    id: 'quiz-cme-alara',
+    badgeSource: 'NASA DONKI WSA-ENLIL & JSC SRAG (ALARA)',
+    siteFilter: 'both',
+    question: {
+      es: '12. Cuando el modelo WSA-ENLIL de NASA DONKI avisa que viene una Eyección de Masa Coronal (CME), ¿qué significa el principio ALARA de la NASA?',
+      en: '12. When NASA DONKI’s WSA-ENLIL model warns that a Coronal Mass Ejection (CME) is incoming, what does NASA’s ALARA principle mean?',
+    },
+    options: [
+      {
+        id: 'a',
+        text: {
+          es: 'Mantener la radiación "Tan Baja Como Sea Razonablemente Posible" preparando el refugio antes de que llegue la tormenta.',
+          en: 'Keep radiation "As Low As Reasonably Achievable" by preparing the shelter before the storm arrives.',
+        },
+        isCorrect: true,
+      },
+      {
+        id: 'b',
+        text: {
+          es: 'Salir a caminar afuera durante la tormenta para tomar fotos más brillantes.',
+          en: 'Go on a spacewalk during the storm to take brighter photos.',
+        },
+        isCorrect: false,
+      },
+      {
+        id: 'c',
+        text: {
+          es: 'Apagar todos los escudos para ahorrar 100% de batería.',
+          en: 'Turn off all shields to save 100% of battery power.',
+        },
+        isCorrect: false,
+      },
+    ],
+    explanation: {
+      es: '¡Exacto! El Grupo de Análisis de Radiación Espacial (SRAG) de la NASA aplica ALARA y vigila que ningún astronauta supere el límite de carrera de 600 mSv (NASA-STD-3001).',
+      en: 'Exact! NASA’s Space Radiation Analysis Group (SRAG) enforces ALARA and ensures no astronaut exceeds the 600 mSv career exposure limit (NASA-STD-3001).',
+    },
+  },
+  {
+    id: 'quiz-veggie-harvest',
+    badgeSource: 'NASA Veggie (VEG-01/03) & APH (OSDR OSD-321)',
+    siteFilter: 'both',
+    question: {
+      es: '13. En el dilema del invernadero con las lechugas rojas "Outredgeous", ¿qué ocurre si inviertes energía LED extra hoy para dejarlas crecer un día más?',
+      en: '13. In the greenhouse dilemma with "Outredgeous" red romaine lettuce, what happens if you invest extra LED power today to let them grow one more day?',
+    },
+    options: [
+      {
+        id: 'a',
+        text: {
+          es: 'Gastas batería hoy y comes de la despensa, pero mañana obtienes una cosecha mucho más abundante y puntos de ciencia.',
+          en: 'You spend battery today and eat from storage, but tomorrow you get a much bigger harvest plus science points.',
+        },
+        isCorrect: true,
+      },
+      {
+        id: 'b',
+        text: {
+          es: 'Las lechugas crecen sin luz en la oscuridad total.',
+          en: 'Lettuce grows without light in total darkness.',
+        },
+        isCorrect: false,
+      },
+      {
+        id: 'c',
+        text: {
+          es: 'Cosechar todo hoy hace que mañana aparezcan lechugas gigantes sin sembrar.',
+          en: 'Harvesting everything today makes giant lettuce appear tomorrow without replanting.',
+        },
+        isCorrect: false,
+      },
+    ],
+    explanation: {
+      es: '¡Paciencia de ingeniero! Los estudios Veggie y APH en NASA OSDR demuestran que planificar el fotoperiodo LED hoy asegura vitaminas frescas para los días siguientes.',
+      en: 'Engineer’s patience! Veggie and APH studies in NASA OSDR show that planning LED photoperiods today secures fresh vitamins for the days ahead.',
+    },
+  },
+  {
+    id: 'quiz-jezero-delta',
+    badgeSource: 'NASA Mars 2020 Perseverance Sample Caching',
+    siteFilter: 'mars-jezero',
+    question: {
+      es: '14. ¿Por qué las muestras de roca del antiguo delta del Cráter Jezero valen tantos puntos de ciencia en Marte?',
+      en: '14. Why are rock samples from Jezero Crater’s ancient river delta worth so many science points on Mars?',
+    },
+    options: [
+      {
+        id: 'a',
+        text: {
+          es: 'Porque hace 3,500 millones de años un río llenó ese lago y sus arcillas podrían conservar señales de vida microbiana antigua.',
+          en: 'Because 3.5 billion years ago a river filled that lake, and its clays could preserve signs of ancient microbial life.',
+        },
+        isCorrect: true,
+      },
+      {
+        id: 'b',
+        text: {
+          es: 'Porque las rocas del delta están hechas de baterías recargables.',
+          en: 'Because the delta rocks are made of rechargeable batteries.',
+        },
+        isCorrect: false,
+      },
+      {
+        id: 'c',
+        text: {
+          es: 'Porque allí nunca ha llegado ningún rover de la NASA.',
+          en: 'Because no NASA rover has ever visited that crater.',
+        },
+        isCorrect: false,
+      },
+    ],
+    explanation: {
+      es: '¡Correcto! El rover Perseverance ya selló tubos de muestra reales en el delta de Jezero para que futuras misiones analicen si hubo vida antigua en Marte.',
+      en: 'Correct! The Perseverance rover has already sealed real sample tubes on the Jezero delta so future missions can test whether ancient life existed on Mars.',
     },
   },
 ];
+
+/**
+ * Filtra las preguntas del Mini-Quiz según la base elegida ('moon-shackleton', 'mars-jezero' o 'all').
+ */
+export function getQuizQuestionsForSite(
+  siteFilter: OutpostSiteId | 'all' = 'all'
+): ScienceQuizQuestion[] {
+  if (siteFilter === 'all') return JUNIOR_ASTRONAUT_QUIZ;
+  return JUNIOR_ASTRONAUT_QUIZ.filter(
+    (q) => !q.siteFilter || q.siteFilter === 'both' || q.siteFilter === siteFilter
+  );
+}

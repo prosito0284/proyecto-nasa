@@ -1,7 +1,8 @@
 /**
  * BLOQUE B (Asignado a: Antigravity del Compañero - Rama: feat/nasa-data-service)
  * Cliente para la API pública de NASA DONKI (FLR, SEP, CME) y NASA Image Library (images-api.nasa.gov)
- * con caché en localStorage y fallback transparente a datasets reales verificados de la NASA.
+ * con clave configurable por VITE_NASA_API_KEY (fallback DEMO_KEY), timeout de 6 s con AbortController,
+ * caché en localStorage y fallback transparente a datasets reales verificados de la NASA.
  */
 
 import { SpaceWeatherEvent } from '../types/mission';
@@ -11,7 +12,8 @@ import {
   VERIFIED_NASA_WEATHER_EVENTS,
 } from '../data/nasa-datasets';
 
-const NASA_API_KEY = 'DEMO_KEY';
+const DEFAULT_NASA_API_KEY = 'DEMO_KEY';
+export const NASA_FETCH_TIMEOUT_MS = 6000;
 const DONKI_CACHE_KEY = 'junior_astronaut_donki_cache_v2';
 const IMAGES_CACHE_PREFIX = 'junior_astronaut_nasa_img_v2_';
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutos
@@ -21,28 +23,29 @@ interface CacheEnvelope<T> {
   payload: T;
 }
 
-interface DonkiFlrItem {
+export interface DonkiFlrItem {
   flrID?: string;
   classType?: string;
   beginTime?: string;
+  peakTime?: string;
   activeRegionNum?: number;
   link?: string;
 }
 
-interface DonkiSepItem {
+export interface DonkiSepItem {
   sepID?: string;
   eventTime?: string;
   instruments?: Array<{ displayName?: string }>;
   link?: string;
 }
 
-interface DonkiCmeAnalysis {
+export interface DonkiCmeAnalysis {
   speed?: number;
   type?: string;
   isMostAccurate?: boolean;
 }
 
-interface DonkiCmeItem {
+export interface DonkiCmeItem {
   activityID?: string;
   startTime?: string;
   note?: string;
@@ -63,6 +66,39 @@ interface NasaImageApiItem {
     rel?: string;
     render?: string;
   }>;
+}
+
+/**
+ * Obtiene la clave de API de NASA desde `import.meta.env.VITE_NASA_API_KEY`
+ * con fallback seguro a `DEMO_KEY`.
+ */
+export function getNasaApiKey(overrideKey?: string): string {
+  const raw =
+    overrideKey !== undefined
+      ? overrideKey
+      : (import.meta as unknown as { env?: Record<string, string | undefined> })?.env
+          ?.VITE_NASA_API_KEY;
+  const trimmed = typeof raw === 'string' ? raw.trim() : '';
+  return trimmed.length > 0 ? trimmed : DEFAULT_NASA_API_KEY;
+}
+
+/**
+ * Realiza un fetch con timeout estricto (por defecto 6000 ms) usando AbortController.
+ */
+export async function fetchWithTimeout(
+  url: string,
+  timeoutMs = NASA_FETCH_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function readCache<T>(key: string): T | null {
@@ -94,47 +130,55 @@ function writeCache<T>(key: string, payload: T): void {
   }
 }
 
-function mapDonkiFlare(flr: DonkiFlrItem, idx: number): SpaceWeatherEvent {
-  const classType = flr.classType || 'M1.0';
-  const isXClass = classType.startsWith('X');
-  const isMClass = classType.startsWith('M');
+export function clampNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
+
+export function mapDonkiFlareToEvent(flr: DonkiFlrItem, idx = 0): SpaceWeatherEvent {
+  const rawClass = typeof flr.classType === 'string' && flr.classType.trim() ? flr.classType.trim().toUpperCase() : 'M1.0';
+  const isXClass = rawClass.startsWith('X');
+  const isMClass = rawClass.startsWith('M');
   const regionLabel = flr.activeRegionNum ? `AR${flr.activeRegionNum}` : 'Solar Disk';
+  const id = (flr.flrID && flr.flrID.trim()) || `DONKI-LIVE-FLR-${idx}`;
+
+  const rawRad = isXClass ? 2.8 : isMClass ? 1.9 : 1.35;
 
   return {
-    id: flr.flrID || `DONKI-LIVE-FLR-${idx}`,
+    id,
     type: 'FLR',
-    classOrIntensity: `${classType} Solar Flare (${regionLabel})`,
-    startTime: flr.beginTime || new Date().toISOString(),
+    classOrIntensity: `${rawClass} Solar Flare (${regionLabel})`,
+    startTime: flr.beginTime || flr.peakTime || '2026-11-14T00:00Z',
     sourceUrl: flr.link || 'https://kauai.ccmc.gsfc.nasa.gov/DONKI/',
     isLiveNasaData: true,
     severity: isXClass ? 'critical' : isMClass ? 'warning' : 'watch',
     title: {
-      es: `📡 DONKI en Vivo: Llamarada Solar Clase ${classType}`,
-      en: `📡 Live DONKI: ${classType}-Class Solar Flare`,
+      es: `📡 DONKI en Vivo: Llamarada Solar Clase ${rawClass}`,
+      en: `📡 Live DONKI: ${rawClass}-Class Solar Flare`,
     },
     kidFriendlyExplanation: {
-      es: `¡Telemetría real recibida de la NASA! El Sol emitió una llamarada clase ${classType} en la región ${regionLabel}. Ajusta el blindaje de tu base para proteger a tus astronautas.`,
-      en: `Live telemetry straight from NASA! The Sun emitted a class ${classType} flare from ${regionLabel}. Adjust your outpost shielding to protect your astronauts.`,
+      es: `¡Telemetría real recibida de la NASA! El Sol emitió una llamarada clase ${rawClass} en la región ${regionLabel}. Ajusta el blindaje de tu base para proteger a tus astronautas.`,
+      en: `Live telemetry straight from NASA! The Sun emitted a class ${rawClass} flare from ${regionLabel}. Adjust your outpost shielding to protect your astronauts.`,
     },
     scienceFact: {
-      es: `Evento oficial NASA DONKI ID: ${flr.flrID || 'FLR-LIVE'} detectado en rayos X por satélites GOES/SDO.`,
-      en: `Official NASA DONKI ID: ${flr.flrID || 'FLR-LIVE'} detected in X-rays by GOES/SDO satellites.`,
+      es: `Evento oficial NASA DONKI ID: ${id} detectado en rayos X por satélites GOES/SDO.`,
+      en: `Official NASA DONKI ID: ${id} detected in X-rays by GOES/SDO satellites.`,
     },
-    radiationMultiplier: isXClass ? 2.8 : isMClass ? 1.9 : 1.35,
-    solarEfficiencyMultiplier: 1.0,
+    radiationMultiplier: clampNumber(rawRad, 1.0, 3.5),
+    solarEfficiencyMultiplier: clampNumber(1.0, 0.4, 1.1),
   };
 }
 
-function mapDonkiSep(sep: DonkiSepItem, idx: number): SpaceWeatherEvent {
+export function mapDonkiSepToEvent(sep: DonkiSepItem, idx = 0): SpaceWeatherEvent {
   const instrument =
-    sep.instruments?.[0]?.displayName || 'GOES / SOHO Energetic Particle Sensor';
-  const id = sep.sepID || `DONKI-LIVE-SEP-${idx}`;
+    sep.instruments?.[0]?.displayName?.trim() || 'GOES / SOHO Energetic Particle Sensor';
+  const id = (sep.sepID && sep.sepID.trim()) || `DONKI-LIVE-SEP-${idx}`;
 
   return {
     id,
     type: 'SEP',
     classOrIntensity: `SEP Proton Shower (${instrument})`,
-    startTime: sep.eventTime || new Date().toISOString(),
+    startTime: sep.eventTime || '2026-11-14T00:00Z',
     sourceUrl: sep.link || 'https://kauai.ccmc.gsfc.nasa.gov/DONKI/',
     isLiveNasaData: true,
     severity: 'warning',
@@ -150,23 +194,30 @@ function mapDonkiSep(sep: DonkiSepItem, idx: number): SpaceWeatherEvent {
       es: `Evento oficial NASA DONKI SEP (${id}). Los protones energéticos pueden atravesar trajes espaciales durante una caminata EVA.`,
       en: `Official NASA DONKI SEP (${id}). Energetic protons can penetrate spacesuits during an outdoor EVA spacewalk.`,
     },
-    radiationMultiplier: 2.35,
-    solarEfficiencyMultiplier: 0.92,
+    radiationMultiplier: clampNumber(2.35, 1.0, 3.5),
+    solarEfficiencyMultiplier: clampNumber(0.92, 0.4, 1.1),
   };
 }
 
-function mapDonkiCme(cme: DonkiCmeItem, idx: number): SpaceWeatherEvent {
-  const id = cme.activityID || `DONKI-LIVE-CME-${idx}`;
+export function mapDonkiCmeToEvent(cme: DonkiCmeItem, idx = 0): SpaceWeatherEvent {
+  const id = (cme.activityID && cme.activityID.trim()) || `DONKI-LIVE-CME-${idx}`;
   const bestAnalysis =
     cme.cmeAnalyses?.find((a) => a.isMostAccurate) || cme.cmeAnalyses?.[0];
-  const speed = bestAnalysis?.speed ? Math.round(bestAnalysis.speed) : 780;
+  const rawSpeed = bestAnalysis?.speed && Number.isFinite(bestAnalysis.speed)
+    ? Math.round(bestAnalysis.speed)
+    : 780;
+  const speed = clampNumber(rawSpeed, 250, 3500);
+  const isExtreme = speed >= 1500;
   const isFast = speed >= 1000;
+
+  const rawRad = isExtreme ? 3.1 : isFast ? 2.65 : 1.85;
+  const rawSolar = isExtreme ? 0.84 : isFast ? 0.88 : 0.94;
 
   return {
     id,
     type: 'CME',
     classOrIntensity: `CME Plasma Cloud (${speed} km/s)`,
-    startTime: cme.startTime || new Date().toISOString(),
+    startTime: cme.startTime || '2026-11-14T00:00Z',
     sourceUrl: cme.link || 'https://kauai.ccmc.gsfc.nasa.gov/DONKI/',
     isLiveNasaData: true,
     severity: isFast ? 'critical' : 'warning',
@@ -182,18 +233,127 @@ function mapDonkiCme(cme: DonkiCmeItem, idx: number): SpaceWeatherEvent {
       es: `Evento oficial NASA DONKI CME (${id}) medido por coronógrafos SOHO/STEREO a ${speed} km/s.`,
       en: `Official NASA DONKI CME (${id}) measured by SOHO/STEREO coronagraphs at ${speed} km/s.`,
     },
-    radiationMultiplier: isFast ? 2.65 : 1.85,
-    solarEfficiencyMultiplier: isFast ? 0.86 : 0.94,
+    radiationMultiplier: clampNumber(rawRad, 1.0, 3.5),
+    solarEfficiencyMultiplier: clampNumber(rawSolar, 0.4, 1.1),
   };
 }
 
 /**
+ * Normaliza un evento para garantizar que siempre cumpla los rangos del motor:
+ * radiationMultiplier en [1.0, 3.5] y solarEfficiencyMultiplier en [0.4, 1.1].
+ */
+export function sanitizeWeatherEvent(
+  event: SpaceWeatherEvent,
+  forceArchiveFlag?: boolean
+): SpaceWeatherEvent {
+  return {
+    ...event,
+    isLiveNasaData:
+      forceArchiveFlag !== undefined ? !forceArchiveFlag : Boolean(event.isLiveNasaData),
+    radiationMultiplier: clampNumber(event.radiationMultiplier, 1.0, 3.5),
+    solarEfficiencyMultiplier: clampNumber(event.solarEfficiencyMultiplier, 0.4, 1.1),
+  };
+}
+
+/**
+ * Función pura que construye el pool de clima espacial a partir de respuestas crudas de DONKI
+ * (FLR, SEP, CME) y el archivo histórico verificado de la NASA.
+ * Garantiza:
+ * - IDs únicos
+ * - radiationMultiplier entre 1.0 y 3.5
+ * - solarEfficiencyMultiplier entre 0.4 y 1.1
+ * - Al menos un evento NOMINAL siempre presente
+ * - isLiveNasaData = true para los eventos mapeados de DONKI y false para los del archivo
+ */
+export function buildWeatherPoolFromDonki(
+  rawInput: {
+    flr?: DonkiFlrItem[] | null;
+    sep?: DonkiSepItem[] | null;
+    cme?: DonkiCmeItem[] | null;
+  },
+  fallbackPool: SpaceWeatherEvent[] = VERIFIED_NASA_WEATHER_EVENTS
+): SpaceWeatherEvent[] {
+  const liveMapped: SpaceWeatherEvent[] = [];
+
+  if (Array.isArray(rawInput.flr) && rawInput.flr.length > 0) {
+    const latestFlares = rawInput.flr.slice(-2).reverse();
+    liveMapped.push(...latestFlares.map((item, idx) => mapDonkiFlareToEvent(item, idx)));
+  }
+
+  if (Array.isArray(rawInput.sep) && rawInput.sep.length > 0) {
+    const latestSeps = rawInput.sep.slice(-2).reverse();
+    liveMapped.push(...latestSeps.map((item, idx) => mapDonkiSepToEvent(item, idx)));
+  }
+
+  if (Array.isArray(rawInput.cme) && rawInput.cme.length > 0) {
+    const latestCmes = rawInput.cme.slice(-2).reverse();
+    liveMapped.push(...latestCmes.map((item, idx) => mapDonkiCmeToEvent(item, idx)));
+  }
+
+  const archiveEvents = fallbackPool.map((ev) => sanitizeWeatherEvent(ev, true));
+  const combined = [...liveMapped.map((ev) => sanitizeWeatherEvent(ev)), ...archiveEvents];
+
+  const uniquePool: SpaceWeatherEvent[] = [];
+  const seenIds = new Set<string>();
+
+  for (const ev of combined) {
+    let candidateId = ev.id.trim() || `NASA-EVENT-${uniquePool.length}`;
+    if (seenIds.has(candidateId)) {
+      if (ev.isLiveNasaData) {
+        candidateId = `${candidateId}-LIVE-${uniquePool.length}`;
+      } else {
+        continue;
+      }
+    }
+    seenIds.add(candidateId);
+    uniquePool.push({
+      ...ev,
+      id: candidateId,
+    });
+  }
+
+  const hasNominal = uniquePool.some((ev) => ev.type === 'NOMINAL');
+  if (!hasNominal) {
+    const fallbackNominal =
+      VERIFIED_NASA_WEATHER_EVENTS.find((ev) => ev.type === 'NOMINAL') || {
+        id: 'NOMINAL-SOLAR-WIND',
+        type: 'NOMINAL',
+        classOrIntensity: 'Viento Solar Estable (~380 km/s)',
+        startTime: '2026-11-14T00:00Z',
+        sourceUrl: 'https://api.nasa.gov/',
+        isLiveNasaData: false,
+        severity: 'nominal',
+        title: {
+          es: 'Clima Espacial Tranquilo — Sol Estable',
+          en: 'Quiet Space Weather — Calm Sun',
+        },
+        kidFriendlyExplanation: {
+          es: 'El Sol está tranquilo hoy. Tus paneles solares funcionan al 100%.',
+          en: 'The Sun is calm today. Your solar panels run at 100% efficiency.',
+        },
+        scienceFact: {
+          es: 'Incluso en días tranquilos existe radiación cósmica de fondo (GCR) medida por NASA OSDR.',
+          en: 'Even on calm days, background Galactic Cosmic Rays (GCR) are measured by NASA OSDR.',
+        },
+        radiationMultiplier: 1.0,
+        solarEfficiencyMultiplier: 1.05,
+      };
+    uniquePool.push(sanitizeWeatherEvent(fallbackNominal, true));
+  }
+
+  return uniquePool;
+}
+
+/**
  * Consulta en vivo los 3 endpoints de clima espacial de NASA DONKI (FLR, SEP y CME)
- * y combina los resultados con el archivo histórico verificado para garantizar 0 errores.
+ * con timeout de 6s y combina los resultados con el archivo histórico verificado.
+ * Ante HTTP 429 o cualquier error de red, devuelve el archivo verificado sin lanzar excepciones.
  */
 export async function fetchLiveOrVerifiedSpaceWeather(
   forceRefresh = false
 ): Promise<SpaceWeatherEvent[]> {
+  const verifiedFallback = buildWeatherPoolFromDonki({});
+
   if (!forceRefresh) {
     const cached = readCache<SpaceWeatherEvent[]>(DONKI_CACHE_KEY);
     if (cached && cached.length > 0) {
@@ -209,61 +369,80 @@ export async function fetchLiveOrVerifiedSpaceWeather(
     const startStr = start.toISOString().split('T')[0];
     const endStr = end.toISOString().split('T')[0];
 
+    const apiKey = getNasaApiKey();
     const baseUrl = 'https://api.nasa.gov/DONKI';
-    const queryParams = `startDate=${startStr}&endDate=${endStr}&api_key=${NASA_API_KEY}`;
+    const queryParams = `startDate=${startStr}&endDate=${endStr}&api_key=${encodeURIComponent(apiKey)}`;
 
     const [flrRes, sepRes, cmeRes] = await Promise.allSettled([
-      fetch(`${baseUrl}/FLR?${queryParams}`),
-      fetch(`${baseUrl}/SEP?${queryParams}`),
-      fetch(`${baseUrl}/CME?${queryParams}`),
+      fetchWithTimeout(`${baseUrl}/FLR?${queryParams}`, NASA_FETCH_TIMEOUT_MS),
+      fetchWithTimeout(`${baseUrl}/SEP?${queryParams}`, NASA_FETCH_TIMEOUT_MS),
+      fetchWithTimeout(`${baseUrl}/CME?${queryParams}`, NASA_FETCH_TIMEOUT_MS),
     ]);
 
-    const liveEvents: SpaceWeatherEvent[] = [];
+    // Si algún endpoint devuelve HTTP 429 (Rate Limit), respaldamos limpiamente al archivo verificado
+    const hitRateLimit = [flrRes, sepRes, cmeRes].some(
+      (res) => res.status === 'fulfilled' && res.value.status === 429
+    );
+    if (hitRateLimit) {
+      return verifiedFallback;
+    }
+
+    let flrData: DonkiFlrItem[] | null = null;
+    let sepData: DonkiSepItem[] | null = null;
+    let cmeData: DonkiCmeItem[] | null = null;
 
     if (flrRes.status === 'fulfilled' && flrRes.value.ok) {
-      const flrData = await flrRes.value.json();
-      if (Array.isArray(flrData) && flrData.length > 0) {
-        const latestFlares = (flrData as DonkiFlrItem[]).slice(-2).reverse();
-        liveEvents.push(...latestFlares.map(mapDonkiFlare));
+      try {
+        const parsed = await flrRes.value.json();
+        if (Array.isArray(parsed)) flrData = parsed as DonkiFlrItem[];
+      } catch {
+        flrData = null;
       }
     }
 
     if (sepRes.status === 'fulfilled' && sepRes.value.ok) {
-      const sepData = await sepRes.value.json();
-      if (Array.isArray(sepData) && sepData.length > 0) {
-        const latestSeps = (sepData as DonkiSepItem[]).slice(-2).reverse();
-        liveEvents.push(...latestSeps.map(mapDonkiSep));
+      try {
+        const parsed = await sepRes.value.json();
+        if (Array.isArray(parsed)) sepData = parsed as DonkiSepItem[];
+      } catch {
+        sepData = null;
       }
     }
 
     if (cmeRes.status === 'fulfilled' && cmeRes.value.ok) {
-      const cmeData = await cmeRes.value.json();
-      if (Array.isArray(cmeData) && cmeData.length > 0) {
-        const latestCmes = (cmeData as DonkiCmeItem[]).slice(-2).reverse();
-        liveEvents.push(...latestCmes.map(mapDonkiCme));
+      try {
+        const parsed = await cmeRes.value.json();
+        if (Array.isArray(parsed)) cmeData = parsed as DonkiCmeItem[];
+      } catch {
+        cmeData = null;
       }
     }
 
-    if (liveEvents.length === 0) {
-      return VERIFIED_NASA_WEATHER_EVENTS;
+    const hasAnyLive =
+      (flrData && flrData.length > 0) ||
+      (sepData && sepData.length > 0) ||
+      (cmeData && cmeData.length > 0);
+
+    if (!hasAnyLive) {
+      return verifiedFallback;
     }
 
-    const seenIds = new Set(liveEvents.map((ev) => ev.id));
-    const merged = [
-      ...liveEvents,
-      ...VERIFIED_NASA_WEATHER_EVENTS.filter((ev) => !seenIds.has(ev.id)),
-    ];
+    const mergedPool = buildWeatherPoolFromDonki({
+      flr: flrData,
+      sep: sepData,
+      cme: cmeData,
+    });
 
-    writeCache(DONKI_CACHE_KEY, merged);
-    return merged;
+    writeCache(DONKI_CACHE_KEY, mergedPool);
+    return mergedPool;
   } catch {
-    return VERIFIED_NASA_WEATHER_EVENTS;
+    return verifiedFallback;
   }
 }
 
 /**
  * Consulta en vivo la API oficial NASA Image and Video Library (https://images-api.nasa.gov)
- * sin necesidad de API key, manteniendo fallback instantáneo a fotografías verificadas.
+ * con timeout de 6s, manteniendo fallback instantáneo a fotografías verificadas sin lanzar excepciones.
  */
 export async function fetchNasaGalleryImages(
   searchQuery = '',
@@ -294,6 +473,9 @@ export async function fetchNasaGalleryImages(
     );
   });
 
+  const fallbackImages =
+    curatedMatches.length > 0 ? curatedMatches : VERIFIED_NASA_GALLERY_IMAGES;
+
   const apiSearchTerm =
     normalizedQuery ||
     (categoryFilter === 'moon'
@@ -313,12 +495,13 @@ export async function fetchNasaGalleryImages(
   }
 
   try {
-    const response = await fetch(
-      `https://images-api.nasa.gov/search?q=${encodeURIComponent(apiSearchTerm)}&media_type=image&page_size=4`
+    const response = await fetchWithTimeout(
+      `https://images-api.nasa.gov/search?q=${encodeURIComponent(apiSearchTerm)}&media_type=image&page_size=4`,
+      NASA_FETCH_TIMEOUT_MS
     );
 
     if (!response.ok) {
-      return curatedMatches.length > 0 ? curatedMatches : VERIFIED_NASA_GALLERY_IMAGES;
+      return fallbackImages;
     }
 
     const json = await response.json();
@@ -381,10 +564,10 @@ export async function fetchNasaGalleryImages(
       ...liveImages.filter((img) => !seenIds.has(img.nasaId)),
     ];
 
-    const finalResult = combined.length > 0 ? combined : VERIFIED_NASA_GALLERY_IMAGES;
+    const finalResult = combined.length > 0 ? combined : fallbackImages;
     writeCache(cacheKey, finalResult);
     return finalResult;
   } catch {
-    return curatedMatches.length > 0 ? curatedMatches : VERIFIED_NASA_GALLERY_IMAGES;
+    return fallbackImages;
   }
 }

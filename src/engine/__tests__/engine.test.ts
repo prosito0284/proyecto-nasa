@@ -25,7 +25,7 @@ const KEYS: (keyof CoreResources)[] = [
  * Términos que las tarjetas resaltan y que el Bloque B todavía debe añadir al glosario.
  * TAREA BLOQUE B: añadirlos a KID_SCIENCE_GLOSSARY y vaciar esta lista.
  */
-const PENDING_GLOSSARY_IDS = ['dust-storm', 'micrometeorite', 'shackleton', 'gravity', 'jezero'];
+const PENDING_GLOSSARY_IDS: string[] = [];
 
 type Strategy = {
   alloc: (s: MissionState) => PowerAllocation;
