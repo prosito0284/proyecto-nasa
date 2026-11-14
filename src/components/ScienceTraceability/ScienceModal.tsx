@@ -1050,7 +1050,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   {
                     labelEs: 'Tormenta SEP SIN Escudo (Mayo 2024)',
                     labelEn: 'Unshielded SEP Storm (May 2024)',
-                    msv: '8.1+ mSv/día',
+                    msv: '8.1 mGy (8,100 µGy)',
                     pct: 100,
                     color: 'var(--nasa-red, #FC3D21)',
                   },
