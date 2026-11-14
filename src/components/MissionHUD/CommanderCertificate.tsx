@@ -7,6 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import { DecisionRecord, Language, OutpostSiteConfig, SpaceWeatherEvent } from '../../types/mission';
 import type { CommanderEvaluation } from '../../engine/simulationEngine';
+import { INITIAL_DILEMMA_CARDS } from '../../data/scenarios';
 import { missionAudio } from '../../utils/sound';
 
 export interface CommanderCertificateProps {
@@ -263,11 +264,16 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                     </div>
                     <div className="cert-history-detail">
                       <span className="cert-history-card-id">
-                        📋 {formatCodeLabel(record.cardId)}
+                        {INITIAL_DILEMMA_CARDS.find((c) => c.id === record.cardId)?.title[lang] ??
+                          formatCodeLabel(record.cardId)}
                       </span>
                       <span className="cert-history-choice-id">
                         ✅ {lang === 'es' ? 'Opción:' : 'Choice:'}{' '}
-                        <strong>{formatCodeLabel(record.choiceId)}</strong>
+                        <strong>
+                          {INITIAL_DILEMMA_CARDS.flatMap((c) => c.choices).find(
+                            (ch) => ch.id === record.choiceId
+                          )?.label[lang] ?? formatCodeLabel(record.choiceId)}
+                        </strong>
                       </span>
                     </div>
                   </div>

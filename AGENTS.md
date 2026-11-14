@@ -77,14 +77,13 @@ Este repositorio está configurado para el trabajo simultáneo de **2 desarrolla
 
 ---
 
-## 4. Estado Actual de Integración (Fase 2 en `main`)
+## 4. Estado Actual de Integración (Fase 3 en `main`)
 
-- ✅ **Fase 1:** los 3 bloques están fusionados y compilando.
-- ✅ **Mejoras de arquitectura del Líder (Fase 2):**
-  - `src/hooks/useMission.ts`: **único punto donde la UI toca el motor** (crear misión, decidir, clima real, guardado en `localStorage`). `App.tsx` solo compone componentes.
-  - `src/types/mission.ts`: `MissionState.engine?` (`EngineTelemetry`, `DecisionRecord`) ya es parte del contrato. La UI puede **leer** `engine.history`, nunca escribirlo.
-  - Motor: clima inicial variable por partida, 40% de días tranquilos, **sin tormentas de polvo en la Luna**, y el dilema del Día 1 siempre coincide con el clima.
-  - `npm test` (Vitest): pruebas de contrato y balance en `src/engine/__tests__/`. CI las corre en cada PR y antes de desplegar.
+- ✅ **Ronda 2 integrada:** B1–B6 y C1–C7 revisados y fusionados. Ambos bloques respetaron sus archivos.
+- ✅ **Conexiones del Líder:** pantalla de bienvenida, informe del día tras cada decisión, glosario abierto en el término del dilema, repaso de decisiones en el certificado, retraso de señal variable en Marte.
+- ✅ **Reto del día:** misión reproducible por semilla (`?site=mars-jezero&seed=20261114`) que usa siempre el archivo verificado para que todos jueguen lo mismo.
+- ✅ README bilingüe para jueces y guion de demo en `docs/DEMO.md`.
+- ✅ `npm test`: 18 pruebas (motor + mapeo DONKI).
 
 ### Arquitectura (flujo de datos en una sola dirección)
 
@@ -112,31 +111,49 @@ npm test && npm run build && git push origin <tu-rama>                 # al term
 
 ---
 
-## 6. 📋 RONDA 2 — Tareas asignadas por Claude (en orden de prioridad)
+## 6. 📋 RONDA 3 — Identidad propia (nada de "página genérica de IA")
 
-### 🛰️ Bloque B — Antigravity Compañero (`feat/nasa-data-service`)
+**Diagnóstico del Líder.** El juego funciona, pero se ve como cualquier panel generado por IA: fondo azul marino, tarjetas redondeadas translúcidas, acento ámbar y un emoji como icono en cada título. Un juez lo olvida en diez segundos. La Ronda 3 le da una identidad que solo puede ser de este proyecto.
 
-| # | Tarea | Hecho cuando… |
-|---|---|---|
-| **B1** | **Glosario completo.** Añadir a `KID_SCIENCE_GLOSSARY` los 5 términos que las tarjetas resaltan y aún no existen: `dust-storm`, `micrometeorite`, `shackleton`, `gravity`, `jezero` (definición corta + analogía para niños + fuente NASA). | Los 5 ids existen y la lista `PENDING_GLOSSARY_IDS` de `src/engine/__tests__/engine.test.ts` queda vacía (puedes editar solo esa línea) con `npm test` en verde. |
-| **B2** | **Enlace directo al término.** `ScienceModal` acepta la prop opcional `focusTermId?: string`: al abrir, muestra la pestaña de glosario con ese término resaltado y en pantalla. Exportar desde `nasa-datasets.ts` el helper `getGlossaryTerm(id): GlossaryTerm \| undefined`. | Abrir el modal con `focusTermId="moxie"` muestra MOXIE resaltado. Sin la prop, todo funciona igual que hoy. |
-| **B3** | **API robusta para el día de los jueces.** Leer la clave de `import.meta.env.VITE_NASA_API_KEY` (fallback `DEMO_KEY`), crear `.env.example`, timeout de 6 s con `AbortController`, y ante 429/errores devolver el archivo verificado **sin lanzar excepciones**. | Con la red cortada o un 429 la app carga igual y marca los datos como "Archivo Real NASA". |
-| **B4** | **Calidad del pool de clima.** Extraer el mapeo DONKI→`SpaceWeatherEvent` a funciones puras y probarlas en `src/services/__tests__/nasaApi.test.ts` con respuestas reales de DONKI como fixtures. Garantizar: ids únicos, `radiationMultiplier` entre 1.0 y 3.5, `solarEfficiencyMultiplier` entre 0.4 y 1.1, al menos un evento `NOMINAL` siempre, y `isLiveNasaData` correcto. | Pruebas nuevas en verde; un pool en vivo nunca rompe el balance del motor. |
-| **B5** | **Quiz conectado al juego.** Ampliar `JUNIOR_ASTRONAUT_QUIZ` a 12+ preguntas que salgan de los dilemas (MOXIE y sus 122 g de O₂, 1.37 mSv/día en la Luna vs 0.67 en Marte, tormenta de polvo −60 %, retraso 1.3 s vs 4–24 min, hielo en sombra permanente). Campo opcional `siteFilter` para preguntar según la base elegida. | 12+ preguntas bilingües, cada una con su fuente NASA. |
-| **B6** | **Accesibilidad del modal.** `role="dialog"`, foco atrapado, cierre con `Esc`, botones ≥ 44 px, `alt` en todas las fotos NASA. | Se puede usar el modal completo solo con teclado. |
+### Dirección de arte: "Cuaderno de Vuelo del Comandante"
+
+El niño no usa un dashboard: lleva el **cuaderno de vuelo** de su misión, como los planes de vuelo de papel de Apolo y los manuales gráficos de la NASA de 1975.
+
+| Elemento | Regla |
+|---|---|
+| **Superficie** | Papel de plan de vuelo: fondo crema `#F2EBDD`, tinta `#1B1F2A`, líneas finas de formulario. El espacio oscuro queda **solo dentro de la ventana del mapa**. |
+| **Color** | Rojo NASA `#FC3D21` para alertas y acción principal, azul `#0B3D91` para datos, verde de check `#2E7D4F`. Sin degradados ni brillos. |
+| **Tipografía** | Un rótulo condensado tipo señalética para títulos y una monoespaciada para cifras y checklists. Quitar la mezcla actual de tres familias. |
+| **Iconos** | **Cero emoji en la interfaz.** Un set propio de ~16 iconos SVG de trazo (batería, gota, hoja, escudo, casco, antena, sol, polvo…) dibujados con la misma regla. |
+| **Formas** | Esquinas rectas o de 2 px, bordes de 1.5 px, pestañas de carpeta, sellos y casillas de checklist. Nada de tarjetas flotantes con sombra. |
+| **Decisiones** | Cada opción es una **orden de trabajo** que el comandante firma: dos columnas "Ganas / Pagas" y un sello "EJECUTADA" al elegir. |
+| **Insignias** | **Parches de misión bordados** (SVG redondo con borde de hilo), uno por logro, en lugar de emoji en una caja. |
+| **Mapa** | Ilustración plana a dos tintas por sitio (gris-azul lunar, óxido marciano) con estilo de diagrama técnico y rótulos con líneas guía. |
+| **Voz** | Frases cortas de control de misión. Sin signos de admiración en cadena ni mayúsculas de adorno. |
 
 ### 🎮 Bloque C — Antigravity Principal (`feat/outpost-ui`)
 
 | # | Tarea | Hecho cuando… |
 |---|---|---|
-| **C1** | **Pantalla de bienvenida (Briefing).** Nuevo `MissionHUD/MissionBriefing.tsx` con props `{ lang, sites: OutpostSiteConfig[], onStart(siteId) }`: elegir Luna o Marte con tarjetas grandes y un tutorial de 3 pasos ("reparte la energía → elige → mira la consecuencia de mañana"). Hoy el niño cae directo en un panel lleno de números. | Componente listo y exportado; Claude lo conecta en `App.tsx`. |
-| **C2** | **Móvil primero.** A 390 px hay 42 px de desborde horizontal: eliminarlo. En móvil el orden debe ser: barra compacta de vitales (fija arriba) → tarjeta de decisión → mapa → detalles. Objetivos táctiles ≥ 44 px. | Sin scroll horizontal a 360–430 px y la decisión visible sin bajar más de una pantalla. |
-| **C3** | **Menos carga para 7–12 años.** Los 4 presets de energía pasan a ser botones grandes principales; los sliders quedan bajo "Avanzado". El simulador de retraso y los detalles de cada sistema se pliegan por defecto. | La primera pantalla de juego muestra como máximo: vitales, mapa, clima de hoy y la decisión. |
-| **C4** | **Informe del día.** Nuevo `MissionHUD/TurnReport.tsx` con props `{ lang, previous: CoreResources, current: CoreResources, logs: MissionLogEntry[], onContinue }`: tras decidir, anima cada barra de "antes" a "después" y lista las consecuencias de ayer. Es el momento donde el niño **ve** el trade-off. | Componente listo; Claude lo conecta. Respeta `prefers-reduced-motion`. |
-| **C5** | **El mapa cuenta lo que pasa.** `OutpostMap` cambia según `weather` y `resources`: velo de polvo naranja en `DUST_STORM`, sombra sobre los paneles con `weather.id === 'MOON-RIM-SHADOW-PASS'`, luces apagadas si `power < 15`, invernadero marchito si `food < 25`, cielo y suelo distintos en Marte y Luna. | Cada estado se distingue a simple vista sin leer texto. |
-| **C6** | **Certificado con repaso.** `CommanderCertificate` acepta `history?: DecisionRecord[]` (de `mission.engine.history`) y muestra las decisiones del jugador día por día; campo para el nombre del astronauta y estilo `@media print` para imprimirlo. | Certificado imprimible en una hoja con nombre, rango, insignias y repaso. |
-| **C7** | **Accesibilidad.** Contraste AA, foco visible, `aria-live` en alertas de tormenta y cambios de día, `prefers-reduced-motion` en todas las animaciones. | Navegable por teclado de principio a fin. |
+| **C8** | **Tokens y base.** Reescribir las variables de `src/styles/index.css` según la tabla (color, tipografía, bordes, espaciado) y aplicar la superficie de papel a toda la app. | Ningún degradado, sombra difusa ni `border-radius` mayor de 2 px fuera del mapa. Contraste AA. |
+| **C9** | **Set de iconos propio.** Crear `src/components/icons/` con ~16 iconos SVG de trazo y sustituir **todos** los emoji de tus componentes. | `grep` de emoji en `src/components/MissionHUD` y `OutpostView` devuelve cero. |
+| **C10** | **Parches de misión.** Componente `MissionHUD/MissionPatch.tsx` con props `{ badgeId, earned, size? }` que dibuja un parche bordado distinto por insignia. Usarlo en el HUD y el certificado. | 9 parches distintos; los no ganados se ven como contorno punteado. |
+| **C11** | **Mapa como diagrama técnico.** Rehacer `OutpostMap` a dos tintas por sitio con rótulos y líneas guía; conservar todos los estados de C5. | Luna y Marte se distinguen a un metro de la pantalla. |
+| **C12** | **Certificado como diploma de papel.** Aplicar la identidad al certificado y revisar la impresión en una hoja. | Se imprime en A4/Carta sin cortes y con los parches. |
 
-### 👑 Líder (Claude) — en paralelo
-- Conectar en `App.tsx`: `MissionBriefing` (C1), `TurnReport` (C4), `focusTermId` (B2), `history` (C6).
-- Modo "Reto del día" con semilla compartible, README bilingüe para jueces y guion de demo.
+### 🛰️ Bloque B — Antigravity Compañero (`feat/nasa-data-service`)
+
+| # | Tarea | Hecho cuando… |
+|---|---|---|
+| **B7** | **Panel de ciencia como "Anexo del cuaderno".** Aplicar la identidad a `ScienceModal`: pestañas de carpeta, fichas de término tipo tarjeta de biblioteca, cero emoji (usar los iconos de `src/components/icons/` cuando C9 esté en `main`; mientras, texto). | Cero emoji en `ScienceTraceability/`. |
+| **B8** | **Sello de procedencia.** Componente `ScienceTraceability/SourceStamp.tsx` con props `{ source: 'DONKI' \| 'OSDR' \| 'ARTEMIS' \| 'MARS', live: boolean, url? }`: un sello de tinta que dice de dónde viene el dato y si es en vivo o de archivo. | Componente exportado; Claude lo coloca en dilemas y bitácora. |
+| **B9** | **"¿Cómo lo sabemos?"** Añadir a cada término del glosario un campo opcional `howWeKnow: LocalizedText` (una frase: qué instrumento o misión midió el dato). | Los 17 términos lo tienen, con fuente. |
+| **B10** | **Datos en vivo visibles.** Exportar `getWeatherPoolStatus()` → `{ live: boolean, fetchedAt: string, count: number }` para mostrar "DONKI en vivo · actualizado hace 2 h". | Función exportada y probada. |
+
+### 👑 Líder (Claude)
+- Textos de dilemas con la voz nueva; "orden de trabajo" en `App.tsx` (columnas Ganas / Pagas, sello al ejecutar).
+- Colocar `SourceStamp` y el estado de DONKI en vivo; quitar los emoji de `App.tsx`.
+- Modo aula: tabla de resultados del Reto del día en el mismo dispositivo.
+- Revisión final en móvil, tablet y escritorio, y publicación.
+
+**Orden:** C8 y C9 primero (todo lo demás depende de los tokens y los iconos). B8–B10 pueden avanzar en paralelo.
