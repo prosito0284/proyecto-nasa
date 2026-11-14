@@ -395,7 +395,7 @@ export const VERIFIED_NASA_GALLERY_IMAGES: NasaGalleryImage[] = [
       es: 'Conecta con: Base Lunar Artemis (89.9°S) y extracción de hielo en regolito (ISRU).',
       en: 'Connects to: Artemis Lunar Outpost (89.9°S) and regolith ice extraction (ISRU).',
     },
-    fallbackEmoji: '🌕',
+    fallbackEmoji: 'LRO-MOON',
   },
   {
     nasaId: 'PIA24486',
@@ -416,7 +416,7 @@ export const VERIFIED_NASA_GALLERY_IMAGES: NasaGalleryImage[] = [
       es: 'Conecta con: Estación Marciana Jezero, tormentas de polvo MEDA y retraso de luz.',
       en: 'Connects to: Jezero Martian Outpost, MEDA dust storms, and light-time comm delay.',
     },
-    fallbackEmoji: '🔴',
+    fallbackEmoji: 'MARS-2020',
   },
   {
     nasaId: 'GSFC_20171208_Archive_e001435',
@@ -431,14 +431,14 @@ export const VERIFIED_NASA_GALLERY_IMAGES: NasaGalleryImage[] = [
       'https://images-assets.nasa.gov/image/GSFC_20171208_Archive_e001435/GSFC_20171208_Archive_e001435~orig.jpg',
     sourcePageUrl: 'https://images.nasa.gov/details/GSFC_20171208_Archive_e001435',
     kidCaption: {
-      es: '¡Mira ese destello brillante! El satélite SDO fotografía el Sol en luz ultravioleta extrema cada 12 segundos para alimentar el sistema de alertas NASA DONKI.',
-      en: 'Look at that bright flash! The SDO satellite photographs the Sun in extreme ultraviolet light every 12 seconds to feed the NASA DONKI alert system.',
+      es: 'El satélite SDO fotografía el Sol en luz ultravioleta extrema cada 12 segundos para alimentar el sistema de alertas NASA DONKI.',
+      en: 'The SDO satellite photographs the Sun in extreme ultraviolet light every 12 seconds to feed the NASA DONKI alert system.',
     },
     scienceConnection: {
       es: 'Conecta con: Telemetría NASA DONKI (eventos FLR, SEP y CME) y escudo de radiación.',
       en: 'Connects to: NASA DONKI telemetry (FLR, SEP, and CME events) and radiation shielding.',
     },
-    fallbackEmoji: '☀️',
+    fallbackEmoji: 'SDO-SOLAR',
   },
   {
     nasaId: 'iss044e045595',
@@ -459,7 +459,7 @@ export const VERIFIED_NASA_GALLERY_IMAGES: NasaGalleryImage[] = [
       es: 'Conecta con: Estudio NASA OSDR OSD-379 / Veggie y el presupuesto de energía del invernadero.',
       en: 'Connects to: NASA OSDR Study OSD-379 / Veggie and greenhouse power budgeting.',
     },
-    fallbackEmoji: '🌱',
+    fallbackEmoji: 'OSDR-VEGGIE',
   },
   {
     nasaId: 'PIA24321',
@@ -480,7 +480,7 @@ export const VERIFIED_NASA_GALLERY_IMAGES: NasaGalleryImage[] = [
       es: 'Conecta con: Soporte Vital en Marte y el alto costo eléctrico de producir oxígeno.',
       en: 'Connects to: Mars Life Support and the high electrical cost of producing oxygen.',
     },
-    fallbackEmoji: '⚙️',
+    fallbackEmoji: 'ISRU-MOXIE',
   },
   {
     nasaId: 'PIA16938',
@@ -501,7 +501,7 @@ export const VERIFIED_NASA_GALLERY_IMAGES: NasaGalleryImage[] = [
       es: 'Conecta con: Dosis acumulada en mSv y protección de la salud de los astronautas.',
       en: 'Connects to: Accumulated mSv dose and protecting astronaut crew health.',
     },
-    fallbackEmoji: '🛡️',
+    fallbackEmoji: 'MSL-RAD',
   },
 ];
 

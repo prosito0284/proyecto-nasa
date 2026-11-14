@@ -605,14 +605,14 @@ export async function fetchNasaGalleryImages(
           },
           fallbackEmoji:
             inferredCategory === 'mars'
-              ? '🔴'
+              ? 'MARS-IMG'
               : inferredCategory === 'solar'
-                ? '☀️'
+                ? 'SDO-IMG'
                 : inferredCategory === 'plants'
-                  ? '🌱'
+                  ? 'OSDR-IMG'
                   : inferredCategory === 'radiation'
-                    ? '🛡️'
-                    : '🛰️',
+                    ? 'RAD-IMG'
+                    : 'LRO-IMG',
           isLiveApiResult: true,
         };
       })

@@ -1,12 +1,16 @@
 /**
  * BLOQUE B (Asignado a: Antigravity del Compañero - Rama: feat/nasa-data-service)
- * Panel interactivo y accesible de "Ciencia Real de la NASA" con 4 pestañas:
- * 1. Clima Espacial en Vivo (DONKI FLR/SEP/CME) + Glosario (7-12 años)
- * 2. Estudios Reales NASA OSDR (BioSentinel, RAD, Veggie OSD-379, APH, MOXIE)
- * 3. Fotografías Reales de la NASA (images-api.nasa.gov en vivo + curadas)
- * 4. Mini-Quiz Interactivo de Astronauta Junior (14 preguntas conectadas a dilemas)
+ * Anexo Técnico del Cuaderno de Vuelo del Comandante ("Ciencia Real de la NASA") — Ronda 3 (Tarea B7):
+ * 1. ANEXO A: Clima Espacial en Vivo (DONKI FLR/SEP/CME) + Fichas de Biblioteca del Glosario (17 términos con howWeKnow)
+ * 2. ANEXO B: Estudios Reales NASA OSDR (BioSentinel, RAD, Veggie OSD-379, APH, MOXIE)
+ * 3. ANEXO C: Fotografías Reales de la NASA (images-api.nasa.gov en vivo + archivo verificado)
+ * 4. ANEXO D: Verificación de Vuelo (Mini-Quiz de 14 preguntas conectadas a dilemas)
  *
- * Accesibilidad (B6):
+ * Identidad "Cuaderno de Vuelo del Comandante" (B7):
+ * - Superficie de papel crema, tinta oscura, líneas de formulario, pestañas de carpeta, fichas de biblioteca.
+ * - Esquinas de 2 px, sin degradados ni sombras difusas, cero emoji (usa iconos SVG de trazo de src/components/icons/).
+ *
+ * Accesibilidad conservada (B6):
  * - role="dialog", aria-modal="true", aria-labelledby="science-modal-title"
  * - Trampa de foco (Tab / Shift+Tab ciclan dentro del modal) y retorno de foco al cerrar
  * - Cierre con tecla Escape (Esc)
@@ -34,8 +38,29 @@ import {
 import {
   fetchLiveOrVerifiedSpaceWeather,
   fetchNasaGalleryImages,
+  getWeatherPoolStatus,
 } from '../../services/nasaApi';
 import { missionAudio } from '../../utils/sound';
+import {
+  AlertIcon,
+  AntennaIcon,
+  ArrowIcon,
+  BatteryIcon,
+  CheckIcon,
+  ClockIcon,
+  CloseIcon,
+  DropletIcon,
+  DustIcon,
+  GlobeIcon,
+  LeafIcon,
+  PatchIcon,
+  RadiationIcon,
+  ScienceIcon,
+  ShieldIcon,
+  SunIcon,
+} from '../icons';
+import { NasaProvenanceSource, SourceStamp } from './SourceStamp';
+import './science.css';
 
 export interface ScienceModalProps {
   lang: Language;
@@ -66,6 +91,15 @@ const MIN_TOUCH_TARGET_STYLE: React.CSSProperties = {
   minWidth: '44px',
 };
 
+function mapGlossarySourceToStamp(
+  src: GlossaryTerm['nasaSource']
+): NasaProvenanceSource {
+  if (src === 'DONKI') return 'DONKI';
+  if (src === 'OSDR' || src === 'ECLSS') return 'OSDR';
+  if (src === 'ARTEMIS') return 'ARTEMIS';
+  return 'MARS';
+}
+
 export const ScienceModal: React.FC<ScienceModalProps> = ({
   lang,
   isOpen,
@@ -76,29 +110,27 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
   siteId,
 }) => {
   const [activeTab, setActiveTab] = useState<ModalTab>('donki-glossary');
-  const modalCardRef = useRef<HTMLDivElement | null>(null);
-  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
-  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
-
-  // Estado Tab 1: DONKI en Vivo y Glosario
-  const [donkiEvents, setDonkiEvents] = useState<SpaceWeatherEvent[]>(
-    VERIFIED_NASA_WEATHER_EVENTS
-  );
-  const [isLoadingDonki, setIsLoadingDonki] = useState(false);
-  const [weatherTypeFilter, setWeatherTypeFilter] = useState<
-    'ALL' | SpaceWeatherEvent['type']
-  >('ALL');
+  const [glossarySearch, setGlossarySearch] = useState('');
   const [glossarySourceFilter, setGlossarySourceFilter] = useState<
     'ALL' | GlossaryTerm['nasaSource']
   >('ALL');
-  const [glossarySearch, setGlossarySearch] = useState('');
 
-  // Estado Tab 2: Estudios NASA OSDR
+  // Estado DONKI en vivo (FLR / SEP / CME)
+  const [donkiEvents, setDonkiEvents] = useState<SpaceWeatherEvent[]>(
+    VERIFIED_NASA_WEATHER_EVENTS
+  );
+  const [weatherTypeFilter, setWeatherTypeFilter] = useState<
+    'ALL' | SpaceWeatherEvent['type']
+  >('ALL');
+  const [isLoadingDonki, setIsLoadingDonki] = useState(false);
+  const [poolStatus, setPoolStatus] = useState(() => getWeatherPoolStatus());
+
+  // Estado OSDR
   const [osdrCategory, setOsdrCategory] = useState<
     'all' | NasaOsdrStudy['category']
   >('all');
 
-  // Estado Tab 3: Fotografías Reales de la NASA (images-api.nasa.gov)
+  // Estado Galería NASA (images-api.nasa.gov)
   const [galleryImages, setGalleryImages] = useState<NasaGalleryImage[]>(
     VERIFIED_NASA_GALLERY_IMAGES
   );
@@ -111,13 +143,17 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
     {}
   );
 
-  // Estado Tab 4: Mini-Quiz para niños
+  // Estado Mini-Quiz (B5)
   const [quizSiteFilter, setQuizSiteFilter] = useState<OutpostSiteId | 'all'>(
     siteId ?? 'all'
   );
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>(
-    {}
-  );
+  const [selectedAnswers, setSelectedAnswers] = useState<
+    Record<string, string>
+  >({});
+
+  const modalCardRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (siteId) {
@@ -125,88 +161,67 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
     }
   }, [siteId]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    setIsLoadingDonki(true);
-    fetchLiveOrVerifiedSpaceWeather(false)
-      .then((events) => {
-        if (events.length > 0) {
-          setDonkiEvents(events);
-        }
-      })
-      .finally(() => setIsLoadingDonki(false));
-  }, [isOpen]);
-
+  // B2: Al abrir con focusTermId, abre la pestaña del glosario, limpia filtros y hace scroll al término
   useEffect(() => {
     if (!isOpen || !focusTermId) return;
     setActiveTab('donki-glossary');
     setGlossarySourceFilter('ALL');
     setGlossarySearch('');
-    const timer = setTimeout(() => {
-      if (typeof document !== 'undefined') {
-        const el = document.getElementById(`glossary-term-${focusTermId}`);
-        el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+
+    const timer = window.setTimeout(() => {
+      const targetEl = document.getElementById(`glossary-term-${focusTermId}`);
+      if (targetEl && typeof targetEl.scrollIntoView === 'function') {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }, 60);
-    return () => clearTimeout(timer);
+
+    return () => window.clearTimeout(timer);
   }, [isOpen, focusTermId]);
 
+  // B6: Trampa de foco (Tab / Shift+Tab), cierre con Escape y restauración de foco
   useEffect(() => {
-    if (!isOpen || activeTab !== 'nasa-photos') return;
-    setIsLoadingPhotos(true);
-    fetchNasaGalleryImages(photoQuery, photoCategory, false)
-      .then((imgs) => {
-        setGalleryImages(imgs);
-      })
-      .finally(() => setIsLoadingPhotos(false));
-  }, [isOpen, activeTab, photoCategory]);
+    if (!isOpen) return;
 
-  // Accesibilidad B6: Trampa de foco, foco inicial, restauración de foco y cierre con Esc
-  useEffect(() => {
-    if (!isOpen || typeof document === 'undefined') return;
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
 
-    previouslyFocusedElementRef.current =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-
-    const focusTimer = setTimeout(() => {
+    const focusTimer = window.setTimeout(() => {
       closeButtonRef.current?.focus();
-    }, 10);
+    }, 20);
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        event.stopPropagation();
+        missionAudio.playClick();
         onClose();
         return;
       }
 
       if (event.key === 'Tab' && modalCardRef.current) {
-        const focusableNodes = Array.from(
-          modalCardRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+        const focusableNodeList =
+          modalCardRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+        const focusables = Array.from(focusableNodeList).filter(
+          (el) => el.offsetParent !== null || el === document.activeElement
         );
-        if (focusableNodes.length === 0) return;
 
-        const firstEl = focusableNodes[0];
-        const lastEl = focusableNodes[focusableNodes.length - 1];
+        if (focusables.length === 0) {
+          event.preventDefault();
+          return;
+        }
+
+        const firstEl = focusables[0];
+        const lastEl = focusables[focusables.length - 1];
         const activeEl = document.activeElement as HTMLElement | null;
 
         if (event.shiftKey) {
           if (
             activeEl === firstEl ||
-            !activeEl ||
             !modalCardRef.current.contains(activeEl)
           ) {
             event.preventDefault();
             lastEl.focus();
           }
         } else {
-          if (
-            activeEl === lastEl ||
-            !activeEl ||
-            !modalCardRef.current.contains(activeEl)
-          ) {
+          if (activeEl === lastEl || !modalCardRef.current.contains(activeEl)) {
             event.preventDefault();
             firstEl.focus();
           }
@@ -215,15 +230,78 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
     };
 
     document.addEventListener('keydown', handleKeyDown);
-
     return () => {
-      clearTimeout(focusTimer);
+      window.clearTimeout(focusTimer);
       document.removeEventListener('keydown', handleKeyDown);
-      previouslyFocusedElementRef.current?.focus?.();
+      if (
+        previousFocusRef.current &&
+        typeof previousFocusRef.current.focus === 'function'
+      ) {
+        previousFocusRef.current.focus();
+      }
     };
   }, [isOpen, onClose]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    let isMounted = true;
+
+    setIsLoadingDonki(true);
+    fetchLiveOrVerifiedSpaceWeather(false)
+      .then((events) => {
+        if (isMounted && events.length > 0) {
+          setDonkiEvents(events);
+          setPoolStatus(getWeatherPoolStatus());
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingDonki(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'nasa-photos') return;
+    let isMounted = true;
+
+    setIsLoadingPhotos(true);
+    fetchNasaGalleryImages(photoQuery, photoCategory, false)
+      .then((imgs) => {
+        if (isMounted) {
+          setGalleryImages(imgs);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingPhotos(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, activeTab, photoCategory]);
+
   if (!isOpen) return null;
+
+  const handleRefreshDonki = async () => {
+    missionAudio.playClick();
+    setIsLoadingDonki(true);
+    const refreshed = await fetchLiveOrVerifiedSpaceWeather(true);
+    setDonkiEvents(refreshed);
+    setPoolStatus(getWeatherPoolStatus());
+    setIsLoadingDonki(false);
+  };
+
+  const handlePhotoSearchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    missionAudio.playClick();
+    setIsLoadingPhotos(true);
+    const imgs = await fetchNasaGalleryImages(photoQuery, photoCategory, true);
+    setGalleryImages(imgs);
+    setIsLoadingPhotos(false);
+  };
 
   const handleTabSwitch = (tab: ModalTab) => {
     missionAudio.playClick();
@@ -231,41 +309,22 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
   };
 
   const handleTabKeyDown = (
-    e: React.KeyboardEvent<HTMLButtonElement>,
+    event: React.KeyboardEvent<HTMLButtonElement>,
     currentTab: ModalTab
   ) => {
     const idx = TAB_ORDER.indexOf(currentTab);
-    if (e.key === 'ArrowRight') {
-      e.preventDefault();
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
       const nextTab = TAB_ORDER[(idx + 1) % TAB_ORDER.length];
       handleTabSwitch(nextTab);
-    } else if (e.key === 'ArrowLeft') {
-      e.preventDefault();
+      document.getElementById(`tab-${nextTab}-btn`)?.focus();
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
       const prevTab =
         TAB_ORDER[(idx - 1 + TAB_ORDER.length) % TAB_ORDER.length];
       handleTabSwitch(prevTab);
+      document.getElementById(`tab-${prevTab}-btn`)?.focus();
     }
-  };
-
-  const handleRefreshDonki = () => {
-    missionAudio.playClick();
-    setIsLoadingDonki(true);
-    fetchLiveOrVerifiedSpaceWeather(true)
-      .then((events) => {
-        setDonkiEvents(events);
-      })
-      .finally(() => setIsLoadingDonki(false));
-  };
-
-  const handlePhotoSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    missionAudio.playClick();
-    setIsLoadingPhotos(true);
-    fetchNasaGalleryImages(photoQuery, photoCategory, true)
-      .then((imgs) => {
-        setGalleryImages(imgs);
-      })
-      .finally(() => setIsLoadingPhotos(false));
   };
 
   const handleSelectQuizOption = (
@@ -279,16 +338,18 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
     } else {
       missionAudio.playAlert();
     }
-    setSelectedAnswers((prev) => ({
-      ...prev,
-      [questionId]: optionId,
-    }));
+    setSelectedAnswers((prev) => ({ ...prev, [questionId]: optionId }));
   };
 
   const handleResetQuiz = () => {
     missionAudio.playClick();
     setSelectedAnswers({});
   };
+
+  const hasLiveDonkiEvents =
+    poolStatus.live ||
+    donkiEvents.some((ev) => ev.isLiveNasaData) ||
+    currentWeather.isLiveNasaData;
 
   const filteredDonkiEvents = donkiEvents.filter(
     (ev) => weatherTypeFilter === 'ALL' || ev.type === weatherTypeFilter
@@ -305,11 +366,16 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
         item.nasaSource === glossarySourceFilter;
       if (!glossarySearch.trim()) return matchesSource;
       const q = glossarySearch.toLowerCase();
+      const howWeKnowText =
+        (item as GlossaryTermWithEvidence).howWeKnow?.[lang] ||
+        getGlossaryTerm(item.id)?.howWeKnow?.[lang] ||
+        '';
       return (
         matchesSource &&
         (item.term[lang].toLowerCase().includes(q) ||
           item.shortDefinition[lang].toLowerCase().includes(q) ||
-          item.kidAnalogy[lang].toLowerCase().includes(q))
+          item.kidAnalogy[lang].toLowerCase().includes(q) ||
+          howWeKnowText.toLowerCase().includes(q))
       );
     })
     .sort((a, b) => {
@@ -335,7 +401,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
 
   return (
     <div
-      className="modal-backdrop"
+      className="modal-backdrop science-annex-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby="science-modal-title"
@@ -346,64 +412,68 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
         }
       }}
     >
-      <style>{`
-        #nasa-science-modal button,
-        #nasa-science-modal input[type="search"] {
-          min-height: 44px;
-          min-width: 44px;
-        }
-        #nasa-science-modal button:focus-visible,
-        #nasa-science-modal a:focus-visible,
-        #nasa-science-modal input:focus-visible {
-          outline: 2px solid var(--accent-amber);
-          outline-offset: 2px;
-        }
-      `}</style>
-      <div
-        ref={modalCardRef}
-        className="modal-card"
-        style={{ maxWidth: '980px', maxHeight: '90vh' }}
-      >
-        {/* Encabezado Principal */}
-        <div className="modal-header">
+      <div ref={modalCardRef} className="modal-card science-annex-sheet">
+        {/* Cabecera del Anexo del Cuaderno de Vuelo */}
+        <header className="science-annex-header">
           <div>
-            <span className="nasa-badge">
-              NASA OPEN SCIENCE TRACEABILITY • DONKI • OSDR • ARTEMIS • MARS
-            </span>
-            <h2 id="science-modal-title">
+            <div className="science-annex-doc-meta">
+              <span className="science-annex-doc-code">
+                <ScienceIcon size={14} />
+                <span>DOC NASA-STD-3001 / ANEXO CIENTÍFICO</span>
+              </span>
+              <SourceStamp
+                source="DONKI"
+                live={hasLiveDonkiEvents}
+                url="https://kauai.ccmc.gsfc.nasa.gov/DONKI/"
+                lang={lang}
+              />
+              <span>
+                {lang === 'es'
+                  ? `POOL: ${poolStatus.count} EVENTOS (${poolStatus.fetchedAt.slice(0, 16).replace('T', ' ')} UTC)`
+                  : `POOL: ${poolStatus.count} EVENTS (${poolStatus.fetchedAt.slice(0, 16).replace('T', ' ')} UTC)`}
+              </span>
+            </div>
+            <h2 id="science-modal-title" className="science-annex-title">
               {lang === 'es'
-                ? '🔬 Centro de Ciencia Real de la NASA para Astronautas Junior'
-                : '🔬 Real NASA Science Center for Junior Astronauts'}
+                ? 'Anexo del Cuaderno de Vuelo — Trazabilidad Científica NASA'
+                : 'Flight Notebook Annex — NASA Science Traceability'}
             </h2>
+            <p className="science-annex-subtitle">
+              {lang === 'es'
+                ? 'Datos verificados de NASA DONKI (FLR, SEP, CME), Repositorio Biológico NASA OSDR (OSD-379, BioSentinel, RAD) y Biblioteca Oficial de Imágenes.'
+                : 'Verified data from NASA DONKI (FLR, SEP, CME), NASA OSDR Biological Repository (OSD-379, BioSentinel, RAD), and Official Image Library.'}
+            </p>
           </div>
           <button
             ref={closeButtonRef}
             type="button"
-            className="btn-secondary"
+            className="science-annex-btn"
             style={MIN_TOUCH_TARGET_STYLE}
-            onClick={onClose}
+            onClick={() => {
+              missionAudio.playClick();
+              onClose();
+            }}
             id="close-science-modal-btn"
             aria-label={
               lang === 'es'
-                ? 'Cerrar Centro de Ciencia de la NASA (Esc)'
-                : 'Close NASA Science Center (Esc)'
+                ? 'Cerrar Anexo de Ciencia Real de la NASA (Esc)'
+                : 'Close Real NASA Science Annex (Esc)'
             }
           >
-            {lang === 'es' ? 'Cerrar ✕' : 'Close ✕'}
+            <CloseIcon size={16} />
+            <span>{lang === 'es' ? 'Cerrar [ESC]' : 'Close [ESC]'}</span>
           </button>
-        </div>
+        </header>
 
-        {/* Barra de Pestañas Interactivas */}
+        {/* Barra de Pestañas de Carpeta (Folder Tabs) */}
         <nav
           role="tablist"
-          aria-label="NASA Science Tabs"
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '0.55rem',
-            borderBottom: '1px solid var(--border-subtle)',
-            paddingBottom: '0.85rem',
-          }}
+          aria-label={
+            lang === 'es'
+              ? 'Secciones del Anexo del Cuaderno de Ciencia NASA'
+              : 'NASA Science Flight Notebook Annex Sections'
+          }
+          className="science-folder-tabs"
         >
           <button
             id="tab-donki-glossary-btn"
@@ -412,15 +482,19 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
             aria-selected={activeTab === 'donki-glossary'}
             aria-controls="panel-donki-glossary"
             style={MIN_TOUCH_TARGET_STYLE}
-            className={`site-tab ${activeTab === 'donki-glossary' ? 'active' : ''}`}
+            className="science-folder-tab"
             onClick={() => handleTabSwitch('donki-glossary')}
             onKeyDown={(e) => handleTabKeyDown(e, 'donki-glossary')}
           >
-            ☀️{' '}
-            {lang === 'es'
-              ? 'Clima Espacial en Vivo & Glosario'
-              : 'Live Space Weather & Glossary'}
+            <span className="science-folder-tab-code">A</span>
+            <SunIcon size={16} />
+            <span>
+              {lang === 'es'
+                ? 'Clima DONKI & Fichas de Glosario'
+                : 'DONKI Weather & Glossary Cards'}
+            </span>
           </button>
+
           <button
             id="tab-osdr-studies-btn"
             type="button"
@@ -428,15 +502,19 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
             aria-selected={activeTab === 'osdr-studies'}
             aria-controls="panel-osdr-studies"
             style={MIN_TOUCH_TARGET_STYLE}
-            className={`site-tab ${activeTab === 'osdr-studies' ? 'active' : ''}`}
+            className="science-folder-tab"
             onClick={() => handleTabSwitch('osdr-studies')}
             onKeyDown={(e) => handleTabKeyDown(e, 'osdr-studies')}
           >
-            🧬{' '}
-            {lang === 'es'
-              ? 'Estudios NASA OSDR (Veggie / RAD)'
-              : 'NASA OSDR Studies (Veggie / RAD)'}
+            <span className="science-folder-tab-code">B</span>
+            <ScienceIcon size={16} />
+            <span>
+              {lang === 'es'
+                ? 'Estudios NASA OSDR (Veggie / RAD)'
+                : 'NASA OSDR Studies (Veggie / RAD)'}
+            </span>
           </button>
+
           <button
             id="tab-nasa-photos-btn"
             type="button"
@@ -444,15 +522,19 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
             aria-selected={activeTab === 'nasa-photos'}
             aria-controls="panel-nasa-photos"
             style={MIN_TOUCH_TARGET_STYLE}
-            className={`site-tab ${activeTab === 'nasa-photos' ? 'active' : ''}`}
+            className="science-folder-tab"
             onClick={() => handleTabSwitch('nasa-photos')}
             onKeyDown={(e) => handleTabKeyDown(e, 'nasa-photos')}
           >
-            📸{' '}
-            {lang === 'es'
-              ? 'Fotografías Reales de la NASA'
-              : 'Real NASA Photographs'}
+            <span className="science-folder-tab-code">C</span>
+            <GlobeIcon size={16} />
+            <span>
+              {lang === 'es'
+                ? 'Archivo Fotográfico NASA'
+                : 'NASA Photographic Archive'}
+            </span>
           </button>
+
           <button
             id="tab-mini-quiz-btn"
             type="button"
@@ -460,145 +542,152 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
             aria-selected={activeTab === 'mini-quiz'}
             aria-controls="panel-mini-quiz"
             style={MIN_TOUCH_TARGET_STYLE}
-            className={`site-tab ${activeTab === 'mini-quiz' ? 'active' : ''}`}
+            className="science-folder-tab"
             onClick={() => handleTabSwitch('mini-quiz')}
             onKeyDown={(e) => handleTabKeyDown(e, 'mini-quiz')}
           >
-            🧠{' '}
-            {lang === 'es'
-              ? `Mini-Quiz Espacial (${correctCount}/${totalQuestions})`
-              : `Space Mini-Quiz (${correctCount}/${totalQuestions})`}
+            <span className="science-folder-tab-code">D</span>
+            <PatchIcon size={16} />
+            <span>
+              {lang === 'es'
+                ? `Examen de Vuelo (${correctCount}/${totalQuestions})`
+                : `Flight Check Quiz (${correctCount}/${totalQuestions})`}
+            </span>
           </button>
         </nav>
 
-        {/* PESTAÑA 1: CLIMA ESPACIAL EN VIVO (DONKI) Y GLOSARIO */}
+        {/* PESTAÑA A: CLIMA ESPACIAL EN VIVO (DONKI) Y FICHAS DE BIBLIOTECA DEL GLOSARIO */}
         {activeTab === 'donki-glossary' && (
           <div
             id="panel-donki-glossary"
             role="tabpanel"
             aria-labelledby="tab-donki-glossary-btn"
-            style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
           >
-            {/* Estado activo de la partida */}
-            <div
-              className="science-weather-box"
-              style={{
-                borderLeft: '4px solid var(--accent-amber)',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '0.5rem',
-                }}
-              >
-                <h3>
-                  {lang === 'es'
-                    ? '☀️ Telemetría Activa en tu Misión Actual (NASA DONKI)'
-                    : '☀️ Active Telemetry in Your Current Mission (NASA DONKI)'}
+            {/* Parte Meteorológico Activo en la Misión */}
+            <section className="science-form-box science-form-box--alert">
+              <div className="science-section-bar">
+                <h3 className="science-section-title">
+                  <AntennaIcon size={18} />
+                  <span>
+                    {lang === 'es'
+                      ? 'Parte Meteorológico Espacial Activo (NASA DONKI)'
+                      : 'Active Space Weather Dispatch (NASA DONKI)'}
+                  </span>
                 </h3>
-                <button
-                  id="refresh-donki-live-btn"
-                  type="button"
-                  className="btn-secondary"
+                <div
                   style={{
-                    ...MIN_TOUCH_TARGET_STYLE,
-                    fontSize: '0.8rem',
-                    padding: '0.45rem 0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '0.5rem',
                   }}
-                  onClick={handleRefreshDonki}
-                  disabled={isLoadingDonki}
                 >
-                  {isLoadingDonki
-                    ? lang === 'es'
-                      ? '📡 Consultando api.nasa.gov/DONKI...'
-                      : '📡 Querying api.nasa.gov/DONKI...'
-                    : lang === 'es'
-                      ? '🔄 Sincronizar DONKI en Vivo (FLR/SEP/CME)'
-                      : '🔄 Sync Live DONKI (FLR/SEP/CME)'}
-                </button>
+                  <SourceStamp
+                    source={
+                      currentWeather.type === 'DUST_STORM' ? 'MARS' : 'DONKI'
+                    }
+                    live={currentWeather.isLiveNasaData}
+                    url={currentWeather.sourceUrl}
+                    lang={lang}
+                  />
+                  <button
+                    id="refresh-donki-live-btn"
+                    type="button"
+                    className="science-annex-btn"
+                    style={MIN_TOUCH_TARGET_STYLE}
+                    onClick={handleRefreshDonki}
+                    disabled={isLoadingDonki}
+                  >
+                    <AntennaIcon size={15} />
+                    <span>
+                      {isLoadingDonki
+                        ? lang === 'es'
+                          ? 'Consultando api.nasa.gov/DONKI...'
+                          : 'Querying api.nasa.gov/DONKI...'
+                        : lang === 'es'
+                          ? 'Sincronizar DONKI en Vivo (FLR/SEP/CME)'
+                          : 'Sync Live DONKI (FLR/SEP/CME)'}
+                    </span>
+                  </button>
+                </div>
               </div>
 
-              <p className="mono-tag">
-                ID: {currentWeather.id} | {currentWeather.classOrIntensity} |{' '}
-                {currentWeather.isLiveNasaData
-                  ? lang === 'es'
-                    ? '🟢 TELEMETRÍA EN VIVO (api.nasa.gov)'
-                    : '🟢 LIVE TELEMETRY (api.nasa.gov)'
-                  : lang === 'es'
-                    ? '📘 ARCHIVO HISTÓRICO REAL VERIFICADO NASA'
-                    : '📘 VERIFIED HISTORICAL NASA ARCHIVE'}
-              </p>
-              <p style={{ fontSize: '0.92rem' }}>
+              <div className="science-mono-meta">
+                ID: {currentWeather.id} | {currentWeather.classOrIntensity}
+              </div>
+
+              <p style={{ margin: 0, fontSize: '0.92rem', lineHeight: 1.45 }}>
                 <strong>{currentWeather.title[lang]}:</strong>{' '}
                 {currentWeather.kidFriendlyExplanation[lang]}
               </p>
-              <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-                🔬 {currentWeather.scienceFact[lang]}
+
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: '0.84rem',
+                  paddingTop: '0.35rem',
+                  borderTop: '1px solid var(--rule, rgba(27,31,42,0.25))',
+                }}
+              >
+                <strong>
+                  {lang === 'es' ? 'REGISTRO TÉCNICO: ' : 'TECHNICAL RECORD: '}
+                </strong>
+                {currentWeather.scienceFact[lang]}
               </p>
+
               <div
                 style={{
                   display: 'flex',
                   flexWrap: 'wrap',
-                  gap: '0.65rem',
-                  marginTop: '0.3rem',
+                  alignItems: 'center',
+                  gap: '0.6rem',
                 }}
               >
-                <span className="science-score-badge">
-                  ☢️{' '}
-                  {lang === 'es'
-                    ? `Riesgo de Radiación: x${currentWeather.radiationMultiplier.toFixed(1)}`
-                    : `Radiation Risk: x${currentWeather.radiationMultiplier.toFixed(1)}`}
+                <span className="science-telemetry-pill">
+                  <RadiationIcon size={15} />
+                  <span>
+                    {lang === 'es'
+                      ? `Multiplicador Radiación: x${currentWeather.radiationMultiplier.toFixed(1)}`
+                      : `Radiation Multiplier: x${currentWeather.radiationMultiplier.toFixed(1)}`}
+                  </span>
                 </span>
-                <span className="science-score-badge">
-                  ⚡{' '}
-                  {lang === 'es'
-                    ? `Eficiencia Solar: ${Math.round(currentWeather.solarEfficiencyMultiplier * 100)}%`
-                    : `Solar Efficiency: ${Math.round(currentWeather.solarEfficiencyMultiplier * 100)}%`}
+                <span className="science-telemetry-pill">
+                  <BatteryIcon size={15} />
+                  <span>
+                    {lang === 'es'
+                      ? `Eficiencia Solar: ${Math.round(currentWeather.solarEfficiencyMultiplier * 100)}%`
+                      : `Solar Efficiency: ${Math.round(currentWeather.solarEfficiencyMultiplier * 100)}%`}
+                  </span>
                 </span>
                 {currentWeather.sourceUrl && (
                   <a
                     href={currentWeather.sourceUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="mono-tag"
-                    style={{ textDecoration: 'underline', alignSelf: 'center' }}
+                    className="science-ref-link"
                   >
-                    {lang === 'es'
-                      ? 'Ver Registro Oficial NASA DONKI ↗'
-                      : 'View Official NASA DONKI Record ↗'}
+                    <span>
+                      {lang === 'es'
+                        ? 'Registro Oficial NASA DONKI [REF]'
+                        : 'Official NASA DONKI Record [REF]'}
+                    </span>
+                    <ArrowIcon size={13} direction="right" />
                   </a>
                 )}
               </div>
-            </div>
+            </section>
 
-            {/* Explorador de Eventos DONKI (FLR, SEP, CME) */}
-            <div
-              style={{
-                background: 'var(--bg-panel-subtle)',
-                padding: '1rem',
-                borderRadius: 'var(--radius-md)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '0.5rem',
-                }}
-              >
-                <h4 style={{ fontFamily: 'var(--font-display)' }}>
-                  {lang === 'es'
-                    ? '📡 Registro de Eventos Solares y Planetarios (FLR • SEP • CME • MEDA)'
-                    : '📡 Solar & Planetary Event Feed (FLR • SEP • CME • MEDA)'}
+            {/* Registro de Eventos Solares y Planetarios */}
+            <section className="science-form-box science-form-box--blue">
+              <div className="science-section-bar">
+                <h4 className="science-section-title">
+                  <SunIcon size={17} />
+                  <span>
+                    {lang === 'es'
+                      ? 'Bitácora de Eventos Solares y Planetarios (FLR / SEP / CME / MEDA)'
+                      : 'Solar & Planetary Event Log (FLR / SEP / CME / MEDA)'}
+                  </span>
                 </h4>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                   {(
@@ -606,39 +695,35 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                       { id: 'ALL', labelEs: 'Todos', labelEn: 'All' },
                       {
                         id: 'FLR',
-                        labelEs: '⚡ FLR (Llamaradas)',
-                        labelEn: '⚡ FLR (Flares)',
+                        labelEs: 'FLR (Llamaradas)',
+                        labelEn: 'FLR (Flares)',
                       },
                       {
                         id: 'SEP',
-                        labelEs: '☄️ SEP (Protones)',
-                        labelEn: '☄️ SEP (Protons)',
+                        labelEs: 'SEP (Protones)',
+                        labelEn: 'SEP (Protons)',
                       },
                       {
                         id: 'CME',
-                        labelEs: '🌊 CME (Plasma)',
-                        labelEn: '🌊 CME (Plasma)',
+                        labelEs: 'CME (Plasma)',
+                        labelEn: 'CME (Plasma)',
                       },
                       {
                         id: 'DUST_STORM',
-                        labelEs: '🌪️ Polvo Marte',
-                        labelEn: '🌪️ Mars Dust',
+                        labelEs: 'MEDA (Polvo Marte)',
+                        labelEn: 'MEDA (Mars Dust)',
                       },
                     ] as const
                   ).map((btn) => (
                     <button
                       key={btn.id}
                       type="button"
-                      className="btn-secondary"
-                      style={{
-                        ...MIN_TOUCH_TARGET_STYLE,
-                        fontSize: '0.78rem',
-                        padding: '0.4rem 0.75rem',
-                        background:
-                          weatherTypeFilter === btn.id
-                            ? 'var(--accent-orange-nasa)'
-                            : 'var(--bg-space-deep)',
-                      }}
+                      className={`science-annex-btn ${
+                        weatherTypeFilter === btn.id
+                          ? 'science-annex-btn--active'
+                          : ''
+                      }`}
+                      style={MIN_TOUCH_TARGET_STYLE}
                       onClick={() => {
                         missionAudio.playClick();
                         setWeatherTypeFilter(btn.id);
@@ -650,120 +735,68 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                 </div>
               </div>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-                  gap: '0.75rem',
-                }}
-              >
+              <div className="science-library-grid">
                 {filteredDonkiEvents.slice(0, 6).map((ev) => (
-                  <div
-                    key={ev.id}
-                    style={{
-                      background: 'var(--bg-space-deep)',
-                      padding: '0.8rem',
-                      borderRadius: '10px',
-                      border: '1px solid var(--border-subtle)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.35rem',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                      }}
-                    >
-                      <span className="source-tag">
-                        {ev.type} •{' '}
-                        {ev.isLiveNasaData ? 'LIVE API' : 'NASA ARCHIVE'}
-                      </span>
-                      <span
-                        className="mono-val"
-                        style={{
-                          fontSize: '0.72rem',
-                          color: 'var(--text-secondary)',
-                        }}
-                      >
-                        {ev.startTime.slice(0, 10)}
-                      </span>
-                    </div>
-                    <strong style={{ fontSize: '0.88rem' }}>
-                      {ev.title[lang]}
-                    </strong>
-                    <p
-                      style={{
-                        fontSize: '0.8rem',
-                        color: 'var(--text-secondary)',
-                      }}
-                    >
-                      {ev.kidFriendlyExplanation[lang]}
-                    </p>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        fontSize: '0.74rem',
-                        fontFamily: 'var(--font-mono)',
-                        color: 'var(--accent-amber)',
-                        marginTop: 'auto',
-                        paddingTop: '0.3rem',
-                      }}
-                    >
-                      <span>Rad: x{ev.radiationMultiplier}</span>
+                  <article key={ev.id} className="science-library-card">
+                    <div className="science-library-card-header">
                       <span>
-                        Solar: {Math.round(ev.solarEfficiencyMultiplier * 100)}%
+                        {ev.type} //{' '}
+                        {ev.isLiveNasaData ? 'EN VIVO' : 'ARCHIVO REAL'}
+                      </span>
+                      <span>{ev.startTime.slice(0, 10)}</span>
+                    </div>
+                    <div className="science-library-card-body">
+                      <h5 className="science-library-card-title">
+                        {ev.title[lang]}
+                      </h5>
+                      <p style={{ margin: 0, fontSize: '0.82rem' }}>
+                        {ev.kidFriendlyExplanation[lang]}
+                      </p>
+                    </div>
+                    <div className="science-library-card-footer">
+                      <span>RAD: x{ev.radiationMultiplier}</span>
+                      <span>
+                        SOLAR: {Math.round(ev.solarEfficiencyMultiplier * 100)}%
                       </span>
                     </div>
-                  </div>
+                  </article>
                 ))}
               </div>
-            </div>
+            </section>
 
-            {/* Glosario Científico para Niños (7-12 años) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '0.6rem',
-                }}
-              >
-                <h3>
-                  {lang === 'es'
-                    ? `📘 Diccionario Espacial Junior (${filteredGlossary.length} términos)`
-                    : `📘 Junior Space Dictionary (${filteredGlossary.length} terms)`}
+            {/* Fichas de Término Tipo Tarjeta de Biblioteca (17 Términos + ¿Cómo lo sabemos?) */}
+            <section
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.85rem',
+              }}
+            >
+              <div className="science-section-bar">
+                <h3 className="science-section-title">
+                  <ScienceIcon size={18} />
+                  <span>
+                    {lang === 'es'
+                      ? `Fichas de Biblioteca Científica (${filteredGlossary.length} términos)`
+                      : `Science Library Catalog Cards (${filteredGlossary.length} terms)`}
+                  </span>
                 </h3>
                 <input
                   type="search"
                   value={glossarySearch}
                   onChange={(e) => setGlossarySearch(e.target.value)}
+                  className="science-search-input"
+                  style={MIN_TOUCH_TARGET_STYLE}
                   aria-label={
                     lang === 'es'
-                      ? 'Buscar término en el diccionario espacial'
-                      : 'Search term in the space dictionary'
+                      ? 'Buscar término en el fichero científico'
+                      : 'Search term in the science catalog'
                   }
                   placeholder={
                     lang === 'es'
-                      ? '🔍 Buscar término (ej. mSv, MOXIE, regolito)...'
-                      : '🔍 Search term (e.g. mSv, MOXIE, regolith)...'
+                      ? 'Buscar término o instrumento (ej. mSv, MOXIE, RAD)...'
+                      : 'Search term or instrument (e.g. mSv, MOXIE, RAD)...'
                   }
-                  style={{
-                    ...MIN_TOUCH_TARGET_STYLE,
-                    background: 'var(--bg-space-deep)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '8px',
-                    padding: '0.45rem 0.75rem',
-                    fontSize: '0.84rem',
-                    minWidth: '240px',
-                  }}
                 />
               </div>
 
@@ -781,16 +814,12 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   <button
                     key={src}
                     type="button"
-                    className="btn-secondary"
-                    style={{
-                      ...MIN_TOUCH_TARGET_STYLE,
-                      fontSize: '0.78rem',
-                      padding: '0.4rem 0.8rem',
-                      background:
-                        glossarySourceFilter === src
-                          ? 'var(--accent-orange-nasa)'
-                          : 'var(--bg-panel-subtle)',
-                    }}
+                    className={`science-annex-btn ${
+                      glossarySourceFilter === src
+                        ? 'science-annex-btn--active'
+                        : ''
+                    }`}
+                    style={MIN_TOUCH_TARGET_STYLE}
                     onClick={() => {
                       missionAudio.playClick();
                       setGlossarySourceFilter(src);
@@ -798,8 +827,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   >
                     {src === 'ALL'
                       ? lang === 'es'
-                        ? 'Todos'
-                        : 'All'
+                        ? 'Todas las Fuentes'
+                        : 'All Sources'
                       : `NASA ${src}`}
                   </button>
                 ))}
@@ -808,56 +837,50 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
               {focusedTerm && (
                 <div
                   id="focused-glossary-banner"
-                  className="tradeoff-callout"
-                  style={{
-                    border: '2px solid var(--accent-amber)',
-                    background: 'var(--bg-space-deep)',
-                    padding: '0.85rem 1rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.35rem',
-                  }}
+                  className="science-form-box science-form-box--alert"
                 >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: '0.5rem',
-                    }}
-                  >
-                    <span className="nasa-badge">
+                  <div className="science-section-bar">
+                    <span className="science-annex-doc-code">
                       {lang === 'es'
-                        ? 'TÉRMINO CIENTÍFICO DESTACADO DEL DILEMA'
-                        : 'HIGHLIGHTED DILEMMA SCIENCE TERM'}
+                        ? 'FICHA VINCULADA AL DILEMA ACTUAL'
+                        : 'CATALOG CARD LINKED TO ACTIVE DILEMMA'}
                     </span>
-                    <span className="source-tag">
-                      NASA {focusedTerm.nasaSource}
-                    </span>
+                    <SourceStamp
+                      source={mapGlossarySourceToStamp(focusedTerm.nasaSource)}
+                      live={false}
+                      url={focusedTerm.nasaStudyOrUrl}
+                      lang={lang}
+                    />
                   </div>
                   <strong
-                    style={{ fontSize: '1rem', color: 'var(--text-primary)' }}
+                    style={{
+                      fontFamily:
+                        "var(--font-display, 'Barlow Condensed', sans-serif)",
+                      fontSize: '1.15rem',
+                      textTransform: 'uppercase',
+                    }}
                   >
                     {focusedTerm.term[lang]}
                   </strong>
-                  <p
-                    style={{
-                      fontSize: '0.86rem',
-                      color: 'var(--text-primary)',
-                    }}
-                  >
+                  <p style={{ margin: 0, fontSize: '0.88rem' }}>
                     {focusedTerm.shortDefinition[lang]}
                   </p>
-                  <p className="glossary-analogy">
+                  <p style={{ margin: 0, fontSize: '0.84rem' }}>
+                    <strong>
+                      {lang === 'es'
+                        ? 'Analogía de Vuelo: '
+                        : 'Flight Analogy: '}
+                    </strong>
                     {focusedTerm.kidAnalogy[lang]}
                   </p>
                   {(focusedTerm as GlossaryTermWithEvidence).howWeKnow && (
                     <p
                       className="glossary-how-we-know"
                       style={{
-                        fontSize: '0.8rem',
-                        marginTop: '0.2rem',
+                        margin: 0,
+                        fontSize: '0.82rem',
+                        paddingTop: '0.35rem',
+                        borderTop: '1px solid var(--rule, rgba(27,31,42,0.25))',
                       }}
                     >
                       <strong>
@@ -875,228 +898,245 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                 </div>
               )}
 
-              <div className="glossary-grid">
-                {filteredGlossary.map((item) => {
+              <div className="glossary-grid science-library-grid">
+                {filteredGlossary.map((item, idx) => {
                   const isFocused = Boolean(
                     focusTermId && item.id === focusTermId
                   );
                   const howWeKnow =
                     (item as GlossaryTermWithEvidence).howWeKnow ||
                     getGlossaryTerm(item.id)?.howWeKnow;
+                  const catalogCode = `FICHA-${String(idx + 1).padStart(2, '0')} // ${item.id.toUpperCase()}`;
+
                   return (
                     <article
                       key={item.id}
                       id={`glossary-term-${item.id}`}
                       data-highlighted={isFocused ? 'true' : 'false'}
-                      className="glossary-item"
-                      style={
-                        isFocused
-                          ? {
-                              border: '2px solid var(--accent-amber)',
-                              boxShadow: '0 0 0 3px hsla(38, 95%, 56%, 0.22)',
-                            }
-                          : undefined
-                      }
+                      className="glossary-item science-library-card"
                     >
-                      <div className="glossary-item-header">
-                        <h4>{item.term[lang]}</h4>
-                        <span className="source-tag">
-                          NASA {item.nasaSource}
-                        </span>
+                      <div className="science-library-card-header">
+                        <span>{catalogCode}</span>
+                        <span>NASA {item.nasaSource}</span>
                       </div>
-                      <p className="glossary-def" style={{ fontSize: '0.86rem' }}>
-                        {item.shortDefinition[lang]}
-                      </p>
-                      <p className="glossary-analogy">
-                        {item.kidAnalogy[lang]}
-                      </p>
-                      {howWeKnow && (
-                        <p
-                          className="glossary-how-we-know"
-                          style={{
-                            fontSize: '0.78rem',
-                            lineHeight: 1.4,
-                            paddingTop: '0.35rem',
-                            borderTop:
-                              '1px dashed var(--rule, rgba(27,31,42,0.25))',
-                          }}
-                        >
-                          <strong>
+
+                      <div className="science-library-card-body">
+                        <h4 className="science-library-card-title">
+                          {item.term[lang]}
+                        </h4>
+
+                        <div className="science-library-rule-row">
+                          <span className="science-library-field-label">
                             {lang === 'es'
-                              ? '¿Cómo lo sabemos? '
-                              : 'How do we know? '}
-                          </strong>
-                          {howWeKnow[lang]}
-                        </p>
-                      )}
-                      <a
-                        href={item.nasaStudyOrUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mono-tag"
-                        style={{
-                          fontSize: '0.73rem',
-                          textDecoration: 'underline',
-                          marginTop: 'auto',
-                        }}
-                      >
-                        {lang === 'es'
-                          ? 'Fuente Oficial de la NASA [REF]'
-                          : 'Official NASA Source [REF]'}
-                      </a>
+                              ? 'Definición Operativa'
+                              : 'Operational Definition'}
+                          </span>
+                          <p style={{ margin: 0 }}>
+                            {item.shortDefinition[lang]}
+                          </p>
+                        </div>
+
+                        <div className="science-library-rule-row">
+                          <span className="science-library-field-label">
+                            {lang === 'es'
+                              ? 'Analogía para Cadetes'
+                              : 'Cadet Analogy'}
+                          </span>
+                          <p style={{ margin: 0 }}>{item.kidAnalogy[lang]}</p>
+                        </div>
+
+                        {howWeKnow && (
+                          <div className="science-library-rule-row glossary-how-we-know">
+                            <span className="science-library-field-label">
+                              {lang === 'es'
+                                ? '¿Cómo lo sabemos? (Instrumentación NASA)'
+                                : 'How do we know? (NASA Instrumentation)'}
+                            </span>
+                            <p style={{ margin: 0 }}>{howWeKnow[lang]}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="science-library-card-footer">
+                        <SourceStamp
+                          source={mapGlossarySourceToStamp(item.nasaSource)}
+                          live={false}
+                          lang={lang}
+                        />
+                        <a
+                          href={item.nasaStudyOrUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="science-ref-link"
+                        >
+                          <span>
+                            {lang === 'es' ? 'Fuente [REF]' : 'Source [REF]'}
+                          </span>
+                          <ArrowIcon size={12} direction="right" />
+                        </a>
+                      </div>
                     </article>
                   );
                 })}
               </div>
-            </div>
+            </section>
           </div>
         )}
 
-        {/* PESTAÑA 2: ESTUDIOS REALES NASA OSDR (BIOLOGÍA Y RADIACIÓN) */}
+        {/* PESTAÑA B: ESTUDIOS REALES NASA OSDR (BIOLOGÍA Y RADIACIÓN) */}
         {activeTab === 'osdr-studies' && (
           <div
             id="panel-osdr-studies"
             role="tabpanel"
             aria-labelledby="tab-osdr-studies-btn"
-            style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
           >
-            {/* Comparador visual de Radiación en mSv para niños */}
-            <div className="science-weather-box">
-              <h3>
+            {/* Comparador Técnico de Dosimetría en mSv */}
+            <section className="science-form-box science-form-box--blue">
+              <div className="science-section-bar">
+                <h3 className="science-section-title">
+                  <ShieldIcon size={18} />
+                  <span>
+                    {lang === 'es'
+                      ? 'Escala Comparativa de Dosimetría (Milisieverts - mSv) — NASA RAD & Artemis I'
+                      : 'Comparative Dosimetry Scale (Millisieverts - mSv) — NASA RAD & Artemis I'}
+                  </span>
+                </h3>
+                <SourceStamp source="OSDR" live={false} lang={lang} />
+              </div>
+
+              <p style={{ margin: 0, fontSize: '0.86rem' }}>
                 {lang === 'es'
-                  ? '🛡️ Comparador Real de Radiación (Milisieverts - mSv) — Datos NASA RAD & Artemis I'
-                  : '🛡️ Real Radiation Dose Comparator (Millisieverts - mSv) — NASA RAD & Artemis I Data'}
-              </h3>
-              <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
-                {lang === 'es'
-                  ? '¿Cuánto es 1 milisievert (mSv)? Compara la radiación de la Tierra con lo que midieron los detectores de la NASA en la Luna y Marte:'
-                  : 'How much is 1 millisievert (mSv)? Compare Earth radiation with what NASA detectors measured on the Moon and Mars:'}
+                  ? 'Comparación de dosis de radiación medida por instrumentos de la NASA frente a referencias médicas terrestres:'
+                  : 'Comparison of radiation doses measured by NASA instruments against Earth medical baselines:'}
               </p>
 
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
                   gap: '0.65rem',
-                  marginTop: '0.4rem',
                 }}
               >
                 {[
                   {
-                    labelEs: '🦷 Radiografía Dental',
-                    labelEn: '🦷 Dental X-Ray',
+                    labelEs: 'Radiografía Dental (Tierra)',
+                    labelEn: 'Dental X-Ray (Earth)',
                     msv: '0.01 mSv',
                     pct: 4,
-                    color: 'var(--status-nominal)',
+                    color: 'var(--ok-green, #2E7D4F)',
                   },
                   {
-                    labelEs: '🔴 1 Sol Tranquilo en Marte (RAD)',
-                    labelEn: '🔴 1 Calm Martian Sol (RAD)',
+                    labelEs: '1 Sol en Marte en Calma (RAD)',
+                    labelEn: '1 Calm Martian Sol (RAD)',
                     msv: '0.67 mSv',
                     pct: 22,
-                    color: 'var(--status-nominal)',
+                    color: 'var(--ok-green, #2E7D4F)',
                   },
                   {
-                    labelEs: '🌕 1 Día en la Superficie Lunar (LND)',
-                    labelEn: '🌕 1 Day on Lunar Surface (LND)',
+                    labelEs: '1 Día en Superficie Lunar (LND)',
+                    labelEn: '1 Day on Lunar Surface (LND)',
                     msv: '1.37 mSv',
                     pct: 36,
-                    color: 'var(--status-warning)',
+                    color: 'var(--nasa-blue, #0B3D91)',
                   },
                   {
-                    labelEs: '💧 Tormenta Solar CON Refugio de Agua',
-                    labelEn: '💧 Solar Storm WITH Water Shelter',
+                    labelEs: 'Tormenta Solar CON Muro de Agua',
+                    labelEn: 'Solar Storm WITH Water Wall',
                     msv: '4.0 mSv (-50%)',
                     pct: 58,
-                    color: 'var(--status-warning)',
+                    color: 'var(--nasa-blue, #0B3D91)',
                   },
                   {
-                    labelEs: '☄️ Tormenta SEP SIN Blindaje (Mayo 2024)',
-                    labelEn: '☄️ Unshielded SEP Storm (May 2024)',
+                    labelEs: 'Tormenta SEP SIN Escudo (Mayo 2024)',
+                    labelEn: 'Unshielded SEP Storm (May 2024)',
                     msv: '8.1+ mSv/día',
                     pct: 100,
-                    color: 'var(--status-critical)',
+                    color: 'var(--nasa-red, #FC3D21)',
                   },
                 ].map((bar, i) => (
                   <div
                     key={i}
                     style={{
-                      background: 'var(--bg-space-deep)',
                       padding: '0.65rem',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-subtle)',
+                      border: '1.5px solid var(--ink, #1B1F2A)',
+                      borderRadius: '2px',
+                      backgroundColor: 'var(--paper, #F2EBDD)',
                     }}
                   >
                     <div
                       style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
                         fontSize: '0.78rem',
-                        marginBottom: '0.35rem',
+                        fontWeight: 600,
+                        marginBottom: '0.3rem',
                       }}
                     >
-                      <span>{lang === 'es' ? bar.labelEs : bar.labelEn}</span>
+                      {lang === 'es' ? bar.labelEs : bar.labelEn}
                     </div>
                     <div
-                      className="mono-val"
+                      className="science-mono-meta"
                       style={{
-                        fontSize: '0.85rem',
-                        color: 'var(--accent-amber)',
-                        marginBottom: '0.3rem',
+                        fontWeight: 700,
+                        marginBottom: '0.35rem',
                       }}
                     >
                       {bar.msv}
                     </div>
-                    <div className="progress-track">
+                    <div
+                      style={{
+                        height: '8px',
+                        width: '100%',
+                        border: '1px solid var(--ink, #1B1F2A)',
+                        borderRadius: '2px',
+                        backgroundColor: 'var(--paper, #F2EBDD)',
+                      }}
+                    >
                       <div
-                        className="progress-fill"
-                        style={{ width: `${bar.pct}%`, background: bar.color }}
+                        style={{
+                          width: `${bar.pct}%`,
+                          height: '100%',
+                          backgroundColor: bar.color,
+                        }}
                       />
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
 
-            {/* Filtro de estudios OSDR */}
+            {/* Filtro de Estudios OSDR */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
               {(
                 [
                   {
                     id: 'all',
-                    labelEs: '🔬 Todos los Estudios OSDR (5)',
-                    labelEn: '🔬 All OSDR Studies (5)',
+                    labelEs: 'Todos los Estudios OSDR (5)',
+                    labelEn: 'All OSDR Studies (5)',
                   },
                   {
                     id: 'plants',
-                    labelEs: '🌱 Botánica Espacial (OSD-379 / Veggie / APH)',
-                    labelEn: '🌱 Space Botany (OSD-379 / Veggie / APH)',
+                    labelEs: 'Botánica Espacial (OSD-379 / Veggie / APH)',
+                    labelEn: 'Space Botany (OSD-379 / Veggie / APH)',
                   },
                   {
                     id: 'radiation',
-                    labelEs: '🛡️ Radiación y ADN (BioSentinel / Curiosity RAD)',
-                    labelEn: '🛡️ Radiation & DNA (BioSentinel / Curiosity RAD)',
+                    labelEs: 'Radiación y ADN (BioSentinel / RAD)',
+                    labelEn: 'Radiation & DNA (BioSentinel / RAD)',
                   },
                   {
                     id: 'life-support',
-                    labelEs: '⚙️ Soporte Vital (ECLSS 98% / MOXIE)',
-                    labelEn: '⚙️ Life Support (ECLSS 98% / MOXIE)',
+                    labelEs: 'Soporte Vital (ECLSS 98% / MOXIE)',
+                    labelEn: 'Life Support (ECLSS 98% / MOXIE)',
                   },
                 ] as const
               ).map((cat) => (
                 <button
                   key={cat.id}
                   type="button"
-                  className="btn-secondary"
-                  style={{
-                    ...MIN_TOUCH_TARGET_STYLE,
-                    fontSize: '0.8rem',
-                    padding: '0.45rem 0.85rem',
-                    background:
-                      osdrCategory === cat.id
-                        ? 'var(--accent-orange-nasa)'
-                        : 'var(--bg-panel-subtle)',
-                  }}
+                  className={`science-annex-btn ${
+                    osdrCategory === cat.id ? 'science-annex-btn--active' : ''
+                  }`}
+                  style={MIN_TOUCH_TARGET_STYLE}
                   onClick={() => {
                     missionAudio.playClick();
                     setOsdrCategory(cat.id);
@@ -1107,104 +1147,75 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
               ))}
             </div>
 
-            {/* Tarjetas de Estudios NASA OSDR */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-                gap: '1rem',
-              }}
-            >
+            {/* Fichas de Estudios NASA OSDR */}
+            <div className="science-library-grid">
               {filteredStudies.map((study) => (
-                <article
-                  key={study.id}
-                  className="glossary-item"
-                  style={{
-                    border: '1px solid var(--border-subtle)',
-                    gap: '0.55rem',
-                  }}
-                >
-                  <div className="glossary-item-header">
-                    <span className="source-tag">{study.osdrAccession}</span>
-                    <span
-                      className="mono-val"
-                      style={{
-                        fontSize: '0.73rem',
-                        color: 'var(--text-secondary)',
-                      }}
-                    >
-                      {study.missionOrFacility}
-                    </span>
+                <article key={study.id} className="science-library-card">
+                  <div className="science-library-card-header">
+                    <span>{study.osdrAccession}</span>
+                    <span>{study.missionOrFacility}</span>
                   </div>
 
-                  <h4
-                    style={{
-                      fontSize: '1rem',
-                      fontFamily: 'var(--font-display)',
-                    }}
-                  >
-                    {study.title[lang]}
-                  </h4>
+                  <div className="science-library-card-body">
+                    <h4 className="science-library-card-title">
+                      {study.title[lang]}
+                    </h4>
 
-                  <p style={{ fontSize: '0.8rem', color: 'var(--accent-amber)' }}>
-                    🧪{' '}
-                    <strong>
-                      {lang === 'es'
-                        ? ' Sujeto / Instrumento: '
-                        : ' Subject / Instrument: '}
-                    </strong>
-                    {study.organismOrInstrument[lang]}
-                  </p>
+                    <div className="science-library-rule-row">
+                      <span className="science-library-field-label">
+                        {lang === 'es'
+                          ? 'Sujeto / Instrumento'
+                          : 'Subject / Instrument'}
+                      </span>
+                      <p style={{ margin: 0 }}>
+                        {study.organismOrInstrument[lang]}
+                      </p>
+                    </div>
 
-                  <p style={{ fontSize: '0.85rem' }}>
-                    <strong>
-                      {lang === 'es' ? 'Hallazgo NASA: ' : 'NASA Finding: '}
-                    </strong>
-                    {study.keyFinding[lang]}
-                  </p>
+                    <div className="science-library-rule-row">
+                      <span className="science-library-field-label">
+                        {lang === 'es'
+                          ? 'Hallazgo Científico NASA'
+                          : 'NASA Scientific Finding'}
+                      </span>
+                      <p style={{ margin: 0 }}>{study.keyFinding[lang]}</p>
+                    </div>
 
-                  <p className="glossary-analogy">
-                    🧒{' '}
-                    <strong>
-                      {lang === 'es' ? 'En sencillo: ' : 'Kid-Friendly: '}
-                    </strong>
-                    {study.kidExplanation[lang]}
-                  </p>
+                    <div className="science-library-rule-row">
+                      <span className="science-library-field-label">
+                        {lang === 'es'
+                          ? 'Explicación de Cuaderno'
+                          : 'Notebook Explanation'}
+                      </span>
+                      <p style={{ margin: 0 }}>{study.kidExplanation[lang]}</p>
+                    </div>
 
-                  <div className="tradeoff-callout">
-                    ⚡ {study.outpostTradeoffConnection[lang]}
+                    <div className="science-library-rule-row">
+                      <span className="science-library-field-label">
+                        {lang === 'es'
+                          ? 'Impacto en tus Órdenes de Trabajo'
+                          : 'Impact on Work Orders'}
+                      </span>
+                      <p style={{ margin: 0, fontWeight: 600 }}>
+                        {study.outpostTradeoffConnection[lang]}
+                      </p>
+                    </div>
                   </div>
 
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: '0.5rem',
-                      marginTop: 'auto',
-                      paddingTop: '0.35rem',
-                    }}
-                  >
-                    <span
-                      className="mono-val"
-                      style={{
-                        fontSize: '0.74rem',
-                        color: 'var(--text-secondary)',
-                      }}
-                    >
-                      📊 {study.telemetryMetric[lang]}
-                    </span>
+                  <div className="science-library-card-footer">
+                    <span>{study.telemetryMetric[lang]}</span>
                     <a
                       href={study.officialUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="mono-tag"
-                      style={{ fontSize: '0.76rem', textDecoration: 'underline' }}
+                      className="science-ref-link"
                     >
-                      {lang === 'es'
-                        ? 'Abrir en NASA OSDR ↗'
-                        : 'Open in NASA OSDR ↗'}
+                      <span>
+                        {lang === 'es'
+                          ? 'Abrir en NASA OSDR [REF]'
+                          : 'Open in NASA OSDR [REF]'}
+                      </span>
+                      <ArrowIcon size={12} direction="right" />
                     </a>
                   </div>
                 </article>
@@ -1213,39 +1224,29 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
           </div>
         )}
 
-        {/* PESTAÑA 3: FOTOGRAFÍAS REALES DE LA NASA (images-api.nasa.gov) */}
+        {/* PESTAÑA C: FOTOGRAFÍAS REALES DE LA NASA (images-api.nasa.gov) */}
         {activeTab === 'nasa-photos' && (
           <div
             id="panel-nasa-photos"
             role="tabpanel"
             aria-labelledby="tab-nasa-photos-btn"
-            style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
           >
-            <div className="science-weather-box">
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '0.75rem',
-                }}
-              >
+            <section className="science-form-box">
+              <div className="science-section-bar">
                 <div>
-                  <h3>
-                    {lang === 'es'
-                      ? '📸 Biblioteca Oficial de Imágenes de la NASA (images-api.nasa.gov)'
-                      : '📸 Official NASA Image & Video Library (images-api.nasa.gov)'}
+                  <h3 className="science-section-title">
+                    <GlobeIcon size={18} />
+                    <span>
+                      {lang === 'es'
+                        ? 'Archivo Fotográfico Oficial NASA (images-api.nasa.gov)'
+                        : 'Official NASA Photographic Archive (images-api.nasa.gov)'}
+                    </span>
                   </h3>
-                  <p
-                    style={{
-                      fontSize: '0.84rem',
-                      color: 'var(--text-secondary)',
-                    }}
-                  >
+                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.84rem' }}>
                     {lang === 'es'
-                      ? 'Explora fotografías reales de las misiones Artemis, Perseverance, SDO y el invernadero Veggie.'
-                      : 'Explore real photographs from Artemis, Perseverance, SDO, and the Veggie space greenhouse.'}
+                      ? 'Registro visual de las misiones Artemis, Perseverance, SDO y cámaras botánicas Veggie.'
+                      : 'Visual record from Artemis, Perseverance, SDO, and Veggie plant chambers.'}
                   </p>
                 </div>
 
@@ -1257,6 +1258,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                     type="search"
                     value={photoQuery}
                     onChange={(e) => setPhotoQuery(e.target.value)}
+                    className="science-search-input"
+                    style={MIN_TOUCH_TARGET_STYLE}
                     aria-label={
                       lang === 'es'
                         ? 'Buscar fotografías reales en la biblioteca de la NASA'
@@ -1267,89 +1270,66 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                         ? 'Buscar en NASA (ej. Orion, Perseverance)...'
                         : 'Search NASA (e.g. Orion, Perseverance)...'
                     }
-                    style={{
-                      ...MIN_TOUCH_TARGET_STYLE,
-                      background: 'var(--bg-space-deep)',
-                      color: 'var(--text-primary)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '8px',
-                      padding: '0.45rem 0.75rem',
-                      fontSize: '0.84rem',
-                      minWidth: '220px',
-                    }}
                   />
                   <button
                     type="submit"
-                    className="btn-primary"
-                    style={{
-                      ...MIN_TOUCH_TARGET_STYLE,
-                      padding: '0.45rem 0.9rem',
-                      fontSize: '0.84rem',
-                    }}
+                    className="science-annex-btn science-annex-btn--primary"
+                    style={MIN_TOUCH_TARGET_STYLE}
                     disabled={isLoadingPhotos}
                   >
-                    {isLoadingPhotos
-                      ? lang === 'es'
-                        ? 'Buscando...'
-                        : 'Searching...'
-                      : lang === 'es'
-                        ? '🔍 Buscar en NASA'
-                        : '🔍 Search NASA'}
+                    <span>
+                      {isLoadingPhotos
+                        ? lang === 'es'
+                          ? 'Buscando...'
+                          : 'Searching...'
+                        : lang === 'es'
+                          ? 'Consultar Archivo NASA'
+                          : 'Query NASA Archive'}
+                    </span>
                   </button>
                 </form>
               </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '0.4rem',
-                  marginTop: '0.4rem',
-                }}
-              >
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                 {(
                   [
-                    { id: 'all', labelEs: '🌟 Todas', labelEn: '🌟 All' },
+                    { id: 'all', labelEs: 'Todas', labelEn: 'All' },
                     {
                       id: 'moon',
-                      labelEs: '🌕 Luna (Shackleton / Artemis)',
-                      labelEn: '🌕 Moon (Shackleton / Artemis)',
+                      labelEs: 'Luna (Shackleton / Artemis)',
+                      labelEn: 'Moon (Shackleton / Artemis)',
                     },
                     {
                       id: 'mars',
-                      labelEs: '🔴 Marte (Jezero / MOXIE)',
-                      labelEn: '🔴 Mars (Jezero / MOXIE)',
+                      labelEs: 'Marte (Jezero / MOXIE)',
+                      labelEn: 'Mars (Jezero / MOXIE)',
                     },
                     {
                       id: 'solar',
-                      labelEs: '☀️ Sol (Llamaradas SDO)',
-                      labelEn: '☀️ Sun (SDO Flares)',
+                      labelEs: 'Sol (Llamaradas SDO)',
+                      labelEn: 'Sun (SDO Flares)',
                     },
                     {
                       id: 'plants',
-                      labelEs: '🌱 Plantas (Veggie / OSDR)',
-                      labelEn: '🌱 Plants (Veggie / OSDR)',
+                      labelEs: 'Plantas (Veggie / OSDR)',
+                      labelEn: 'Plants (Veggie / OSDR)',
                     },
                     {
                       id: 'radiation',
-                      labelEs: '🛡️ Radiación (RAD / BioSentinel)',
-                      labelEn: '🛡️ Radiation (RAD / BioSentinel)',
+                      labelEs: 'Radiación (RAD / BioSentinel)',
+                      labelEn: 'Radiation (RAD / BioSentinel)',
                     },
                   ] as const
                 ).map((cat) => (
                   <button
                     key={cat.id}
                     type="button"
-                    className="btn-secondary"
-                    style={{
-                      ...MIN_TOUCH_TARGET_STYLE,
-                      fontSize: '0.78rem',
-                      padding: '0.4rem 0.75rem',
-                      background:
-                        photoCategory === cat.id
-                          ? 'var(--accent-orange-nasa)'
-                          : 'var(--bg-space-deep)',
-                    }}
+                    className={`science-annex-btn ${
+                      photoCategory === cat.id
+                        ? 'science-annex-btn--active'
+                        : ''
+                    }`}
+                    style={MIN_TOUCH_TARGET_STYLE}
                     onClick={() => {
                       missionAudio.playClick();
                       setPhotoCategory(cat.id);
@@ -1359,39 +1339,15 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   </button>
                 ))}
               </div>
-            </div>
+            </section>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                gap: '1rem',
-              }}
-            >
+            <div className="science-photo-grid">
               {galleryImages.map((img) => {
                 const imgFailed = failedImageIds[img.nasaId];
                 const descriptiveAlt = `${img.title[lang]} — ${img.kidCaption[lang]} (NASA ID: ${img.nasaId})`;
                 return (
-                  <article
-                    key={img.nasaId}
-                    className="glossary-item"
-                    style={{
-                      padding: 0,
-                      overflow: 'hidden',
-                      border: '1px solid var(--border-subtle)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: '175px',
-                        background: 'var(--bg-space-deep)',
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                      }}
-                    >
+                  <article key={img.nasaId} className="science-photo-card">
+                    <div className="science-photo-frame">
                       {!imgFailed ? (
                         <img
                           src={img.imageUrl}
@@ -1420,97 +1376,67 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                             gap: '0.35rem',
                             padding: '1rem',
                             textAlign: 'center',
+                            color: 'var(--paper, #F2EBDD)',
+                            fontFamily:
+                              "var(--font-mono, 'IBM Plex Mono', monospace)",
                           }}
                         >
-                          <span style={{ fontSize: '2.6rem' }}>
+                          <GlobeIcon size={28} />
+                          <span style={{ fontSize: '0.78rem', fontWeight: 700 }}>
                             {img.fallbackEmoji}
                           </span>
-                          <span
-                            className="mono-tag"
-                            style={{ fontSize: '0.72rem' }}
-                          >
+                          <span style={{ fontSize: '0.72rem' }}>
                             NASA ID: {img.nasaId}
                           </span>
                         </div>
                       )}
-                      <span
-                        className="source-tag"
-                        style={{
-                          position: 'absolute',
-                          top: '8px',
-                          right: '8px',
-                          background: 'rgba(8, 12, 22, 0.85)',
-                          padding: '0.2rem 0.5rem',
-                          borderRadius: '6px',
-                        }}
-                      >
-                        {img.isLiveApiResult ? '🟢 LIVE NASA API' : img.center}
+                      <span className="science-photo-stamp">
+                        {img.isLiveApiResult ? 'LIVE NASA API' : img.center}
                       </span>
                     </div>
 
-                    <div
-                      style={{
-                        padding: '0.95rem',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.45rem',
-                        flex: 1,
-                      }}
-                    >
+                    <div className="science-library-card-body">
                       <div
+                        className="science-mono-meta"
                         style={{
                           display: 'flex',
                           justifyContent: 'space-between',
-                          fontSize: '0.73rem',
-                          fontFamily: 'var(--font-mono)',
-                          color: 'var(--text-secondary)',
                         }}
                       >
                         <span>ID: {img.nasaId}</span>
                         <span>{img.dateCreated}</span>
                       </div>
 
-                      <h4
-                        style={{
-                          fontSize: '0.95rem',
-                          fontFamily: 'var(--font-display)',
-                        }}
-                      >
+                      <h4 className="science-library-card-title">
                         {img.title[lang]}
                       </h4>
 
-                      <p
-                        style={{
-                          fontSize: '0.82rem',
-                          color: 'var(--text-secondary)',
-                        }}
-                      >
+                      <p style={{ margin: 0, fontSize: '0.82rem' }}>
                         {img.kidCaption[lang]}
                       </p>
 
                       <p
-                        style={{
-                          fontSize: '0.78rem',
-                          color: 'var(--accent-amber)',
-                          marginTop: 'auto',
-                        }}
+                        className="science-library-rule-row"
+                        style={{ margin: 'auto 0 0', fontWeight: 600 }}
                       >
-                        🔗 {img.scienceConnection[lang]}
+                        {img.scienceConnection[lang]}
                       </p>
+                    </div>
 
+                    <div className="science-library-card-footer">
+                      <span>{img.center}</span>
                       <a
                         href={img.sourcePageUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="mono-tag"
-                        style={{
-                          fontSize: '0.74rem',
-                          textDecoration: 'underline',
-                        }}
+                        className="science-ref-link"
                       >
-                        {lang === 'es'
-                          ? 'Ver Ficha en images.nasa.gov ↗'
-                          : 'View Record on images.nasa.gov ↗'}
+                        <span>
+                          {lang === 'es'
+                            ? 'Ficha images.nasa.gov [REF]'
+                            : 'Record images.nasa.gov [REF]'}
+                        </span>
+                        <ArrowIcon size={12} direction="right" />
                       </a>
                     </div>
                   </article>
@@ -1520,47 +1446,29 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
           </div>
         )}
 
-        {/* PESTAÑA 4: MINI-QUIZ INTERACTIVO PARA NIÑOS (7-12 AÑOS) */}
+        {/* PESTAÑA D: EXAMEN DE VUELO (MINI-QUIZ DE 14 PREGUNTAS) */}
         {activeTab === 'mini-quiz' && (
           <div
             id="panel-mini-quiz"
             role="tabpanel"
             aria-labelledby="tab-mini-quiz-btn"
-            style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
           >
-            <div
-              className="science-weather-box"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '1rem',
-                }}
-              >
+            <section className="science-form-box science-form-box--green">
+              <div className="science-section-bar">
                 <div>
-                  <h3>
-                    {lang === 'es'
-                      ? '🧠 Mini-Quiz de Entrenamiento: ¿Cuánto sabes de Ciencia Real de la NASA?'
-                      : '🧠 Training Mini-Quiz: How Much Real NASA Science Do You Know?'}
+                  <h3 className="science-section-title">
+                    <PatchIcon size={18} />
+                    <span>
+                      {lang === 'es'
+                        ? 'Verificación de Vuelo del Comandante — Ciencia Real NASA'
+                        : 'Commander Flight Verification — Real NASA Science'}
+                    </span>
                   </h3>
-                  <p
-                    style={{
-                      fontSize: '0.86rem',
-                      color: 'var(--text-secondary)',
-                    }}
-                  >
+                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.86rem' }}>
                     {lang === 'es'
-                      ? `Responde las ${totalQuestions} preguntas sacadas de los dilemas reales de la misión (MOXIE, RAD, OSD-379, Shackleton, Jezero y DONKI).`
-                      : `Answer the ${totalQuestions} questions drawn from real mission dilemmas (MOXIE, RAD, OSD-379, Shackleton, Jezero & DONKI).`}
+                      ? `Lista de verificación de ${totalQuestions} preguntas basadas en los dilemas reales de ingeniería (MOXIE, RAD, OSD-379, Shackleton, Jezero y DONKI).`
+                      : `Checklist of ${totalQuestions} questions drawn from real engineering dilemmas (MOXIE, RAD, OSD-379, Shackleton, Jezero & DONKI).`}
                   </p>
                 </div>
 
@@ -1568,27 +1476,31 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.75rem',
+                    gap: '0.6rem',
+                    flexWrap: 'wrap',
                   }}
                 >
-                  <span
-                    className="science-score-badge"
-                    style={{ fontSize: '0.92rem' }}
-                  >
-                    🏆{' '}
-                    {lang === 'es'
-                      ? `Aciertos: ${correctCount} / ${totalQuestions}`
-                      : `Score: ${correctCount} / ${totalQuestions}`}
+                  <span className="science-telemetry-pill">
+                    <CheckIcon size={15} />
+                    <span>
+                      {lang === 'es'
+                        ? `Aciertos: ${correctCount} / ${totalQuestions}`
+                        : `Score: ${correctCount} / ${totalQuestions}`}
+                    </span>
                   </span>
                   {answeredCount > 0 && (
                     <button
                       type="button"
-                      className="btn-secondary"
+                      className="science-annex-btn"
                       style={MIN_TOUCH_TARGET_STYLE}
                       onClick={handleResetQuiz}
                       id="reset-quiz-btn"
                     >
-                      {lang === 'es' ? '🔄 Reiniciar Quiz' : '🔄 Reset Quiz'}
+                      <span>
+                        {lang === 'es'
+                          ? 'Reiniciar Verificación'
+                          : 'Reset Checklist'}
+                      </span>
                     </button>
                   )}
                 </div>
@@ -1599,34 +1511,30 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   [
                     {
                       id: 'all',
-                      labelEs: '🌌 Todas las Preguntas (14)',
-                      labelEn: '🌌 All Questions (14)',
+                      labelEs: 'Todas las Preguntas (14)',
+                      labelEn: 'All Questions (14)',
                     },
                     {
                       id: 'moon-shackleton',
-                      labelEs: '🌕 Base Lunar (Shackleton / Artemis)',
-                      labelEn: '🌕 Lunar Base (Shackleton / Artemis)',
+                      labelEs: 'Base Lunar (Shackleton / Artemis)',
+                      labelEn: 'Lunar Base (Shackleton / Artemis)',
                     },
                     {
                       id: 'mars-jezero',
-                      labelEs: '🔴 Base Marciana (Jezero / MOXIE)',
-                      labelEn: '🔴 Martian Base (Jezero / MOXIE)',
+                      labelEs: 'Base Marciana (Jezero / MOXIE)',
+                      labelEn: 'Martian Base (Jezero / MOXIE)',
                     },
                   ] as const
                 ).map((filterBtn) => (
                   <button
                     key={filterBtn.id}
                     type="button"
-                    className="btn-secondary"
-                    style={{
-                      ...MIN_TOUCH_TARGET_STYLE,
-                      fontSize: '0.78rem',
-                      padding: '0.4rem 0.8rem',
-                      background:
-                        quizSiteFilter === filterBtn.id
-                          ? 'var(--accent-orange-nasa)'
-                          : 'var(--bg-space-deep)',
-                    }}
+                    className={`science-annex-btn ${
+                      quizSiteFilter === filterBtn.id
+                        ? 'science-annex-btn--active'
+                        : ''
+                    }`}
+                    style={MIN_TOUCH_TARGET_STYLE}
                     onClick={() => {
                       missionAudio.playClick();
                       setQuizSiteFilter(filterBtn.id);
@@ -1636,134 +1544,132 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   </button>
                 ))}
               </div>
-            </div>
+            </section>
 
             {answeredCount === totalQuestions && totalQuestions > 0 && (
               <div
-                className="tradeoff-callout"
+                className="science-form-box science-form-box--green"
                 role="status"
                 aria-live="polite"
-                style={{
-                  border: '1px solid var(--accent-amber)',
-                  padding: '1rem',
-                  fontSize: '0.95rem',
-                }}
               >
                 <strong>
                   {correctCount === totalQuestions
                     ? lang === 'es'
-                      ? '🌟 ¡INSIGNIA DESBLOQUEADA: Comandante Científico Jefe de la NASA! ¡Respondiste todo perfectamente!'
-                      : '🌟 BADGE UNLOCKED: Chief NASA Science Commander! You answered every question perfectly!'
+                      ? 'CERTIFICACIÓN COMPLETA: Comandante Científico Jefe de la NASA. Todas las respuestas verificadas.'
+                      : 'CERTIFICATION COMPLETE: Chief NASA Science Commander. All answers verified.'
                     : correctCount >= Math.ceil(totalQuestions * 0.65)
                       ? lang === 'es'
-                        ? '🚀 ¡INSIGNIA DESBLOQUEADA: Especialista de Misión Artemis & Marte! ¡Gran dominio de los trade-offs!'
-                        : '🚀 BADGE UNLOCKED: Artemis & Mars Mission Specialist! Great mastery of engineering trade-offs!'
+                        ? 'CERTIFICACIÓN APROBADA: Especialista de Misión Artemis & Marte.'
+                        : 'CERTIFICATION PASSED: Artemis & Mars Mission Specialist.'
                       : lang === 'es'
-                        ? '🛰️ ¡Buen intento, Cadete Espacial! Revisa las explicaciones de la NASA abajo y vuelve a intentarlo.'
-                        : '🛰️ Good try, Space Cadet! Review the NASA explanations below and try again.'}
+                        ? 'REVISIÓN RECOMENDADA: Consulta las notas técnicas de la NASA bajo cada pregunta y vuelve a intentarlo.'
+                        : 'REVIEW RECOMMENDED: Check the NASA technical notes below each question and try again.'}
                 </strong>
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.85rem',
+              }}
+            >
               {filteredQuizQuestions.map((q) => {
                 const userChoiceId = selectedAnswers[q.id];
                 const isAnswered = Boolean(userChoiceId);
+                const chosenRight = q.options.find(
+                  (o) => o.id === userChoiceId
+                )?.isCorrect;
 
                 return (
-                  <article
-                    key={q.id}
-                    className="glossary-item"
-                    style={{
-                      border: '1px solid var(--border-subtle)',
-                      gap: '0.7rem',
-                    }}
-                  >
-                    <div className="glossary-item-header">
-                      <span className="source-tag">{q.badgeSource}</span>
+                  <article key={q.id} className="science-library-card">
+                    <div className="science-library-card-header">
+                      <span>{q.badgeSource}</span>
                       {isAnswered && (
                         <span
-                          className="mono-val"
                           style={{
-                            fontSize: '0.78rem',
-                            color: q.options.find((o) => o.id === userChoiceId)
-                              ?.isCorrect
-                              ? 'var(--status-nominal)'
-                              : 'var(--status-critical)',
+                            color: chosenRight
+                              ? 'var(--ok-green, #2E7D4F)'
+                              : 'var(--nasa-red, #FC3D21)',
                           }}
                         >
-                          {q.options.find((o) => o.id === userChoiceId)
-                            ?.isCorrect
+                          {chosenRight
                             ? lang === 'es'
-                              ? '✔ ¡Correcto!'
-                              : '✔ Correct!'
+                              ? '[VERIFICADO: CORRECTO]'
+                              : '[VERIFIED: CORRECT]'
                             : lang === 'es'
-                              ? '✘ Respuesta de aprendizaje'
-                              : '✘ Learning opportunity'}
+                              ? '[REVISAR NOTA TÉCNICA]'
+                              : '[REVIEW TECHNICAL NOTE]'}
                         </span>
                       )}
                     </div>
 
-                    <h4 style={{ fontSize: '0.98rem' }}>{q.question[lang]}</h4>
-
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.45rem',
-                      }}
-                    >
-                      {q.options.map((opt) => {
-                        const isThisSelected = userChoiceId === opt.id;
-                        let bg = 'var(--bg-space-deep)';
-                        let borderColor = 'var(--border-subtle)';
-
-                        if (isAnswered) {
-                          if (opt.isCorrect) {
-                            bg = 'hsla(152, 68%, 46%, 0.18)';
-                            borderColor = 'var(--status-nominal)';
-                          } else if (isThisSelected && !opt.isCorrect) {
-                            bg = 'hsla(4, 82%, 56%, 0.2)';
-                            borderColor = 'var(--status-critical)';
-                          }
-                        }
-
-                        return (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() =>
-                              handleSelectQuizOption(q.id, opt.id, opt.isCorrect)
-                            }
-                            disabled={isAnswered}
-                            style={{
-                              ...MIN_TOUCH_TARGET_STYLE,
-                              textAlign: 'left',
-                              padding: '0.65rem 0.9rem',
-                              borderRadius: '8px',
-                              background: bg,
-                              border: `1px solid ${borderColor}`,
-                              color: 'var(--text-primary)',
-                              cursor: isAnswered ? 'default' : 'pointer',
-                              fontSize: '0.86rem',
-                              fontFamily: 'var(--font-sans)',
-                            }}
-                          >
-                            <strong>{opt.id.toUpperCase()}.</strong>{' '}
-                            {opt.text[lang]}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {isAnswered && (
-                      <div
-                        className="tradeoff-callout"
-                        style={{ marginTop: '0.2rem' }}
+                    <div className="science-library-card-body">
+                      <h4
+                        style={{
+                          margin: 0,
+                          fontSize: '0.96rem',
+                          fontWeight: 700,
+                        }}
                       >
-                        🔬 {q.explanation[lang]}
+                        {q.question[lang]}
+                      </h4>
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.45rem',
+                        }}
+                      >
+                        {q.options.map((opt) => {
+                          const isThisSelected = userChoiceId === opt.id;
+                          let optionClass = 'science-quiz-option';
+
+                          if (isAnswered) {
+                            if (opt.isCorrect) {
+                              optionClass += ' science-quiz-option--correct';
+                            } else if (isThisSelected && !opt.isCorrect) {
+                              optionClass += ' science-quiz-option--wrong';
+                            }
+                          }
+
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() =>
+                                handleSelectQuizOption(
+                                  q.id,
+                                  opt.id,
+                                  opt.isCorrect
+                                )
+                              }
+                              disabled={isAnswered}
+                              className={optionClass}
+                              style={MIN_TOUCH_TARGET_STYLE}
+                            >
+                              <span className="science-quiz-check-box">
+                                {opt.id.toUpperCase()}
+                              </span>
+                              <span>{opt.text[lang]}</span>
+                            </button>
+                          );
+                        })}
                       </div>
-                    )}
+
+                      {isAnswered && (
+                        <div className="science-library-rule-row">
+                          <span className="science-library-field-label">
+                            {lang === 'es'
+                              ? 'Nota Técnica de Verificación NASA'
+                              : 'NASA Verification Technical Note'}
+                          </span>
+                          <p style={{ margin: 0 }}>{q.explanation[lang]}</p>
+                        </div>
+                      )}
+                    </div>
                   </article>
                 );
               })}
