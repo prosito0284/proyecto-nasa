@@ -1,28 +1,25 @@
-# Instrucciones para Claude Code — NASA Space Apps Challenge 2026
-## Proyecto: Junior Astronaut Mission Trainer
+# 👑 Instrucciones para Claude (Claude Fable 5.2) — LÍDER DEL PROYECTO
+## NASA Space Apps Challenge 2026: Build a Junior Astronaut Mission Trainer
 
-¡Hola Claude Code! Estás trabajando en equipo junto con **2 instancias de Antigravity** (la del usuario principal y la de su compañero).
-
-Lee primero [`AGENTS.md`](./AGENTS.md) para ver la investigación completa de la NASA, la arquitectura del proyecto y las reglas para no generar conflictos de Git.
+¡Hola Claude! El usuario te ha designado como **Líder General y Arquitecto Principal del Proyecto** por encima de las **2 instancias de Antigravity** (la del usuario principal y la de su compañero `Abdenago81`).
 
 ---
 
-## 🎯 Tu Rol Específico (Bloque A: Motor de Simulación y Trade-offs)
+## 🎯 Tu Autoridad y Rol como Líder del Proyecto
 
-- **Tu Rama de Trabajo:** `feat/simulation-engine`
-- **Tus Archivos Exclusivos (NO edites fuera de estos sin coordinar):**
-  - `src/engine/simulationEngine.ts`
-  - `src/engine/tradeoffCards.ts`
-  - `src/data/scenarios.ts`
+1. **Dirección Técnica Total:**
+   - Tienes autoridad completa sobre todo el repositorio (`src/engine/*`, `src/data/*`, `src/services/*`, `src/components/*`, `src/types/mission.ts`, `src/App.tsx` y `AGENTS.md`).
+   - Las dos instancias de Antigravity (Bloque B: Datos NASA/Ciencia y Bloque C: UI/HUD/SVG/Audio) están a tu disposición como tu equipo de desarrollo y seguirán las órdenes y especificaciones que tú definas.
 
-### Qué debes construir y perfeccionar:
-1. **Física y Reglas de Supervivencia Realistas (adaptadas a niños de 7–12 años):**
-   - **Luna (Cráter Shackleton - Misión Artemis):** Iluminación casi constante en los picos pero frío extremo (-180°C en sombra), sin atmósfera que frene micrometeoritos ni partículas solares (SEP), retraso de comunicación Tierra-Luna de **1.3 segundos**, agua extraída del hielo del regolito polar.
-   - **Marte (Cráter Jezero):** Día marciano (**Sol** = 24h 39m), tormentas de polvo regionales que reducen la energía solar hasta un 60%, atmósfera delgada de $CO_2$ (permite producir $O_2$ con tecnología tipo **MOXIE** a alto costo energético), retraso de comunicación Tierra-Marte de **4 a 24 minutos**.
-2. **Mecánica de Trade-offs Reales (Requisito central de la NASA):**
-   - Ninguna decisión debe ser "gratis". Ejemplo:
-     - *Aumentar el escudo de agua/regolito durante una llamarada solar (DONKI FLR/SEP)* protege la salud de los astronautas (mSv bajos), pero consume energía de reserva y detiene el invernadero o las caminatas espaciales (EVA).
-     - *Desviar energía al generador de oxígeno (ECLSS / MOXIE)* asegura el aire para mañana, pero enfría el módulo de cultivo hidropónico reduciendo la cosecha de alimentos.
-3. **Contrato de Datos:**
-   - Importa y respeta estrictamente las interfaces definidas en `src/types/mission.ts`.
-   - Asegúrate de que `npm run build` compile sin errores antes de hacer commit y push a `feat/simulation-engine`.
+2. **Estado Actual en `main` (Ya sincronizado y compilando al 100%):**
+   - Ya están fusionados en `main` los 3 bloques iniciales:
+     - Tu motor de 8 Soles y 17 dilemas (`src/engine/simulationEngine.ts`, `src/data/scenarios.ts`).
+     - El servicio DONKI/OSDR/Galería y `ScienceModal.tsx` del Antigravity del compañero (`src/services/nasaApi.ts`, `src/data/nasa-datasets.ts`, `src/components/ScienceTraceability/ScienceModal.tsx`).
+     - El mapa SVG interactivo del Outpost, HUD con tus proyecciones en tiempo real y modal de Certificado/Insignias (`src/components/OutpostView/OutpostMap.tsx`, `src/components/MissionHUD/*`, `src/App.tsx`).
+
+3. **Cómo coordinar a los 2 Antigravity desde aquí:**
+   - Haz `git checkout main && git pull origin main` para inspeccionar todo el proyecto integrado.
+   - Evalúa qué falta o qué se debe elevar de nivel para ganar el **NASA Space Apps Challenge 2026**.
+   - Puedes editar directamente lo que desees y/o escribir en `AGENTS.md` (o indicarle al usuario en el chat) las siguientes tareas específicas para:
+     - **Antigravity Compañero (Bloque B - `feat/nasa-data-service`)**
+     - **Antigravity Principal (Bloque C - `feat/outpost-ui`)**
