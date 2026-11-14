@@ -32,6 +32,7 @@ import {
   NasaOsdrStudy,
   VERIFIED_NASA_GALLERY_IMAGES,
   VERIFIED_NASA_WEATHER_EVENTS,
+  computeQuizProgress,
   getGlossaryTerm,
   getQuizQuestionsForSite,
 } from '../../data/nasa-datasets';
@@ -72,6 +73,8 @@ export interface ScienceModalProps {
   focusTermId?: string;
   /** ID opcional de la base actual ('moon-shackleton' | 'mars-jezero') para filtrar el Mini-Quiz (B5) */
   siteId?: OutpostSiteId;
+  /** Callback opcional invocado una sola vez al completar todas las preguntas del quiz activo (B13) */
+  onQuizComplete?: (correct: number, total: number) => void;
 }
 
 type ModalTab = 'donki-glossary' | 'osdr-studies' | 'nasa-photos' | 'mini-quiz';
@@ -113,6 +116,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
   currentWeather,
   focusTermId,
   siteId,
+  onQuizComplete,
 }) => {
   const [activeTab, setActiveTab] = useState<ModalTab>('donki-glossary');
   const [glossarySearch, setGlossarySearch] = useState('');
@@ -153,13 +157,14 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
     {}
   );
 
-  // Estado Mini-Quiz (B5)
+  // Estado Mini-Quiz (B5 + B13)
   const [quizSiteFilter, setQuizSiteFilter] = useState<OutpostSiteId | 'all'>(
     siteId ?? 'all'
   );
   const [selectedAnswers, setSelectedAnswers] = useState<
     Record<string, string>
   >({});
+  const quizCompletedByFilterRef = useRef<Record<string, boolean>>({});
 
   const modalCardRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -345,6 +350,12 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
     }
   };
 
+  const filteredQuizQuestions = getQuizQuestionsForSite(quizSiteFilter);
+  const { answeredCount, correctCount, totalQuestions } = computeQuizProgress(
+    filteredQuizQuestions,
+    selectedAnswers
+  );
+
   const handleSelectQuizOption = (
     questionId: string,
     optionId: string,
@@ -356,11 +367,25 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
     } else {
       missionAudio.playAlert();
     }
-    setSelectedAnswers((prev) => ({ ...prev, [questionId]: optionId }));
+    const nextAnswers = { ...selectedAnswers, [questionId]: optionId };
+    setSelectedAnswers(nextAnswers);
+
+    const nextProgress = computeQuizProgress(
+      filteredQuizQuestions,
+      nextAnswers
+    );
+    if (
+      nextProgress.isComplete &&
+      !quizCompletedByFilterRef.current[quizSiteFilter]
+    ) {
+      quizCompletedByFilterRef.current[quizSiteFilter] = true;
+      onQuizComplete?.(nextProgress.correctCount, nextProgress.totalQuestions);
+    }
   };
 
   const handleResetQuiz = () => {
     missionAudio.playClick();
+    quizCompletedByFilterRef.current = {};
     setSelectedAnswers({});
   };
 
@@ -405,17 +430,6 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
   const filteredStudies = NASA_OSDR_STUDIES.filter(
     (st) => osdrCategory === 'all' || st.category === osdrCategory
   );
-
-  const filteredQuizQuestions = getQuizQuestionsForSite(quizSiteFilter);
-  const totalQuestions = filteredQuizQuestions.length;
-  const answeredCount = filteredQuizQuestions.filter((q) =>
-    Boolean(selectedAnswers[q.id])
-  ).length;
-  const correctCount = filteredQuizQuestions.reduce((acc, q) => {
-    const chosenId = selectedAnswers[q.id];
-    const chosenOpt = q.options.find((o) => o.id === chosenId);
-    return acc + (chosenOpt?.isCorrect ? 1 : 0);
-  }, 0);
 
   return (
     <div

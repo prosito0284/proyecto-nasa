@@ -1437,3 +1437,33 @@ export function getQuizQuestionsForSite(
     (q) => !q.siteFilter || q.siteFilter === 'both' || q.siteFilter === siteFilter
   );
 }
+
+/**
+ * Calcula el progreso y puntaje real del Mini-Quiz (B13).
+ */
+export function computeQuizProgress(
+  questions: ScienceQuizQuestion[],
+  selectedAnswers: Record<string, string>
+): {
+  answeredCount: number;
+  correctCount: number;
+  totalQuestions: number;
+  isComplete: boolean;
+} {
+  const totalQuestions = questions.length;
+  const answeredCount = questions.filter((q) =>
+    Boolean(selectedAnswers[q.id])
+  ).length;
+  const correctCount = questions.reduce((acc, q) => {
+    const chosenId = selectedAnswers[q.id];
+    const chosenOpt = q.options.find((o) => o.id === chosenId);
+    return acc + (chosenOpt?.isCorrect ? 1 : 0);
+  }, 0);
+  return {
+    answeredCount,
+    correctCount,
+    totalQuestions,
+    isComplete: totalQuestions > 0 && answeredCount === totalQuestions,
+  };
+}
+

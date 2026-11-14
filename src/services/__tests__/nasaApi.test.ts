@@ -10,6 +10,7 @@ import {
   JUNIOR_ASTRONAUT_QUIZ,
   KID_SCIENCE_GLOSSARY,
   VERIFIED_NASA_WEATHER_EVENTS,
+  computeQuizProgress,
   getGlossaryTerm,
   getQuizQuestionsForSite,
 } from '../../data/nasa-datasets';
@@ -257,4 +258,29 @@ describe('nasaApi — funciones puras de mapeo DONKI y calidad del pool (B3, B4,
     expect(moonQuiz.every((q) => !q.siteFilter || q.siteFilter === 'both' || q.siteFilter === 'moon-shackleton')).toBe(true);
     expect(marsQuiz.every((q) => !q.siteFilter || q.siteFilter === 'both' || q.siteFilter === 'mars-jezero')).toBe(true);
   });
+
+  it('computeQuizProgress detecta el término del quiz y calcula aciertos reales (B13)', () => {
+    const sampleQuestions = JUNIOR_ASTRONAUT_QUIZ.slice(0, 3);
+    const partialAnswers: Record<string, string> = {
+      [sampleQuestions[0].id]: sampleQuestions[0].options.find((o) => o.isCorrect)!.id,
+      [sampleQuestions[1].id]: sampleQuestions[1].options.find((o) => !o.isCorrect)!.id,
+    };
+
+    const partial = computeQuizProgress(sampleQuestions, partialAnswers);
+    expect(partial.answeredCount).toBe(2);
+    expect(partial.correctCount).toBe(1);
+    expect(partial.totalQuestions).toBe(3);
+    expect(partial.isComplete).toBe(false);
+
+    const completeAnswers: Record<string, string> = {
+      ...partialAnswers,
+      [sampleQuestions[2].id]: sampleQuestions[2].options.find((o) => o.isCorrect)!.id,
+    };
+    const finalProgress = computeQuizProgress(sampleQuestions, completeAnswers);
+    expect(finalProgress.answeredCount).toBe(3);
+    expect(finalProgress.correctCount).toBe(2);
+    expect(finalProgress.totalQuestions).toBe(3);
+    expect(finalProgress.isComplete).toBe(true);
+  });
 });
+
