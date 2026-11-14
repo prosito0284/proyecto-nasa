@@ -77,13 +77,12 @@ Este repositorio está configurado para el trabajo simultáneo de **2 desarrolla
 
 ---
 
-## 4. Estado Actual de Integración (Fase 3 en `main`)
+## 4. Estado Actual de Integración (Fase 4 en `main`)
 
-- ✅ **Ronda 2 integrada:** B1–B6 y C1–C7 revisados y fusionados. Ambos bloques respetaron sus archivos.
-- ✅ **Conexiones del Líder:** pantalla de bienvenida, informe del día tras cada decisión, glosario abierto en el término del dilema, repaso de decisiones en el certificado, retraso de señal variable en Marte.
-- ✅ **Reto del día:** misión reproducible por semilla (`?site=mars-jezero&seed=20261114`) que usa siempre el archivo verificado para que todos jueguen lo mismo.
-- ✅ README bilingüe para jueces y guion de demo en `docs/DEMO.md`.
-- ✅ `npm test`: 18 pruebas (motor + mapeo DONKI).
+- ✅ **Ronda 3 integrada:** C8–C12 y B7–B10 revisados y fusionados sin conflictos. Identidad "Cuaderno de Vuelo" aplicada; cero emoji en toda la app.
+- ✅ **Conexiones del Líder:** cada opción es una orden de trabajo (`components/Mission/WorkOrder.tsx`, columnas Ganas / Pagas y sello al firmar), sellos de procedencia en dilemas y bitácora, estado de DONKI en vivo o archivo, y tabla del aula del Reto del día (`components/Mission/ClassBoard.tsx`, solo en el dispositivo).
+- ✅ `npm test`: 19 pruebas. Verificado en móvil, tablet y escritorio con partida completa en Luna y Marte.
+- Estilos del Líder en `src/styles/lead.css` (usa los tokens de `index.css`).
 
 ### Arquitectura (flujo de datos en una sola dirección)
 
@@ -111,9 +110,9 @@ npm test && npm run build && git push origin <tu-rama>                 # al term
 
 ---
 
-## 6. 📋 RONDA 3 — Identidad propia (nada de "página genérica de IA")
+## 6. Ronda 3 (completada) — referencia de la dirección de arte
 
-**Diagnóstico del Líder.** El juego funciona, pero se ve como cualquier panel generado por IA: fondo azul marino, tarjetas redondeadas translúcidas, acento ámbar y un emoji como icono en cada título. Un juez lo olvida en diez segundos. La Ronda 3 le da una identidad que solo puede ser de este proyecto.
+La tabla de dirección de arte sigue vigente para todo trabajo nuevo. Las tareas C8–C12 y B7–B10 están hechas.
 
 ### Dirección de arte: "Cuaderno de Vuelo del Comandante"
 

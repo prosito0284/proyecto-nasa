@@ -281,13 +281,13 @@ export function projectSystemsTurn(
   const prev = state.resources;
   const load = totalLoad(allocation);
 
-  // ⚡ Energía: generación solar - consumo base - sobrecarga (o ahorro si se usa < 100%)
+  // Energía: generación solar - consumo base - sobrecarga (o ahorro si se usa < 100%)
   const solarGain = Math.round(phys.solarGainPerTurn * weather.solarEfficiencyMultiplier);
   const loadPenalty =
     load > 100 ? (load - 100) * OVERLOAD_DRAIN : -(100 - load) * UNDERLOAD_SAVING;
   const powerDelta = Math.round(solarGain - phys.baseHabitatLoad - loadPenalty);
 
-  // 🫁 Soporte vital, 🥬 comida, 🛡️ blindaje dependen de cuánta energía reciben
+  // Soporte vital, comida, blindaje dependen de cuánta energía reciben
   const lifeSupportDelta = Math.round(
     -phys.lifeSupportDrainPerTurn + (allocation.lifeSupportAlloc - BASELINE_ALLOC) * ALLOC_EFFECT
   );
@@ -298,19 +298,19 @@ export function projectSystemsTurn(
     -phys.shieldingDecayPerTurn + (allocation.shieldingAlloc - BASELINE_ALLOC) * ALLOC_EFFECT
   );
 
-  // 🔬 Ciencia: rovers y antenas. En tormenta de polvo los rovers rinden la mitad.
+  // Ciencia: rovers y antenas. En tormenta de polvo los rovers rinden la mitad.
   const scienceEfficiency = weather.type === 'DUST_STORM' ? 0.5 : 1;
   const scienceDelta = Math.max(
     0,
     Math.round((allocation.scienceAndCommsAlloc - 10) * 0.5 * scienceEfficiency)
   );
 
-  // ☢️ Radiación: dosis de fondo real × multiplicador DONKI × fracción no blindada
+  // Radiación: dosis de fondo real × multiplicador DONKI × fracción no blindada
   const effectiveShielding = clampPercent(prev.shielding + shieldingDelta + choiceShieldingDelta);
   const unshielded = Math.max(0.15, 1 - (effectiveShielding / 100) * 0.85);
   const doseMsv = round2(phys.backgroundDoseMsvPerDay * weather.radiationMultiplier * unshielded);
 
-  // ❤️ Salud: tormentas fuertes dañan si el blindaje es bajo (penalización continua)
+  // Salud: tormentas fuertes dañan si el blindaje es bajo (penalización continua)
   let healthDelta = 0;
   if (weather.radiationMultiplier > 1.5) {
     const stormStrength = (weather.radiationMultiplier - 1) / 2; // X8.7 ≈ 0.9
@@ -392,7 +392,7 @@ export function advanceMissionTurn(
   for (const eff of state.pendingDelayedEffects) {
     consequenceLogs.push({
       day,
-      title: { es: '⏱️ Consecuencia de ayer', en: '⏱️ Yesterday’s consequence' },
+      title: { es: 'Consecuencia de ayer', en: 'Yesterday’s consequence' },
       detail: eff.description,
       severity: 'watch',
       nasaTag: 'CHAIN',
@@ -435,7 +435,7 @@ export function advanceMissionTurn(
   if (proj.delta.crewHealth < 0) {
     consequenceLogs.push({
       day,
-      title: { es: '☢️ Radiación de tormenta solar', en: '☢️ Solar storm radiation' },
+      title: { es: 'Radiación de tormenta solar', en: 'Solar storm radiation' },
       detail: {
         es: `Con el blindaje al ${proj.effectiveShielding}%, la tormenta (${weather.classOrIntensity}) bajó la salud ${-proj.delta.crewHealth}%. Más blindaje = menos daño.`,
         en: `With shielding at ${proj.effectiveShielding}%, the storm (${weather.classOrIntensity}) lowered health by ${-proj.delta.crewHealth}%. More shielding = less harm.`,
@@ -555,15 +555,15 @@ export function advanceMissionTurn(
     endLogs.push({
       day,
       title: {
-        es: `${rating.rank.emoji} Rango final: ${rating.rank.title.es} (${rating.score}/100)`,
-        en: `${rating.rank.emoji} Final rank: ${rating.rank.title.en} (${rating.score}/100)`,
+        es: `Rango final: ${rating.rank.title.es} (${rating.score}/100)`,
+        en: `Final rank: ${rating.rank.title.en} (${rating.score}/100)`,
       },
       detail: {
         es: earned.length
-          ? `Insignias: ${earned.map((b) => `${b.emoji} ${b.title.es}`).join(', ')}.`
+          ? `Insignias: ${earned.map((b) => b.title.es).join(', ')}.`
           : 'Aún no ganaste insignias. ¡Intenta otra estrategia!',
         en: earned.length
-          ? `Badges: ${earned.map((b) => `${b.emoji} ${b.title.en}`).join(', ')}.`
+          ? `Badges: ${earned.map((b) => b.title.en).join(', ')}.`
           : 'No badges earned yet. Try another strategy!',
       },
       severity: status === 'won' ? 'nominal' : 'critical',
@@ -591,7 +591,6 @@ export function advanceMissionTurn(
 
 export interface CommanderRank {
   id: 'cadet' | 'explorer' | 'engineer' | 'commander' | 'star-commander';
-  emoji: string;
   minScore: number;
   title: LocalizedText;
   message: LocalizedText;
@@ -600,7 +599,6 @@ export interface CommanderRank {
 export const COMMANDER_RANKS: CommanderRank[] = [
   {
     id: 'star-commander',
-    emoji: '🌟',
     minScore: 80,
     title: { es: 'Comandante Estelar', en: 'Star Commander' },
     message: {
@@ -610,7 +608,6 @@ export const COMMANDER_RANKS: CommanderRank[] = [
   },
   {
     id: 'commander',
-    emoji: '🚀',
     minScore: 65,
     title: { es: 'Comandante Junior', en: 'Junior Commander' },
     message: {
@@ -620,7 +617,6 @@ export const COMMANDER_RANKS: CommanderRank[] = [
   },
   {
     id: 'engineer',
-    emoji: '🔧',
     minScore: 50,
     title: { es: 'Ingeniero de Misión', en: 'Mission Engineer' },
     message: {
@@ -630,7 +626,6 @@ export const COMMANDER_RANKS: CommanderRank[] = [
   },
   {
     id: 'explorer',
-    emoji: '🧭',
     minScore: 30,
     title: { es: 'Explorador en Entrenamiento', en: 'Explorer in Training' },
     message: {
@@ -640,7 +635,6 @@ export const COMMANDER_RANKS: CommanderRank[] = [
   },
   {
     id: 'cadet',
-    emoji: '🎓',
     minScore: 0,
     title: { es: 'Cadete Espacial', en: 'Space Cadet' },
     message: {
@@ -652,7 +646,6 @@ export const COMMANDER_RANKS: CommanderRank[] = [
 
 export interface CommanderBadge {
   id: string;
-  emoji: string;
   title: LocalizedText;
   description: LocalizedText;
   earned: boolean;
@@ -706,7 +699,6 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
   const badges: CommanderBadge[] = [
     {
       id: 'solar-guardian',
-      emoji: '🛡️',
       title: { es: 'Guardián Solar', en: 'Solar Guardian' },
       description: {
         es: 'Mantuviste el blindaje ≥60% en todos los días de tormenta solar DONKI.',
@@ -716,7 +708,6 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
     },
     {
       id: 'eclss-master',
-      emoji: '🫁',
       title: { es: 'Maestro del ECLSS', en: 'ECLSS Master' },
       description: {
         es: 'El oxígeno y el agua nunca bajaron de 40%.',
@@ -726,7 +717,6 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
     },
     {
       id: 'space-farmer',
-      emoji: '🥬',
       title: { es: 'Granjero Espacial', en: 'Space Farmer' },
       description: {
         es: 'Terminaste la misión con 60% o más de comida.',
@@ -736,7 +726,6 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
     },
     {
       id: 'power-engineer',
-      emoji: '⚡',
       title: { es: 'Ingeniero de Energía', en: 'Power Engineer' },
       description: {
         es: 'Nunca sobrecargaste la red (>100%) y la batería nunca bajó de 20%.',
@@ -746,7 +735,6 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
     },
     {
       id: 'alara-champion',
-      emoji: '☢️',
       title: { es: 'Campeón ALARA', en: 'ALARA Champion' },
       description: {
         es: 'Recibiste menos radiación que una base sin blindaje (dosis “tan baja como sea razonable”).',
@@ -756,7 +744,6 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
     },
     {
       id: 'star-scientist',
-      emoji: '🔬',
       title: { es: 'Científico Estrella', en: 'Star Scientist' },
       description: {
         es: `Ganaste ${SCIENCE_TARGET} o más puntos de ciencia en la misión.`,
@@ -766,7 +753,6 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
     },
     {
       id: 'isru-pioneer',
-      emoji: '⛏️',
       title: { es: 'Pionero ISRU', en: 'ISRU Pioneer' },
       description: {
         es: 'Usaste recursos locales (hielo o regolito) al menos 2 veces.',
@@ -776,7 +762,6 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
     },
     {
       id: 'happy-crew',
-      emoji: '😊',
       title: { es: 'Tripulación Feliz', en: 'Happy Crew' },
       description: {
         es: 'La salud de la tripulación terminó en 80% o más.',
@@ -789,7 +774,6 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
   if (state.siteId === 'mars-jezero') {
     badges.push({
       id: 'dust-survivor',
-      emoji: '🌪️',
       title: { es: 'Sobreviviente del Polvo', en: 'Dust Storm Survivor' },
       description: {
         es: 'Superaste una tormenta de polvo sin que la batería bajara de 25%.',

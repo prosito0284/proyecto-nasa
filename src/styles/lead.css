@@ -1,0 +1,331 @@
+/**
+ * LÍDER — Estilos de las piezas que integra App.tsx: orden de trabajo, sello de ejecución,
+ * procedencia del clima, reto del día y tabla del aula.
+ * Usa los tokens del "Cuaderno de Vuelo" definidos en index.css (Bloque C).
+ */
+
+.challenge-tag {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--nasa-red);
+}
+
+.dilemma-weather {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 16px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ink-secondary, var(--ink));
+}
+
+/* ── Orden de trabajo ───────────────────────────────────────────── */
+.work-order {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--paper-sheet, var(--paper));
+  border: var(--border);
+  border-radius: var(--radius);
+  /* Margen perforado de formulario: línea punteada a la izquierda */
+  border-left: 6px double var(--ink);
+}
+
+.wo-code {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nasa-blue);
+  margin-bottom: 4px;
+}
+
+.wo-head h3 {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  line-height: 1.15;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  margin-bottom: 6px;
+}
+
+.wo-head p {
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.wo-ledger {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+.wo-col {
+  padding: 10px 12px;
+  min-width: 0;
+}
+
+.wo-col + .wo-col {
+  border-left: var(--border);
+}
+
+.wo-col h4 {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.wo-col-gain h4 {
+  color: var(--ok-green);
+}
+
+.wo-col-cost h4 {
+  color: var(--crit-red, var(--nasa-red));
+}
+
+.wo-rows {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wo-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+  line-height: 1.3;
+}
+
+.wo-amount {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  min-width: 3.6em;
+}
+
+.wo-col-gain .wo-amount {
+  color: var(--ok-green);
+}
+
+.wo-col-cost .wo-amount {
+  color: var(--crit-red, var(--nasa-red));
+}
+
+.wo-tomorrow {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border: 1px dashed var(--ink);
+  border-radius: var(--radius);
+}
+
+.wo-note {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  padding-left: 10px;
+  border-left: 3px solid var(--rule);
+  color: var(--ink-secondary, var(--ink));
+}
+
+.wo-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.wo-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.wo-source small {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--ink-muted, var(--ink));
+}
+
+.wo-sign-btn {
+  width: 100%;
+  min-height: 48px;
+}
+
+.wo-sign-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Sello de tinta al firmar la orden */
+.wo-stamp {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-9deg);
+  padding: 6px 18px;
+  border: 4px double var(--nasa-red);
+  border-radius: var(--radius);
+  color: var(--nasa-red);
+  background: var(--paper-sheet, var(--paper));
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  pointer-events: none;
+  animation: wo-stamp-in 180ms ease-out both;
+}
+
+@keyframes wo-stamp-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(-9deg) scale(1.6);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(-9deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wo-stamp {
+    animation: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .wo-ledger {
+    grid-template-columns: 1fr;
+  }
+  .wo-col + .wo-col {
+    border-left: none;
+    border-top: var(--border);
+  }
+}
+
+/* ── Tabla del aula ─────────────────────────────────────────────── */
+.class-board {
+  margin: 16px auto 0;
+  max-width: 1100px;
+  padding: 16px 20px;
+  background: var(--paper-sheet, var(--paper));
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+.board-entry .class-board {
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.class-board-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.class-board-head h3 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.class-board-empty {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.class-board table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.class-board th,
+.class-board td {
+  text-align: left;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.class-board th {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: var(--border);
+}
+
+.class-board-score {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.class-board-aborted {
+  color: var(--crit-red, var(--nasa-red));
+}
+
+.board-entry {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--ink);
+}
+
+.board-entry label {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.board-entry-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.board-entry-row input {
+  flex: 1 1 200px;
+  min-height: 44px;
+  padding: 8px 10px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+.board-entry-row button {
+  min-height: 44px;
+}
+
+/* Los sellos de procedencia (SourceStamp, Bloque B) no deben cortarse en pantallas estrechas */
+.wo-source > :first-child,
+.dilemma-weather > :first-child,
+.log-item-head > :last-child {
+  white-space: normal !important;
+  flex-wrap: wrap;
+  max-width: 100%;
+}

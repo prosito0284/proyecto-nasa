@@ -1,41 +1,52 @@
-import React, { useState } from "react";
-import {
-  CoreResources,
-  Language,
-  OutpostSiteId,
-  TradeoffChoice,
-} from "./types/mission";
-import { OUTPOST_SITES } from "./data/scenarios";
-import { KID_SCIENCE_GLOSSARY, getGlossaryTerm } from "./data/nasa-datasets";
-import { getCommDelaySeconds } from "./engine/simulationEngine";
-import {
-  buildChallengeUrl,
-  getDailyChallengeSeed,
-  useMission,
-} from "./hooks/useMission";
-import { MissionBriefing } from "./components/MissionHUD/MissionBriefing";
-import { TurnReport } from "./components/MissionHUD/TurnReport";
-import { OutpostMap } from "./components/OutpostView/OutpostMap";
-import { ResourcePanel } from "./components/MissionHUD/ResourcePanel";
-import { CommanderCertificate } from "./components/MissionHUD/CommanderCertificate";
-import { ScienceModal } from "./components/ScienceTraceability/ScienceModal";
-import { missionAudio } from "./utils/sound";
+import React, { useEffect, useRef, useState } from 'react';
+import { Language, OutpostSiteId, TradeoffChoice } from './types/mission';
+import { OUTPOST_SITES } from './data/scenarios';
+import { KID_SCIENCE_GLOSSARY, getGlossaryTerm } from './data/nasa-datasets';
+import { getCommDelaySeconds } from './engine/simulationEngine';
+import { buildChallengeUrl, getDailyChallengeSeed, useMission } from './hooks/useMission';
+import { useClassBoard } from './hooks/useClassBoard';
+import { OutpostMap } from './components/OutpostView/OutpostMap';
+import { ResourcePanel } from './components/MissionHUD/ResourcePanel';
+import { CommanderCertificate } from './components/MissionHUD/CommanderCertificate';
+import { MissionBriefing } from './components/MissionHUD/MissionBriefing';
+import { TurnReport } from './components/MissionHUD/TurnReport';
+import { ScienceModal } from './components/ScienceTraceability/ScienceModal';
+import { SourceStamp } from './components/ScienceTraceability/SourceStamp';
+import { WorkOrder, inferSource } from './components/Mission/WorkOrder';
+import { ClassBoard } from './components/Mission/ClassBoard';
+import { ArrowIcon, LanguageIcon, PatchIcon, ScienceIcon, SoundIcon } from './components/icons';
+import { missionAudio } from './utils/sound';
 
-const SOLAR_STORM_TYPES = ["FLR", "SEP", "CME"];
+const SOLAR_STORM_TYPES = ['FLR', 'SEP', 'CME'];
+/** Tiempo que el sello "EJECUTADA" queda a la vista antes de avanzar el día. */
+const STAMP_MS = 650;
+
+const siteShortName = (siteId: OutpostSiteId, lang: Language) =>
+  siteId === 'moon-shackleton'
+    ? lang === 'es'
+      ? 'Luna'
+      : 'Moon'
+    : lang === 'es'
+      ? 'Marte'
+      : 'Mars';
 
 export const App: React.FC = () => {
-  const [lang, setLang] = useState<Language>("es");
+  const [lang, setLang] = useState<Language>('es');
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isScienceOpen, setIsScienceOpen] = useState(false);
   const [isBadgesOpen, setIsBadgesOpen] = useState(false);
   const [focusTermId, setFocusTermId] = useState<string | undefined>(undefined);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [executingId, setExecutingId] = useState<string | null>(null);
+  const [boardName, setBoardName] = useState('');
+  const [boardSaved, setBoardSaved] = useState(false);
+  const stampTimer = useRef<number | null>(null);
+
   const {
     mission,
-    projection: liveProjection,
-    evaluation: commanderEval,
-    previewChoice: hoveredChoice,
-    setPreviewChoice: setHoveredChoice,
+    weatherStatus,
+    projection,
+    evaluation,
     isBriefing,
     challengeSeed,
     lastTurn,
@@ -43,9 +54,24 @@ export const App: React.FC = () => {
     openBriefing,
     startMission,
     restartMission,
-    setAllocation: handleAllocationChange,
+    setAllocation,
+    previewChoice,
+    setPreviewChoice,
     decide,
   } = useMission();
+  const classBoard = useClassBoard();
+
+  useEffect(
+    () => () => {
+      if (stampTimer.current !== null) window.clearTimeout(stampTimer.current);
+    },
+    [],
+  );
+
+  const es = lang === 'es';
+  const currentSite = OUTPOST_SITES[mission.siteId];
+  const todaySeed = getDailyChallengeSeed();
+  const weatherIsLive = mission.currentWeather.isLiveNasaData;
 
   const openScience = (termId?: string) => {
     missionAudio.playClick();
@@ -56,127 +82,103 @@ export const App: React.FC = () => {
   const handleStart = (siteId: OutpostSiteId, seed: number | null = null) => {
     missionAudio.playClick();
     setLinkCopied(false);
+    setBoardSaved(false);
     startMission(siteId, seed);
     window.scrollTo({ top: 0 });
   };
 
-  const handleDecision = (choice: TradeoffChoice) => {
+  const applyDecision = (choice: TradeoffChoice) => {
     const updated = decide(choice);
-    if (updated.status === "won") missionAudio.playSuccess();
-    else if (updated.status === "failed") missionAudio.playAlert();
+    setExecutingId(null);
+    if (updated.status === 'won') missionAudio.playSuccess();
+    else if (updated.status === 'failed') missionAudio.playAlert();
     else if (SOLAR_STORM_TYPES.includes(updated.currentWeather.type))
       missionAudio.playStormWarning();
     else missionAudio.playTurnAdvance();
+  };
+
+  /** Firma la orden: muestra el sello un instante y luego avanza el día. */
+  const handleExecute = (choice: TradeoffChoice) => {
+    if (executingId) return;
+    missionAudio.playClick();
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+      applyDecision(choice);
+      return;
+    }
+    setExecutingId(choice.id);
+    stampTimer.current = window.setTimeout(() => applyDecision(choice), STAMP_MS);
   };
 
   /** Cierra el informe del día; si la misión terminó, abre el certificado. */
   const handleContinueAfterReport = () => {
     missionAudio.playClick();
     dismissTurnReport();
-    if (mission.status !== "playing") setIsBadgesOpen(true);
+    if (mission.status !== 'playing') setIsBadgesOpen(true);
+  };
+
+  const handleResetMission = () => {
+    missionAudio.playClick();
+    setLinkCopied(false);
+    setBoardSaved(false);
+    restartMission();
   };
 
   const handleCopyChallengeLink = async () => {
     if (challengeSeed === null) return;
     try {
-      await navigator.clipboard.writeText(
-        buildChallengeUrl(mission.siteId, challengeSeed),
-      );
+      await navigator.clipboard.writeText(buildChallengeUrl(mission.siteId, challengeSeed));
       setLinkCopied(true);
     } catch {
       setLinkCopied(false);
     }
   };
 
-  const handleResetMission = () => {
-    missionAudio.playClick();
-    setLinkCopied(false);
-    restartMission();
+  const handleSaveToBoard = () => {
+    const name = boardName.trim();
+    if (!name || challengeSeed === null || boardSaved) return;
+    classBoard.addEntry({
+      name: name.slice(0, 24),
+      siteId: mission.siteId,
+      seed: challengeSeed,
+      score: evaluation.score,
+      rankTitle: evaluation.rank.title,
+      won: mission.status === 'won',
+      badges: evaluation.badges.filter((b) => b.earned).length,
+    });
+    setBoardSaved(true);
   };
 
-  const handleToggleMute = () => {
-    const nextMuted = missionAudio.toggleMute();
-    setIsMuted(nextMuted);
-  };
-
-  const currentSite = OUTPOST_SITES[mission.siteId];
-
-  const renderChoiceDeltaTags = (delta: Partial<CoreResources>) => {
-    const items: Array<{
-      icon: string;
-      label: string;
-      val: number;
-      invertGood?: boolean;
-    }> = [];
-    if (delta.power) items.push({ icon: "⚡", label: "kWh", val: delta.power });
-    if (delta.lifeSupport)
-      items.push({ icon: "🫧", label: "O₂/H₂O", val: delta.lifeSupport });
-    if (delta.shielding)
-      items.push({
-        icon: "🛡️",
-        label: lang === "es" ? "Escudo" : "Shield",
-        val: delta.shielding,
-      });
-    if (delta.food)
-      items.push({
-        icon: "🌱",
-        label: lang === "es" ? "Comida" : "Food",
-        val: delta.food,
-      });
-    if (delta.crewHealth)
-      items.push({
-        icon: "❤️",
-        label: lang === "es" ? "Salud" : "Health",
-        val: delta.crewHealth,
-      });
-    if (delta.sciencePoints)
-      items.push({
-        icon: "🔬",
-        label: lang === "es" ? "Ciencia" : "Science",
-        val: delta.sciencePoints,
-      });
-    if (delta.radiationDoseMsv) {
-      items.push({
-        icon: "☢️",
-        label: "mSv",
-        val: delta.radiationDoseMsv,
-        invertGood: true,
-      });
+  /** Línea de procedencia del clima espacial: en vivo, archivo, o archivo fijo del reto. */
+  const weatherProvenance = (() => {
+    if (challengeSeed !== null) {
+      return es
+        ? 'Reto del día: clima del archivo real de la NASA, igual para todos.'
+        : 'Daily challenge: weather from the real NASA archive, the same for everyone.';
     }
-
-    return (
-      <div className="choice-deltas-row">
-        {items.map((it, i) => {
-          const isGood = it.invertGood ? it.val <= 0 : it.val > 0;
-          const sign = it.val > 0 ? "+" : "";
-          return (
-            <span
-              key={i}
-              className={`delta-chip ${isGood ? "chip-good" : "chip-cost"}`}
-            >
-              {it.icon} {sign}
-              {it.val}
-              {it.label === "mSv" ||
-              it.label === "Ciencia" ||
-              it.label === "Science"
-                ? ` ${it.label}`
-                : `% ${it.label}`}
-            </span>
-          );
-        })}
-      </div>
-    );
-  };
+    if (weatherStatus?.live) {
+      const time = new Date(weatherStatus.fetchedAt).toLocaleTimeString(es ? 'es' : 'en', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      return es
+        ? `Clima espacial: DONKI en vivo, ${weatherStatus.count} registros, actualizado ${time}.`
+        : `Space weather: live DONKI, ${weatherStatus.count} records, updated ${time}.`;
+    }
+    return es
+      ? 'Clima espacial: archivo real de la NASA (DONKI en vivo no disponible ahora).'
+      : 'Space weather: real NASA archive (live DONKI unavailable right now).';
+  })();
 
   return (
     <div className="app-shell">
       <header className="top-nav">
         <div className="brand-block">
-          <h1>👨‍🚀 Junior Astronaut Mission Trainer</h1>
+          <h1>Junior Astronaut Mission Trainer</h1>
           <p className="brand-subtitle">
-            {lang === "es"
-              ? "Simulador de Decisiones y Trade-Offs con Datos Reales de la NASA (Edades 7–12)"
-              : "Real NASA Data Trade-Off & Outpost Survival Simulator (Ages 7–12)"}
+            {es
+              ? 'Cuaderno de vuelo del comandante · datos reales de la NASA · 7 a 12 años'
+              : 'Commander’s flight notebook · real NASA data · ages 7 to 12'}
           </p>
         </div>
 
@@ -190,8 +192,7 @@ export const App: React.FC = () => {
                 openBriefing();
               }}
             >
-              {mission.siteId === "moon-shackleton" ? "🌕" : "🔴"}{" "}
-              {lang === "es" ? "Cambiar de base" : "Change outpost"}
+              {es ? 'Cambiar de base' : 'Change outpost'}
             </button>
           )}
           <button
@@ -199,29 +200,26 @@ export const App: React.FC = () => {
             className="btn-secondary"
             onClick={() => openScience()}
           >
-            🔬 {lang === "es" ? "Ciencia NASA y Quiz" : "NASA Science & Quiz"}
+            <ScienceIcon size={16} /> {es ? 'Ciencia NASA y quiz' : 'NASA science & quiz'}
           </button>
           <button
             id="toggle-mute-btn"
             className="btn-secondary"
-            onClick={handleToggleMute}
-            title={
-              lang === "es"
-                ? "Activar/Silenciar efectos de sonido"
-                : "Toggle sound effects"
-            }
+            onClick={() => setIsMuted(missionAudio.toggleMute())}
+            aria-pressed={isMuted}
           >
-            {isMuted ? "🔇" : "🔊"}
+            <SoundIcon size={16} />{' '}
+            {isMuted ? (es ? 'Sonido: no' : 'Sound: off') : es ? 'Sonido: sí' : 'Sound: on'}
           </button>
           <button
             id="toggle-lang-btn"
             className="btn-secondary"
             onClick={() => {
               missionAudio.playClick();
-              setLang((l) => (l === "es" ? "en" : "es"));
+              setLang((l) => (l === 'es' ? 'en' : 'es'));
             }}
           >
-            🌐 {lang === "es" ? "English" : "Español"}
+            <LanguageIcon size={16} /> {es ? 'English' : 'Español'}
           </button>
         </div>
       </header>
@@ -236,16 +234,14 @@ export const App: React.FC = () => {
           />
           <section
             className="daily-challenge-strip"
-            aria-label="Daily challenge"
+            aria-label={es ? 'Reto del día' : 'Daily challenge'}
           >
             <div>
-              <strong>
-                {lang === "es" ? "Reto del día" : "Daily challenge"}
-              </strong>
+              <strong>{es ? 'Reto del día' : 'Daily challenge'}</strong>
               <span>
-                {lang === "es"
-                  ? "Todos juegan la misma misión hoy: mismo clima espacial y mismos dilemas. ¿Quién logra mejor rango?"
-                  : "Everyone plays the same mission today: same space weather, same dilemmas. Who earns the best rank?"}
+                {es
+                  ? 'Hoy todos juegan la misma misión: mismo clima espacial, mismos dilemas. Gana quien logre el mejor rango.'
+                  : 'Today everyone plays the same mission: same space weather, same dilemmas. Best rank wins.'}
               </span>
             </div>
             <div className="daily-challenge-actions">
@@ -254,49 +250,52 @@ export const App: React.FC = () => {
                   key={site.id}
                   id={`daily-challenge-${site.id}`}
                   className="btn-secondary"
-                  onClick={() => handleStart(site.id, getDailyChallengeSeed())}
+                  onClick={() => handleStart(site.id, todaySeed)}
                 >
-                  {site.id === "moon-shackleton" ? "🌕" : "🔴"}{" "}
-                  {lang === "es" ? "Reto en" : "Challenge at"}{" "}
-                  {site.id === "moon-shackleton"
-                    ? lang === "es"
-                      ? "la Luna"
-                      : "the Moon"
-                    : lang === "es"
-                      ? "Marte"
-                      : "Mars"}
+                  {es ? 'Reto en' : 'Challenge on'} {siteShortName(site.id, lang)}{' '}
+                  <ArrowIcon size={14} />
                 </button>
               ))}
             </div>
           </section>
+          <ClassBoard
+            lang={lang}
+            entries={classBoard.entriesForSeed(todaySeed)}
+            onClear={classBoard.clearBoard}
+          />
         </>
       ) : (
         <>
-          {/* Línea de tiempo visual de los 8 Días / Soles de Misión */}
-          <div className="timeline-bar" aria-label="Mission Day Progress">
+          <div
+            className="timeline-bar"
+            aria-label={es ? 'Progreso de la misión' : 'Mission progress'}
+          >
             <div className="timeline-label">
               <strong>
-                🗓️ {currentSite.dayName[lang]} {mission.currentDay} /{" "}
-                {mission.totalDays}
+                {currentSite.dayName[lang]} {mission.currentDay} / {mission.totalDays}
+                {challengeSeed !== null && (
+                  <span className="challenge-tag">
+                    {' '}
+                    · {es ? 'Reto' : 'Challenge'} {challengeSeed}
+                  </span>
+                )}
               </strong>
-              <span>{currentSite.description[lang]}</span>
+              <span>{weatherProvenance}</span>
             </div>
             <div className="timeline-steps">
-              {Array.from({ length: mission.totalDays }, (_, i) => i + 1).map(
-                (dayNum) => {
-                  const stateClass =
-                    dayNum < mission.currentDay
-                      ? "step-done"
-                      : dayNum === mission.currentDay
-                        ? "step-current"
-                        : "step-upcoming";
-                  return (
-                    <div key={dayNum} className={`timeline-step ${stateClass}`}>
-                      {dayNum}
-                    </div>
-                  );
-                },
-              )}
+              {Array.from({ length: mission.totalDays }, (_, i) => i + 1).map((dayNum) => {
+                const stateClass =
+                  dayNum < mission.currentDay
+                    ? 'step-done'
+                    : dayNum === mission.currentDay
+                      ? 'step-current'
+                      : 'step-upcoming';
+                return (
+                  <div key={dayNum} className={`timeline-step ${stateClass}`}>
+                    {dayNum}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -305,11 +304,11 @@ export const App: React.FC = () => {
               lang={lang}
               resources={mission.resources}
               allocation={mission.powerAllocation}
-              projection={liveProjection}
-              hoveredChoice={hoveredChoice}
+              projection={projection}
+              hoveredChoice={previewChoice}
               pendingEffects={mission.pendingDelayedEffects}
-              evaluation={commanderEval}
-              onChangeAllocation={handleAllocationChange}
+              evaluation={evaluation}
+              onChangeAllocation={setAllocation}
               onOpenBadgesModal={() => setIsBadgesOpen(true)}
             />
 
@@ -321,12 +320,9 @@ export const App: React.FC = () => {
                 resources={mission.resources}
                 allocation={mission.powerAllocation}
                 weather={mission.currentWeather}
-                projection={liveProjection}
+                projection={projection}
                 onOpenScienceModal={() => openScience()}
-                commDelaySeconds={getCommDelaySeconds(
-                  mission.siteId,
-                  mission.currentDay,
-                )}
+                commDelaySeconds={getCommDelaySeconds(mission.siteId, mission.currentDay)}
               />
 
               {lastTurn && (
@@ -341,123 +337,87 @@ export const App: React.FC = () => {
                 />
               )}
 
-              {!lastTurn &&
-                mission.status === "playing" &&
-                mission.currentDilemma && (
-                  <section
-                    className="dilemma-card"
-                    aria-label="Commander Decision Dilemma"
-                  >
-                    <div className="dilemma-meta">
-                      <span>
-                        🎯{" "}
-                        {lang === "es"
-                          ? "DECISIÓN DE INGENIERÍA —"
-                          : "ENGINEERING DECISION —"}{" "}
-                        {currentSite.dayName[lang]} {mission.currentDay}
-                      </span>
-                      {mission.currentDilemma.highlightedTermId && (
-                        <button
-                          type="button"
-                          className="term-link-btn"
-                          onClick={() =>
-                            openScience(
-                              mission.currentDilemma?.highlightedTermId,
-                            )
-                          }
-                        >
-                          📘 {lang === "es" ? "¿Qué es" : "What is"}{" "}
-                          {getGlossaryTerm(
-                            mission.currentDilemma.highlightedTermId,
-                          )?.term[lang] ??
-                            mission.currentDilemma.highlightedTermId}
-                          ?
-                        </button>
-                      )}
-                    </div>
-                    <h2>{mission.currentDilemma.title[lang]}</h2>
-                    <p className="dilemma-situation">
-                      {mission.currentDilemma.situation[lang]}
-                    </p>
+              {!lastTurn && mission.status === 'playing' && mission.currentDilemma && (
+                <section
+                  className="dilemma-card"
+                  aria-label={es ? 'Decisión del día' : 'Decision of the day'}
+                >
+                  <div className="dilemma-meta">
+                    <span>
+                      {es ? 'Decisión de ingeniería' : 'Engineering decision'} ·{' '}
+                      {currentSite.dayName[lang]} {mission.currentDay}
+                    </span>
+                    {mission.currentDilemma.highlightedTermId && (
+                      <button
+                        type="button"
+                        className="term-link-btn"
+                        onClick={() => openScience(mission.currentDilemma?.highlightedTermId)}
+                      >
+                        {es ? '¿Qué es' : 'What is'}{' '}
+                        {getGlossaryTerm(mission.currentDilemma.highlightedTermId)?.term[lang] ??
+                          mission.currentDilemma.highlightedTermId}
+                        ?
+                      </button>
+                    )}
+                  </div>
+                  <h2>{mission.currentDilemma.title[lang]}</h2>
+                  <p className="dilemma-situation">{mission.currentDilemma.situation[lang]}</p>
 
-                    <div className="choices-grid">
-                      {mission.currentDilemma.choices.map((choice) => (
-                        <article
-                          key={choice.id}
-                          className="choice-box"
-                          onMouseEnter={() => setHoveredChoice(choice)}
-                          onMouseLeave={() => setHoveredChoice(null)}
-                          onFocus={() => setHoveredChoice(choice)}
-                          onTouchStart={() => setHoveredChoice(choice)}
-                        >
-                          <div className="choice-top-content">
-                            <h4>{choice.label[lang]}</h4>
-                            <p>{choice.description[lang]}</p>
-                            {renderChoiceDeltaTags(choice.resourceDelta)}
-                          </div>
+                  <div className="dilemma-weather">
+                    <SourceStamp
+                      source={mission.currentWeather.type === 'DUST_STORM' ? 'MARS' : 'DONKI'}
+                      live={weatherIsLive}
+                      url={mission.currentWeather.sourceUrl}
+                      lang={lang}
+                    />
+                    <span>
+                      {es ? 'Clima de hoy' : 'Today’s weather'}:{' '}
+                      {mission.currentWeather.title[lang]}
+                    </span>
+                  </div>
 
-                          <div className="tradeoff-callout">
-                            <div>{choice.tradeoffWarning[lang]}</div>
-                            {choice.nextTurnEffect && (
-                              <div className="delayed-callout-line">
-                                ⏱️{" "}
-                                {lang === "es"
-                                  ? `Efecto mañana: ${choice.nextTurnEffect.description.es}`
-                                  : `Tomorrow’s effect: ${choice.nextTurnEffect.description.en}`}
-                              </div>
-                            )}
-                            {choice.nextTurnEffect &&
-                              renderChoiceDeltaTags(
-                                choice.nextTurnEffect.resourceDelta,
-                              )}
-                          </div>
+                  <div className="choices-grid">
+                    {mission.currentDilemma.choices.map((choice, i) => (
+                      <WorkOrder
+                        key={choice.id}
+                        lang={lang}
+                        choice={choice}
+                        code={`OT-${mission.currentDay}${'ABC'[i] ?? i + 1}`}
+                        weatherIsLive={weatherIsLive}
+                        executed={executingId === choice.id}
+                        disabled={executingId !== null}
+                        onPreview={setPreviewChoice}
+                        onExecute={handleExecute}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
 
-                          <div className="choice-footer">
-                            <small className="choice-nasa-ref">
-                              🛰️ {choice.nasaDataReference}
-                            </small>
-                            <button
-                              id={`choice-btn-${choice.id}`}
-                              className="btn-primary"
-                              onClick={() => handleDecision(choice)}
-                            >
-                              {lang === "es"
-                                ? "Ejecutar Decisión y Avanzar Día →"
-                                : "Execute Decision & Advance Day →"}
-                            </button>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-              {!lastTurn && mission.status !== "playing" && (
+              {!lastTurn && mission.status !== 'playing' && (
                 <section
                   className="dilemma-card outcome-banner"
-                  aria-label="Mission Outcome"
+                  aria-label={es ? 'Resultado' : 'Outcome'}
                 >
-                  <div className="outcome-header-row">
-                    <div>
-                      <span className="nasa-badge">
-                        {mission.status === "won"
-                          ? "MISSION SUCCESS"
-                          : "MISSION ABORTED"}
-                      </span>
-                      <h2>
-                        {mission.status === "won"
-                          ? lang === "es"
-                            ? `🎉 ¡Misión Completada! Rango: ${commanderEval.rank.emoji} ${commanderEval.rank.title.es} (${commanderEval.score}/100)`
-                            : `🎉 Mission Accomplished! Rank: ${commanderEval.rank.emoji} ${commanderEval.rank.title.en} (${commanderEval.score}/100)`
-                          : lang === "es"
-                            ? "🚨 Misión Interrumpida — Aprendizaje de Ingeniería"
-                            : "🚨 Mission Aborted — Engineering Lesson Learned"}
-                      </h2>
-                    </div>
-                  </div>
+                  <span className="nasa-badge">
+                    {mission.status === 'won'
+                      ? es
+                        ? 'Misión cumplida'
+                        : 'Mission accomplished'
+                      : es
+                        ? 'Misión abortada'
+                        : 'Mission aborted'}
+                  </span>
+                  <h2>
+                    {mission.status === 'won'
+                      ? `${es ? 'Rango' : 'Rank'}: ${evaluation.rank.title[lang]} · ${evaluation.score}/100`
+                      : es
+                        ? 'La misión se interrumpió. Esto es lo que enseña'
+                        : 'The mission was cut short. Here is the lesson'}
+                  </h2>
                   <p className="dilemma-situation">
-                    {mission.status === "won"
-                      ? commanderEval.rank.message[lang]
+                    {mission.status === 'won'
+                      ? evaluation.rank.message[lang]
                       : mission.failureReason?.[lang]}
                   </p>
                   <div className="outcome-actions">
@@ -466,9 +426,13 @@ export const App: React.FC = () => {
                       className="btn-primary"
                       onClick={handleResetMission}
                     >
-                      {lang === "es"
-                        ? "🔄 Jugar Nueva Misión"
-                        : "🔄 Play Another Mission"}
+                      {challengeSeed !== null
+                        ? es
+                          ? 'Repetir este reto'
+                          : 'Replay this challenge'
+                        : es
+                          ? 'Jugar otra misión'
+                          : 'Play another mission'}
                     </button>
                     <button
                       id="view-certificate-btn"
@@ -478,10 +442,8 @@ export const App: React.FC = () => {
                         setIsBadgesOpen(true);
                       }}
                     >
-                      🏅{" "}
-                      {lang === "es"
-                        ? "Ver Certificado e Insignias NASA"
-                        : "View NASA Certificate & Badges"}
+                      <PatchIcon size={16} />{' '}
+                      {es ? 'Ver certificado y parches' : 'View certificate & patches'}
                     </button>
                     {challengeSeed !== null && (
                       <button
@@ -489,44 +451,82 @@ export const App: React.FC = () => {
                         className="btn-secondary"
                         onClick={handleCopyChallengeLink}
                       >
-                        🔗{" "}
                         {linkCopied
-                          ? lang === "es"
-                            ? "¡Enlace copiado!"
-                            : "Link copied!"
-                          : lang === "es"
-                            ? "Retar a un amigo (misma misión)"
-                            : "Challenge a friend (same mission)"}
+                          ? es
+                            ? 'Enlace copiado'
+                            : 'Link copied'
+                          : es
+                            ? 'Copiar enlace del reto'
+                            : 'Copy challenge link'}
                       </button>
                     )}
                   </div>
+
+                  {challengeSeed !== null && (
+                    <div className="board-entry">
+                      <label htmlFor="board-name-input">
+                        {es
+                          ? 'Anótate en la tabla del aula'
+                          : 'Add yourself to the classroom board'}
+                      </label>
+                      <div className="board-entry-row">
+                        <input
+                          id="board-name-input"
+                          type="text"
+                          maxLength={24}
+                          value={boardName}
+                          disabled={boardSaved}
+                          placeholder={es ? 'Tu nombre' : 'Your name'}
+                          onChange={(e) => setBoardName(e.target.value)}
+                        />
+                        <button
+                          id="board-save-btn"
+                          className="btn-secondary"
+                          disabled={boardSaved || boardName.trim() === ''}
+                          onClick={handleSaveToBoard}
+                        >
+                          {boardSaved ? (es ? 'Anotado' : 'Saved') : es ? 'Anotar' : 'Save'}
+                        </button>
+                      </div>
+                      <ClassBoard lang={lang} entries={classBoard.entriesForSeed(challengeSeed)} />
+                    </div>
+                  )}
                 </section>
               )}
 
               {!lastTurn && (
-                <section
-                  className="logs-card"
-                  aria-label="Mission Telemetry Log"
-                >
-                  <h3>
-                    {lang === "es"
-                      ? "📜 Bitácora de Consecuencias y Ciencia NASA"
-                      : "📜 Consequences & NASA Science Log"}
-                  </h3>
-                  {mission.logs.slice(0, 5).map((entry, idx) => (
-                    <div key={idx} className="log-item">
-                      <div className="log-item-head">
-                        <strong>
-                          {currentSite.dayName[lang]} {entry.day}:{" "}
-                          {entry.title[lang]}
-                        </strong>
-                        {entry.nasaTag && (
-                          <span className="nasa-tag">{entry.nasaTag}</span>
-                        )}
+                <section className="logs-card" aria-label={es ? 'Bitácora' : 'Mission log'}>
+                  <h3>{es ? 'Bitácora de la misión' : 'Mission log'}</h3>
+                  {mission.logs.slice(0, 5).map((entry, idx) => {
+                    const source = entry.nasaTag ? inferSource(entry.nasaTag) : null;
+                    return (
+                      <div key={idx} className="log-item">
+                        <div className="log-item-head">
+                          <strong>
+                            {currentSite.dayName[lang]} {entry.day}: {entry.title[lang]}
+                          </strong>
+                          {source ? (
+                            <SourceStamp
+                              source={source}
+                              live={
+                                source === 'DONKI' &&
+                                challengeSeed === null &&
+                                !!weatherStatus?.live
+                              }
+                              lang={lang}
+                            />
+                          ) : (
+                            entry.nasaTag &&
+                            entry.nasaTag !== 'CHAIN' &&
+                            entry.nasaTag !== 'COMMANDER' && (
+                              <span className="nasa-tag">{entry.nasaTag}</span>
+                            )
+                          )}
+                        </div>
+                        <p>{entry.detail[lang]}</p>
                       </div>
-                      <p>{entry.detail[lang]}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </section>
               )}
             </div>
@@ -548,7 +548,7 @@ export const App: React.FC = () => {
         lang={lang}
         isOpen={isBadgesOpen}
         onClose={() => setIsBadgesOpen(false)}
-        evaluation={commanderEval}
+        evaluation={evaluation}
         site={currentSite}
         currentDay={mission.currentDay}
         totalDays={mission.totalDays}

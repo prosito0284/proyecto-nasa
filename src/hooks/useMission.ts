@@ -5,7 +5,7 @@
  * Los componentes (Bloques B y C) solo reciben props; no importan el motor para mutar estado.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CoreResources,
   MissionLogEntry,
@@ -14,9 +14,13 @@ import {
   PowerAllocation,
   SpaceWeatherEvent,
   TradeoffChoice,
-} from "../types/mission";
-import { VERIFIED_NASA_WEATHER_EVENTS } from "../data/nasa-datasets";
-import { fetchLiveOrVerifiedSpaceWeather } from "../services/nasaApi";
+} from '../types/mission';
+import { VERIFIED_NASA_WEATHER_EVENTS } from '../data/nasa-datasets';
+import {
+  fetchLiveOrVerifiedSpaceWeather,
+  getWeatherPoolStatus,
+  type WeatherPoolStatus,
+} from '../services/nasaApi';
 import {
   advanceMissionTurn,
   createInitialMissionState,
@@ -24,12 +28,12 @@ import {
   projectSystemsTurn,
   selectNextWeather,
   selectStartingWeather,
-} from "../engine/simulationEngine";
+} from '../engine/simulationEngine';
 
 /** Sube la versión si cambia la forma de lo guardado para descartar partidas viejas. */
-const SAVE_KEY = "jamt-mission-v2";
+const SAVE_KEY = 'jamt-mission-v2';
 
-const SITE_IDS: OutpostSiteId[] = ["moon-shackleton", "mars-jezero"];
+const SITE_IDS: OutpostSiteId[] = ['moon-shackleton', 'mars-jezero'];
 
 /** Resumen del turno recién jugado: alimenta el "Informe del día" (antes → después). */
 export interface TurnSummary {
@@ -46,18 +50,14 @@ interface SavedGame {
 
 /** Semilla del "Reto del día": la misma para todo el mundo durante un día (UTC). */
 export function getDailyChallengeSeed(date: Date = new Date()): number {
-  return (
-    date.getUTCFullYear() * 10000 +
-    (date.getUTCMonth() + 1) * 100 +
-    date.getUTCDate()
-  );
+  return date.getUTCFullYear() * 10000 + (date.getUTCMonth() + 1) * 100 + date.getUTCDate();
 }
 
 /** Enlace para compartir una misión idéntica (mismo sitio, clima y dilemas). */
 export function buildChallengeUrl(siteId: OutpostSiteId, seed: number): string {
   const url = new URL(window.location.href);
   url.search = `?site=${siteId}&seed=${seed}`;
-  url.hash = "";
+  url.hash = '';
   return url.toString();
 }
 
@@ -67,15 +67,9 @@ function readChallengeFromUrl(): {
 } | null {
   try {
     const params = new URLSearchParams(window.location.search);
-    const seed = Number(params.get("seed"));
-    const site = params.get("site") as OutpostSiteId | null;
-    if (
-      !site ||
-      !SITE_IDS.includes(site) ||
-      !Number.isInteger(seed) ||
-      seed <= 0
-    )
-      return null;
+    const seed = Number(params.get('seed'));
+    const site = params.get('site') as OutpostSiteId | null;
+    if (!site || !SITE_IDS.includes(site) || !Number.isInteger(seed) || seed <= 0) return null;
     return { siteId: site, seed };
   } catch {
     return null;
@@ -94,11 +88,7 @@ function newMission(
 ): MissionState {
   const seed = challengeSeed ?? Date.now();
   const source = challengeSeed === null ? pool : VERIFIED_NASA_WEATHER_EVENTS;
-  return createInitialMissionState(
-    siteId,
-    selectStartingWeather(siteId, source, seed),
-    seed,
-  );
+  return createInitialMissionState(siteId, selectStartingWeather(siteId, source, seed), seed);
 }
 
 function loadSavedGame(): SavedGame | null {
@@ -107,11 +97,8 @@ function loadSavedGame(): SavedGame | null {
     if (!raw) return null;
     const saved = JSON.parse(raw) as SavedGame;
     const m = saved?.mission;
-    const valid =
-      m?.status === "playing" && m.engine && m.currentDilemma && m.resources;
-    return valid
-      ? { mission: m, challengeSeed: saved.challengeSeed ?? null }
-      : null;
+    const valid = m?.status === 'playing' && m.engine && m.currentDilemma && m.resources;
+    return valid ? { mission: m, challengeSeed: saved.challengeSeed ?? null } : null;
   } catch {
     return null;
   }
@@ -119,7 +106,7 @@ function loadSavedGame(): SavedGame | null {
 
 function saveGame(game: SavedGame | null): void {
   try {
-    if (game && game.mission.status === "playing") {
+    if (game && game.mission.status === 'playing') {
       window.localStorage.setItem(SAVE_KEY, JSON.stringify(game));
     } else {
       window.localStorage.removeItem(SAVE_KEY);
@@ -129,8 +116,7 @@ function saveGame(game: SavedGame | null): void {
   }
 }
 
-const hasStarted = (state: MissionState) =>
-  (state.engine?.history.length ?? 0) > 0;
+const hasStarted = (state: MissionState) => (state.engine?.history.length ?? 0) > 0;
 
 interface InitialGame extends SavedGame {
   /** true si hay una partida que mostrar de inmediato (guardada o abierta desde un enlace de reto). */
@@ -141,11 +127,7 @@ function initGame(defaultSite: OutpostSiteId): InitialGame {
   const linked = readChallengeFromUrl();
   if (linked) {
     return {
-      mission: newMission(
-        linked.siteId,
-        VERIFIED_NASA_WEATHER_EVENTS,
-        linked.seed,
-      ),
+      mission: newMission(linked.siteId, VERIFIED_NASA_WEATHER_EVENTS, linked.seed),
       challengeSeed: linked.seed,
       inProgress: true,
     };
@@ -159,33 +141,29 @@ function initGame(defaultSite: OutpostSiteId): InitialGame {
   };
 }
 
-export function useMission(defaultSite: OutpostSiteId = "moon-shackleton") {
+export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
   const [initial] = useState(() => initGame(defaultSite));
-  const [weatherPool, setWeatherPool] = useState<SpaceWeatherEvent[]>(
-    VERIFIED_NASA_WEATHER_EVENTS,
-  );
+  const [weatherPool, setWeatherPool] = useState<SpaceWeatherEvent[]>(VERIFIED_NASA_WEATHER_EVENTS);
   const [mission, setMission] = useState<MissionState>(initial.mission);
-  const [challengeSeed, setChallengeSeed] = useState<number | null>(
-    initial.challengeSeed,
-  );
+  const [challengeSeed, setChallengeSeed] = useState<number | null>(initial.challengeSeed);
   /** false = se muestra la pantalla de bienvenida (briefing) */
   const [isBriefing, setIsBriefing] = useState(!initial.inProgress);
   const [lastTurn, setLastTurn] = useState<TurnSummary | null>(null);
-  const [previewChoice, setPreviewChoice] = useState<TradeoffChoice | null>(
-    null,
-  );
+  const [previewChoice, setPreviewChoice] = useState<TradeoffChoice | null>(null);
+  /** Procedencia del clima cargado: DONKI en vivo o archivo verificado. */
+  const [weatherStatus, setWeatherStatus] = useState<WeatherPoolStatus | null>(null);
 
   // Clima real: al llegar datos nuevos se usan desde el siguiente día. Si una misión libre aún
   // no empezó, se reinicia para que el clima y el dilema del Día 1 sean coherentes entre sí.
   useEffect(() => {
     let cancelled = false;
     fetchLiveOrVerifiedSpaceWeather().then((events) => {
-      if (cancelled || events.length === 0) return;
+      if (cancelled) return;
+      setWeatherStatus(getWeatherPoolStatus());
+      if (events.length === 0) return;
       setWeatherPool(events);
       if (initial.challengeSeed !== null) return;
-      setMission((prev) =>
-        hasStarted(prev) ? prev : newMission(prev.siteId, events),
-      );
+      setMission((prev) => (hasStarted(prev) ? prev : newMission(prev.siteId, events)));
     });
     return () => {
       cancelled = true;
@@ -215,15 +193,9 @@ export function useMission(defaultSite: OutpostSiteId = "moon-shackleton") {
   /** Aplica la decisión y devuelve el estado nuevo (para que la UI dispare sonidos/modales). */
   const decide = useCallback(
     (choice: TradeoffChoice): MissionState => {
-      const pool =
-        challengeSeed === null ? weatherPool : VERIFIED_NASA_WEATHER_EVENTS;
+      const pool = challengeSeed === null ? weatherPool : VERIFIED_NASA_WEATHER_EVENTS;
       const nextWeather = selectNextWeather(mission, pool);
-      const updated = advanceMissionTurn(
-        mission,
-        choice,
-        nextWeather,
-        mission.powerAllocation,
-      );
+      const updated = advanceMissionTurn(mission, choice, nextWeather, mission.powerAllocation);
       setPreviewChoice(null);
       setLastTurn({
         day: mission.currentDay,
@@ -246,14 +218,12 @@ export function useMission(defaultSite: OutpostSiteId = "moon-shackleton") {
       ),
     [mission, previewChoice],
   );
-  const evaluation = useMemo(
-    () => evaluateCommanderPerformance(mission),
-    [mission],
-  );
+  const evaluation = useMemo(() => evaluateCommanderPerformance(mission), [mission]);
 
   return {
     mission,
     weatherPool,
+    weatherStatus,
     projection,
     evaluation,
     isBriefing,

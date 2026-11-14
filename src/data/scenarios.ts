@@ -223,8 +223,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     triggeredByWeather: ['FLR', 'SEP', 'CME'],
     highlightedTermId: 'sep',
     title: {
-      es: '⚠️ Alerta DONKI: Tormenta de Partículas Solares (SEP)',
-      en: '⚠️ DONKI Alert: Solar Energetic Particle (SEP) Storm',
+      es: 'Alerta DONKI: tormenta de partículas solares',
+      en: 'DONKI alert: solar particle storm',
     },
     situation: {
       es: 'Los satélites de la NASA detectaron una eyección solar dirigiéndose a tu base. Si los astronautas reciben radiación alta, su salud bajará. ¿Cómo redistribuyes los recursos de la base hoy?',
@@ -242,8 +242,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           en: 'Pump recycled water into the shelter walls and route battery reserves to active shielding.',
         },
         tradeoffWarning: {
-          es: 'TRADE-OFF: Protege a la tripulación (+18% Blindaje, +4% Salud), pero consume -20% de Energía y pausa el riego del invernadero (-12% Comida mañana).',
-          en: 'TRADE-OFF: Protects the crew (+18% Shielding, +4% Health), but drains -20% Power and pauses greenhouse irrigation (-12% Food tomorrow).',
+          es: 'Protege a la tripulación (+18% Blindaje, +4% Salud), pero consume -20% de Energía y pausa el riego del invernadero (-12% Comida mañana).',
+          en: 'Protects the crew (+18% Shielding, +4% Health), but drains -20% Power and pauses greenhouse irrigation (-12% Food tomorrow).',
         },
         resourceDelta: {
           power: -20,
@@ -276,8 +276,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           en: 'Cancel outdoor EVAs, but keep hydroponic grow lamps and oxygen pumps running.',
         },
         tradeoffWarning: {
-          es: 'TRADE-OFF: Conservas tus cultivos (+8% Comida) y ahorras batería (solo -8% Energía), pero la tripulación absorbe +1.8 mSv de radiación (-8% Salud).',
-          en: 'TRADE-OFF: Preserves crops (+8% Food) and saves battery (only -8% Power), but crew absorbs +1.8 mSv radiation (-8% Health).',
+          es: 'Conservas tus cultivos (+8% Comida) y ahorras batería (solo -8% Energía), pero la tripulación absorbe +1.8 mSv de radiación (-8% Salud).',
+          en: 'Preserves crops (+8% Food) and saves battery (only -8% Power), but crew absorbs +1.8 mSv radiation (-8% Health).',
         },
         resourceDelta: {
           power: -8,
@@ -299,8 +299,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     siteFilter: 'both',
     highlightedTermId: 'eclss',
     title: {
-      es: '🔧 Dilema de Soporte Vital: Generador de Oxígeno vs. Calefacción de Cultivos',
-      en: '🔧 Life Support Dilemma: Oxygen Generator vs. Crop Heating',
+      es: 'Energía justa: oxígeno o calor para los cultivos',
+      en: 'Tight power: oxygen or heat for the crops',
     },
     situation: {
       es: 'Durante la noche helada, las baterías bajaron. No hay suficiente potencia para operar al máximo el reciclador de aire/agua (ECLSS) y los calefactores de papas y lechugas espaciales al mismo tiempo.',
@@ -318,8 +318,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           en: 'Dedicate primary power to water electrolysis for pure breathable oxygen.',
         },
         tradeoffWarning: {
-          es: 'TRADE-OFF: Sube Soporte Vital (+16%), pero el frío marchita parte de la cosecha (-14% Comida) y gasta -12% de Energía.',
-          en: 'TRADE-OFF: Boosts Life Support (+16%), but cold temperatures wilt part of the harvest (-14% Food) and uses -12% Power.',
+          es: 'Sube Soporte Vital (+16%), pero el frío marchita parte de la cosecha (-14% Comida) y gasta -12% de Energía.',
+          en: 'Boosts Life Support (+16%), but cold temperatures wilt part of the harvest (-14% Food) and uses -12% Power.',
         },
         resourceDelta: {
           lifeSupport: 16,
@@ -344,8 +344,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           en: 'Keep plants warm (which also produce some oxygen via photosynthesis) and tap emergency O₂ tanks.',
         },
         tradeoffWarning: {
-          es: 'TRADE-OFF: Cosecha exitosa (+15% Comida, +10 Ciencia), pero los tanques de Soporte Vital bajan (-15% O₂/Agua) y gasta -8% Energía.',
-          en: 'TRADE-OFF: Successful harvest (+15% Food, +10 Science), but Life Support tanks drop (-15% O₂/Water) and uses -8% Power.',
+          es: 'Cosecha exitosa (+15% Comida, +10 Ciencia), pero los tanques de Soporte Vital bajan (-15% O₂/Agua) y gasta -8% Energía.',
+          en: 'Successful harvest (+15% Food, +10 Science), but Life Support tanks drop (-15% O₂/Water) and uses -8% Power.',
         },
         resourceDelta: {
           food: 15,
@@ -366,8 +366,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     siteFilter: 'both',
     highlightedTermId: 'regolith',
     title: {
-      es: '🧑‍🚀 Caminata Espacial (EVA): Explorar Cráter vs. Recargar Baterías',
-      en: '🧑‍🚀 Spacewalk (EVA): Explore Crater vs. Recharge Batteries',
+      es: 'Caminata espacial o recarga de baterías',
+      en: 'Spacewalk or battery recharge',
     },
     situation: {
       es: 'El equipo científico encontró una zona rica en minerales y hielo bajo el regolito, pero preparar los trajes espaciales y el rover presurizado consume mucha energía y oxígeno.',
@@ -385,8 +385,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           en: 'Exit the habitat with the rover to harvest water ice and geological data.',
         },
         tradeoffWarning: {
-          es: 'TRADE-OFF: +25 Puntos de Ciencia y +12% Soporte Vital (hielo extraído), pero cuesta -18% Energía y +0.6 mSv de radiación al salir del domo.',
-          en: 'TRADE-OFF: +25 Science Points and +12% Life Support (harvested ice), but costs -18% Power and +0.6 mSv radiation outside the dome.',
+          es: '+25 Puntos de Ciencia y +12% Soporte Vital (hielo extraído), pero cuesta -18% Energía y +0.6 mSv de radiación al salir del domo.',
+          en: '+25 Science Points and +12% Life Support (harvested ice), but costs -18% Power and +0.6 mSv radiation outside the dome.',
         },
         resourceDelta: {
           power: -18,
@@ -411,8 +411,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           en: 'Use robotic arms from inside to brush electrostatic dust off the solar arrays.',
         },
         tradeoffWarning: {
-          es: 'TRADE-OFF: Recuperas +18% de Energía y +6% de Blindaje sin recibir radiación, pero pierdes la ventana de investigación (+2 Ciencia) y el soporte vital baja -8%.',
-          en: 'TRADE-OFF: Recover +18% Power and +6% Shielding with zero radiation exposure, but miss the research window (+2 Science) and Life Support drops -8%.',
+          es: 'Recuperas +18% de Energía y +6% de Blindaje sin recibir radiación, pero pierdes la ventana de investigación (+2 Ciencia) y el soporte vital baja -8%.',
+          en: 'Recover +18% Power and +6% Shielding with zero radiation exposure, but miss the research window (+2 Science) and Life Support drops -8%.',
         },
         resourceDelta: {
           power: 18,
@@ -434,8 +434,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     triggeredByWeather: ['CME', 'SEP'],
     highlightedTermId: 'cme',
     title: t(
-      '🌞 Eyección de Masa Coronal (CME) en Camino',
-      '🌞 Coronal Mass Ejection (CME) Incoming'
+      'Eyección de Masa Coronal (CME) en Camino',
+      'Coronal mass ejection inbound'
     ),
     situation: t(
       'El modelo WSA-ENLIL de la NASA calcula que una nube gigante de plasma solar (CME) llegará en pocas horas. Tienes tiempo para prepararte… pero prepararse cuesta.',
@@ -450,8 +450,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Use the battery to reinforce shielding and move everyone to the central shelter before the CME hits.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +14% Blindaje, pero gasta -16% Energía y el invernadero queda a oscuras (-6% Comida mañana).',
-          'TRADE-OFF: +14% Shielding, but spends -16% Power and the greenhouse goes dark (-6% Food tomorrow).'
+          '+14% Blindaje, pero gasta -16% Energía y el invernadero queda a oscuras (-6% Comida mañana).',
+          '+14% Shielding, but spends -16% Power and the greenhouse goes dark (-6% Food tomorrow).'
         ),
         resourceDelta: { shielding: 14, power: -16 },
         nextTurnEffect: {
@@ -475,8 +475,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Don’t stop the experiments; the crew will only go inside if dosimeters spike.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +12 Ciencia y casi no gastas energía (-4%), pero la tripulación recibe +1.2 mSv (-6% Salud).',
-          'TRADE-OFF: +12 Science and almost no power used (-4%), but the crew takes +1.2 mSv (-6% Health).'
+          '+12 Ciencia y casi no gastas energía (-4%), pero la tripulación recibe +1.2 mSv (-6% Salud).',
+          '+12 Science and almost no power used (-4%), but the crew takes +1.2 mSv (-6% Health).'
         ),
         resourceDelta: { sciencePoints: 12, power: -4, radiationDoseMsv: 1.2, crewHealth: -6 },
         outcomeFeedback: t(
@@ -493,8 +493,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     triggeredByWeather: ['FLR', 'SEP'],
     highlightedTermId: 'msv',
     title: t(
-      '🚨 ¡Llamarada Solar con Astronautas Afuera!',
-      '🚨 Solar Flare While Astronauts Are Outside!'
+      'Llamarada solar con astronautas afuera',
+      'Solar flare with astronauts outside'
     ),
     situation: t(
       'Dos astronautas están en una caminata espacial cuando DONKI detecta una llamarada. La luz llega en 8 minutos, pero los protones peligrosos tardan un poco más. ¿Regresan ya?',
@@ -509,8 +509,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Leave the tools outside and get back to the airlock as fast as possible.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: La tripulación queda a salvo (+2% Salud), pero se pierden las muestras (-5 Ciencia) y el ciclo de emergencia de la esclusa gasta aire (-6% Soporte Vital).',
-          'TRADE-OFF: Crew stays safe (+2% Health), but the samples are lost (-5 Science) and the emergency airlock cycle wastes air (-6% Life Support).'
+          'La tripulación queda a salvo (+2% Salud), pero se pierden las muestras (-5 Ciencia) y el ciclo de emergencia de la esclusa gasta aire (-6% Soporte Vital).',
+          'Crew stays safe (+2% Health), but the samples are lost (-5 Science) and the emergency airlock cycle wastes air (-6% Life Support).'
         ),
         resourceDelta: { crewHealth: 2, sciencePoints: -5, lifeSupport: -6 },
         outcomeFeedback: t(
@@ -527,8 +527,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'The sample is one of a kind. The astronauts hurry and come back afterward.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +20 Ciencia, pero +1.5 mSv de radiación extra (-8% Salud).',
-          'TRADE-OFF: +20 Science, but +1.5 mSv extra radiation (-8% Health).'
+          '+20 Ciencia, pero +1.5 mSv de radiación extra (-8% Salud).',
+          '+20 Science, but +1.5 mSv extra radiation (-8% Health).'
         ),
         resourceDelta: { sciencePoints: 20, radiationDoseMsv: 1.5, crewHealth: -8 },
         outcomeFeedback: t(
@@ -544,8 +544,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     siteFilter: 'both',
     highlightedTermId: 'gravity',
     title: t(
-      '🏋️ Huesos Fuertes en Baja Gravedad',
-      '🏋️ Strong Bones in Low Gravity'
+      'Huesos Fuertes en Baja Gravedad',
+      'Strong Bones in Low Gravity'
     ),
     situation: t(
       'Con menos gravedad, los huesos y músculos se debilitan si no hacen ejercicio. La caminadora con arneses gasta energía y hace que la tripulación coma más.',
@@ -560,8 +560,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'The whole crew uses the treadmill and the resistance machine.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +10% Salud, pero cuesta -10% Energía y -4% Comida (más calorías).',
-          'TRADE-OFF: +10% Health, but costs -10% Power and -4% Food (more calories).'
+          '+10% Salud, pero cuesta -10% Energía y -4% Comida (más calorías).',
+          '+10% Health, but costs -10% Power and -4% Food (more calories).'
         ),
         resourceDelta: { crewHealth: 10, power: -10, food: -4 },
         outcomeFeedback: t(
@@ -578,8 +578,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Use those hours to analyze samples in the lab.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +14 Ciencia hoy, pero mañana la tripulación estará más débil (-10% Salud).',
-          'TRADE-OFF: +14 Science today, but tomorrow the crew will be weaker (-10% Health).'
+          '+14 Ciencia hoy, pero mañana la tripulación estará más débil (-10% Salud).',
+          '+14 Science today, but tomorrow the crew will be weaker (-10% Health).'
         ),
         resourceDelta: { sciencePoints: 14 },
         nextTurnEffect: {
@@ -602,8 +602,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     siteFilter: 'both',
     highlightedTermId: 'veggie',
     title: t(
-      '🥬 ¿Cosechar Hoy o Dejar Crecer las Lechugas?',
-      '🥬 Harvest Today or Let the Lettuce Grow?'
+      'Cosechar hoy o dejar crecer las lechugas',
+      'Harvest today or let the lettuce grow'
     ),
     situation: t(
       'Las lechugas “Outredgeous” del invernadero ya se pueden comer, pero si siguen creciendo con luz LED darán más comida… y gastarán más energía.',
@@ -618,8 +618,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Pick everything and turn off the LED lamps to save battery.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +12% Comida y +4% Energía hoy, pero mañana las bandejas estarán vacías (-8% Comida).',
-          'TRADE-OFF: +12% Food and +4% Power today, but tomorrow the trays will be empty (-8% Food).'
+          '+12% Comida y +4% Energía hoy, pero mañana las bandejas estarán vacías (-8% Comida).',
+          '+12% Food and +4% Power today, but tomorrow the trays will be empty (-8% Food).'
         ),
         resourceDelta: { food: 12, power: 4 },
         nextTurnEffect: {
@@ -643,8 +643,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Keep the lamps on one more day and record growth data.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: -10% Energía y hoy comen de la despensa (-4% Comida), pero mañana +16% Comida y +6 Ciencia de datos de plantas.',
-          'TRADE-OFF: -10% Power and today the crew eats from storage (-4% Food), but tomorrow +16% Food and +6 Science from plant data.'
+          '-10% Energía y hoy comen de la despensa (-4% Comida), pero mañana +16% Comida y +6 Ciencia de datos de plantas.',
+          '-10% Power and today the crew eats from storage (-4% Food), but tomorrow +16% Food and +6 Science from plant data.'
         ),
         resourceDelta: { power: -10, food: -4, sciencePoints: 6 },
         nextTurnEffect: {
@@ -669,8 +669,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     siteFilter: 'moon-shackleton',
     highlightedTermId: 'regolith',
     title: t(
-      '❄️ Hielo en la Sombra Eterna de Shackleton',
-      '❄️ Ice in Shackleton’s Eternal Shadow'
+      'Hielo en la Sombra Eterna de Shackleton',
+      'Ice in Shackleton’s Eternal Shadow'
     ),
     situation: t(
       'El fondo del cráter nunca ha visto la luz del Sol y está a más de -180°C. Ahí hay hielo de agua de hace miles de millones de años. Tus tanques de agua necesitan recarga.',
@@ -685,8 +685,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'The rover drives into permanent shadow, digs icy regolith and brings it back to melt.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +18% Soporte Vital y +15 Ciencia, pero -18% Energía hoy y mañana -6% Energía (las baterías del rover se congelaron).',
-          'TRADE-OFF: +18% Life Support and +15 Science, but -18% Power today and -6% Power tomorrow (the rover batteries froze).'
+          '+18% Soporte Vital y +15 Ciencia, pero -18% Energía hoy y mañana -6% Energía (las baterías del rover se congelaron).',
+          '+18% Life Support and +15 Science, but -18% Power today and -6% Power tomorrow (the rover batteries froze).'
         ),
         resourceDelta: { lifeSupport: 18, sciencePoints: 15, power: -18 },
         nextTurnEffect: {
@@ -710,8 +710,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Don’t go out: cut showers and drinks, and let ECLSS recycle every drop.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: Ahorras energía (-4%) y ganas +5% Soporte Vital, pero la tripulación se siente cansada y con sed (-7% Salud).',
-          'TRADE-OFF: Saves power (-4%) and gains +5% Life Support, but the crew feels tired and thirsty (-7% Health).'
+          'Ahorras energía (-4%) y ganas +5% Soporte Vital, pero la tripulación se siente cansada y con sed (-7% Salud).',
+          'Saves power (-4%) and gains +5% Life Support, but the crew feels tired and thirsty (-7% Health).'
         ),
         resourceDelta: { power: -4, lifeSupport: 5, crewHealth: -7 },
         outcomeFeedback: t(
@@ -727,8 +727,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     siteFilter: 'moon-shackleton',
     highlightedTermId: 'light-delay',
     title: t(
-      '📡 ¿Rover Controlado desde la Tierra o por los Astronautas?',
-      '📡 Rover Driven from Earth or by the Astronauts?'
+      'Rover: lo maneja la Tierra o la tripulación',
+      'Rover: driven from Earth or by the crew'
     ),
     situation: t(
       'La Luna está tan cerca que una señal de radio tarda solo 1.3 segundos. ¡El Control de Misión podría manejar el rover a distancia como un videojuego!',
@@ -743,8 +743,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Stream live video to Earth; the astronauts stay safe inside.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +14 Ciencia sin radiación, pero la antena y el rover gastan -12% Energía.',
-          'TRADE-OFF: +14 Science with no radiation, but the antenna and rover use -12% Power.'
+          '+14 Ciencia sin radiación, pero la antena y el rover gastan -12% Energía.',
+          '+14 Science with no radiation, but the antenna and rover use -12% Power.'
         ),
         resourceDelta: { sciencePoints: 14, power: -12 },
         outcomeFeedback: t(
@@ -761,8 +761,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'The astronauts see and decide on the spot, finding more interesting rocks.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +22 Ciencia, pero los trajes gastan aire (-8% Soporte Vital), -6% Energía y +0.5 mSv de radiación.',
-          'TRADE-OFF: +22 Science, but the suits use air (-8% Life Support), -6% Power and +0.5 mSv radiation.'
+          '+22 Ciencia, pero los trajes gastan aire (-8% Soporte Vital), -6% Energía y +0.5 mSv de radiación.',
+          '+22 Science, but the suits use air (-8% Life Support), -6% Power and +0.5 mSv radiation.'
         ),
         resourceDelta: { sciencePoints: 22, lifeSupport: -8, power: -6, radiationDoseMsv: 0.5 },
         outcomeFeedback: t(
@@ -778,8 +778,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     siteFilter: 'moon-shackleton',
     highlightedTermId: 'shackleton',
     title: t(
-      '🌑 Viene la Sombra: ¿Cómo Mantienes el Calor?',
-      '🌑 Shadow Is Coming: How Do You Stay Warm?'
+      'Viene la sombra: cómo mantener el calor',
+      'Shadow incoming: how to stay warm'
     ),
     situation: t(
       'En el Polo Sur el Sol va casi rozando el horizonte. Durante unas horas la sombra de una montaña cubrirá tu base y la temperatura exterior caerá en picada.',
@@ -791,8 +791,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
         label: t('Calefacción Completa con Baterías', 'Full Heating from Batteries'),
         description: t('Mantén el hábitat a 21°C toda la noche.', 'Keep the habitat at 21°C all night.'),
         tradeoffWarning: t(
-          'TRADE-OFF: La tripulación duerme bien (+4% Salud), pero gastas -16% Energía.',
-          'TRADE-OFF: The crew sleeps well (+4% Health), but you spend -16% Power.'
+          'La tripulación duerme bien (+4% Salud), pero gastas -16% Energía.',
+          'The crew sleeps well (+4% Health), but you spend -16% Power.'
         ),
         resourceDelta: { crewHealth: 4, power: -16 },
         outcomeFeedback: t(
@@ -806,8 +806,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
         label: t('Modo Ahorro: 15°C y Sacos de Dormir', 'Saver Mode: 15°C & Sleeping Bags'),
         description: t('Baja el termostato y todos duermen abrigados.', 'Turn down the thermostat and everyone bundles up.'),
         tradeoffWarning: t(
-          'TRADE-OFF: Los calefactores casi apagados ahorran batería (+4% Energía), pero la tripulación pasa frío y duerme mal (-8% Salud).',
-          'TRADE-OFF: Heaters almost off save battery (+4% Power), but the crew gets cold and sleeps badly (-8% Health).'
+          'Los calefactores casi apagados ahorran batería (+4% Energía), pero la tripulación pasa frío y duerme mal (-8% Salud).',
+          'Heaters almost off save battery (+4% Power), but the crew gets cold and sleeps badly (-8% Health).'
         ),
         resourceDelta: { power: 4, crewHealth: -8 },
         outcomeFeedback: t(
@@ -824,8 +824,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Divert warm greenhouse air to the sleeping quarters.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: Solo -8% Energía y la tripulación duerme cómoda (+2% Salud), pero las plantas pasan frío (-6% Comida hoy y -8% mañana).',
-          'TRADE-OFF: Only -8% Power and the crew sleeps comfortably (+2% Health), but the plants get cold (-6% Food today and -8% tomorrow).'
+          'Solo -8% Energía y la tripulación duerme cómoda (+2% Salud), pero las plantas pasan frío (-6% Comida hoy y -8% mañana).',
+          'Only -8% Power and the crew sleeps comfortably (+2% Health), but the plants get cold (-6% Food today and -8% tomorrow).'
         ),
         resourceDelta: { power: -8, food: -6, crewHealth: 2 },
         nextTurnEffect: {
@@ -845,8 +845,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     siteFilter: 'moon-shackleton',
     highlightedTermId: 'regolith',
     title: t(
-      '🧱 ¿Construir un Muro de Regolito contra la Radiación?',
-      '🧱 Build a Regolith Wall Against Radiation?'
+      'Muro de regolito contra la radiación',
+      'Regolith wall against radiation'
     ),
     situation: t(
       'Sin atmósfera, la radiación golpea la base todos los días. Una excavadora robótica podría apilar regolito (polvo lunar) alrededor del hábitat como escudo.',
@@ -861,8 +861,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'An astronaut supervises outside while the bulldozer works all day.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +18% Blindaje hoy y +5% mañana, pero -14% Energía, -5% Soporte Vital y +0.4 mSv. Cero ciencia hoy.',
-          'TRADE-OFF: +18% Shielding today and +5% tomorrow, but -14% Power, -5% Life Support and +0.4 mSv. Zero science today.'
+          '+18% Blindaje hoy y +5% mañana, pero -14% Energía, -5% Soporte Vital y +0.4 mSv. Cero ciencia hoy.',
+          '+18% Shielding today and +5% tomorrow, but -14% Power, -5% Life Support and +0.4 mSv. Zero science today.'
         ),
         resourceDelta: { shielding: 18, power: -14, lifeSupport: -5, radiationDoseMsv: 0.4 },
         nextTurnEffect: {
@@ -883,8 +883,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Use the bulldozer to extract ice and rock cores instead of building.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +18 Ciencia, pero -6% Energía y el blindaje sigue desgastándose (-6% hoy y -4% mañana).',
-          'TRADE-OFF: +18 Science, but -6% Power and shielding keeps wearing down (-6% today and -4% tomorrow).'
+          '+18 Ciencia, pero -6% Energía y el blindaje sigue desgastándose (-6% hoy y -4% mañana).',
+          '+18 Science, but -6% Power and shielding keeps wearing down (-6% today and -4% tomorrow).'
         ),
         resourceDelta: { sciencePoints: 18, power: -6, shielding: -6 },
         nextTurnEffect: {
@@ -907,8 +907,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     siteFilter: 'moon-shackleton',
     highlightedTermId: 'micrometeorite',
     title: t(
-      '☄️ ¡Un Micrometeorito Perforó el Radiador!',
-      '☄️ A Micrometeorite Punctured the Radiator!'
+      'Un micrometeorito perforó el radiador',
+      'A micrometeorite punctured the radiator'
     ),
     situation: t(
       'Sin atmósfera, granitos de roca más rápidos que una bala golpean la superficie lunar. Uno perforó un tubo del radiador que enfría las baterías.',
@@ -920,8 +920,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
         label: t('Reparación con Caminata Espacial', 'Repair with a Spacewalk'),
         description: t('Dos astronautas salen a parchar el tubo hoy mismo.', 'Two astronauts go out to patch the tube today.'),
         tradeoffWarning: t(
-          'TRADE-OFF: Reparación completa (+4% Blindaje), pero los trajes gastan -6% Soporte Vital, -5% Energía y +0.5 mSv.',
-          'TRADE-OFF: Full repair (+4% Shielding), but the suits use -6% Life Support, -5% Power and +0.5 mSv.'
+          'Reparación completa (+4% Blindaje), pero los trajes gastan -6% Soporte Vital, -5% Energía y +0.5 mSv.',
+          'Full repair (+4% Shielding), but the suits use -6% Life Support, -5% Power and +0.5 mSv.'
         ),
         resourceDelta: { shielding: 4, lifeSupport: -6, power: -5, radiationDoseMsv: 0.5 },
         outcomeFeedback: t(
@@ -938,8 +938,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Isolate the damaged tube and leave the repair for later.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +6 Ciencia y nada de energía hoy, pero mañana las baterías se sobrecalientan (-14% Energía, -3% Salud).',
-          'TRADE-OFF: +6 Science and no power cost today, but tomorrow the batteries overheat (-14% Power, -3% Health).'
+          '+6 Ciencia y nada de energía hoy, pero mañana las baterías se sobrecalientan (-14% Energía, -3% Salud).',
+          '+6 Science and no power cost today, but tomorrow the batteries overheat (-14% Power, -3% Health).'
         ),
         resourceDelta: { sciencePoints: 6 },
         nextTurnEffect: {
@@ -965,8 +965,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     triggeredByWeather: ['DUST_STORM'],
     highlightedTermId: 'dust-storm',
     title: t(
-      '🌪️ Tormenta de Polvo: ¡Paneles Solares al 40%!',
-      '🌪️ Dust Storm: Solar Panels at 40%!'
+      'Tormenta de polvo: paneles solares al 40%',
+      'Dust storm: solar panels at 40%'
     ),
     situation: t(
       'Una tormenta regional cubrió el cielo de Jezero. Tus paneles producen 60% menos energía y no sabes cuántos Soles durará. ¿Qué sistema sacrificas?',
@@ -978,8 +978,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
         label: t('Hibernar Rovers y Laboratorio', 'Hibernate Rovers & Lab'),
         description: t('Apaga todo lo que no sea vital para ahorrar energía.', 'Switch off everything non-vital to save power.'),
         tradeoffWarning: t(
-          'TRADE-OFF: Recuperas +12% Energía, pero pierdes datos de un experimento (-6 Ciencia).',
-          'TRADE-OFF: Recover +12% Power, but you lose an experiment’s data (-6 Science).'
+          'Recuperas +12% Energía, pero pierdes datos de un experimento (-6 Ciencia).',
+          'Recover +12% Power, but you lose an experiment’s data (-6 Science).'
         ),
         resourceDelta: { power: 12, sciencePoints: -6 },
         outcomeFeedback: t(
@@ -996,8 +996,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Oxygen comes first: MOXIE keeps turning CO₂ into O₂.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +12% Soporte Vital, pero -16% Energía y mañana el invernadero se enfría (-10% Comida).',
-          'TRADE-OFF: +12% Life Support, but -16% Power and tomorrow the greenhouse gets cold (-10% Food).'
+          '+12% Soporte Vital, pero -16% Energía y mañana el invernadero se enfría (-10% Comida).',
+          '+12% Life Support, but -16% Power and tomorrow the greenhouse gets cold (-10% Food).'
         ),
         resourceDelta: { lifeSupport: 12, power: -16 },
         nextTurnEffect: {
@@ -1018,8 +1018,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
         label: t('Salir a Limpiar los Paneles en la Tormenta', 'Go Out & Clean Panels During the Storm'),
         description: t('La tripulación barre el polvo de los paneles a mano.', 'The crew brushes dust off the panels by hand.'),
         tradeoffWarning: t(
-          'TRADE-OFF: +16% Energía, pero el viento y el polvo agotan a la tripulación (-6% Salud) y los trajes gastan -6% Soporte Vital.',
-          'TRADE-OFF: +16% Power, but wind and dust exhaust the crew (-6% Health) and the suits use -6% Life Support.'
+          '+16% Energía, pero el viento y el polvo agotan a la tripulación (-6% Salud) y los trajes gastan -6% Soporte Vital.',
+          '+16% Power, but wind and dust exhaust the crew (-6% Health) and the suits use -6% Life Support.'
         ),
         resourceDelta: { power: 16, crewHealth: -6, lifeSupport: -6, radiationDoseMsv: 0.2 },
         outcomeFeedback: t(
@@ -1035,8 +1035,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     siteFilter: 'mars-jezero',
     highlightedTermId: 'moxie',
     title: t(
-      '🫁 MOXIE o Invernadero: ¿Aire o Comida?',
-      '🫁 MOXIE or Greenhouse: Air or Food?'
+      'MOXIE o invernadero: aire o comida',
+      'MOXIE or greenhouse: air or food'
     ),
     situation: t(
       'Los tanques de oxígeno están bajando. MOXIE puede fabricar más O₂ con el CO₂ marciano, pero necesita tanta energía que habría que apagar los calentadores del invernadero.',
@@ -1048,8 +1048,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
         label: t('MOXIE a Toda Potencia', 'MOXIE at Full Power'),
         description: t('Toda la energía extra va a fabricar oxígeno.', 'All spare power goes to making oxygen.'),
         tradeoffWarning: t(
-          'TRADE-OFF: +20% Soporte Vital, pero -16% Energía y mañana el invernadero frío pierde cosecha (-12% Comida).',
-          'TRADE-OFF: +20% Life Support, but -16% Power and tomorrow the cold greenhouse loses crops (-12% Food).'
+          '+20% Soporte Vital, pero -16% Energía y mañana el invernadero frío pierde cosecha (-12% Comida).',
+          '+20% Life Support, but -16% Power and tomorrow the cold greenhouse loses crops (-12% Food).'
         ),
         resourceDelta: { lifeSupport: 20, power: -16 },
         nextTurnEffect: {
@@ -1073,8 +1073,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Plants also make a little oxygen through photosynthesis.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +14% Comida, pero -10% Soporte Vital y -6% Energía.',
-          'TRADE-OFF: +14% Food, but -10% Life Support and -6% Power.'
+          '+14% Comida, pero -10% Soporte Vital y -6% Energía.',
+          '+14% Food, but -10% Life Support and -6% Power.'
         ),
         resourceDelta: { food: 14, lifeSupport: -10, power: -6 },
         outcomeFeedback: t(
@@ -1088,8 +1088,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
         label: t('Dividir la Energía a la Mitad', 'Split the Power in Half'),
         description: t('MOXIE y el invernadero trabajan a media capacidad.', 'MOXIE and the greenhouse both run at half capacity.'),
         tradeoffWarning: t(
-          'TRADE-OFF: +8% Soporte Vital y +5% Comida, pero cuesta -14% Energía porque ambos sistemas pierden eficiencia a media carga.',
-          'TRADE-OFF: +8% Life Support and +5% Food, but costs -14% Power because both systems lose efficiency at half load.'
+          '+8% Soporte Vital y +5% Comida, pero cuesta -14% Energía porque ambos sistemas pierden eficiencia a media carga.',
+          '+8% Life Support and +5% Food, but costs -14% Power because both systems lose efficiency at half load.'
         ),
         resourceDelta: { lifeSupport: 8, food: 5, power: -14 },
         outcomeFeedback: t(
@@ -1105,8 +1105,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     siteFilter: 'mars-jezero',
     highlightedTermId: 'light-delay',
     title: t(
-      '⏳ Alarma en el Reciclador… ¡y la Tierra Está a 12 Minutos!',
-      '⏳ Recycler Alarm… and Earth Is 12 Minutes Away!'
+      'Alarma en el reciclador. La Tierra está a 12 minutos',
+      'Recycler alarm. Earth is 12 minutes away'
     ),
     situation: t(
       'El reciclador de agua muestra un error. Un mensaje de radio tarda entre 4 y 24 minutos en llegar a la Tierra, y otro tanto en volver. ¿Esperas a los expertos o lo arreglan ustedes?',
@@ -1121,8 +1121,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Switch off the recycler and wait for the engineers on Earth to reply.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: Hoy el reciclador está apagado (-8% Soporte Vital, -4% Energía de antena), pero mañana la reparación experta da +12% Soporte Vital.',
-          'TRADE-OFF: Today the recycler is off (-8% Life Support, -4% antenna Power), but tomorrow the expert repair gives +12% Life Support.'
+          'Hoy el reciclador está apagado (-8% Soporte Vital, -4% Energía de antena), pero mañana la reparación experta da +12% Soporte Vital.',
+          'Today the recycler is off (-8% Life Support, -4% antenna Power), but tomorrow the expert repair gives +12% Life Support.'
         ),
         resourceDelta: { lifeSupport: -8, power: -4 },
         nextTurnEffect: {
@@ -1146,8 +1146,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Use the onboard manuals and repair the recycler right away.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +6% Soporte Vital hoy, pero la reparación es estresante (-5% Salud) y el arreglo temporal falla un poco mañana (-4% Soporte Vital).',
-          'TRADE-OFF: +6% Life Support today, but the repair is stressful (-5% Health) and the temporary fix slips a bit tomorrow (-4% Life Support).'
+          '+6% Soporte Vital hoy, pero la reparación es estresante (-5% Salud) y el arreglo temporal falla un poco mañana (-4% Soporte Vital).',
+          '+6% Life Support today, but the repair is stressful (-5% Health) and the temporary fix slips a bit tomorrow (-4% Life Support).'
         ),
         resourceDelta: { lifeSupport: 6, crewHealth: -5 },
         nextTurnEffect: {
@@ -1170,8 +1170,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     siteFilter: 'mars-jezero',
     highlightedTermId: 'jezero',
     title: t(
-      '🪨 Muestras del Antiguo Delta de Jezero',
-      '🪨 Samples from Jezero’s Ancient Delta'
+      'Muestras del Antiguo Delta de Jezero',
+      'Samples from Jezero’s Ancient Delta'
     ),
     situation: t(
       'Hace miles de millones de años, un río llenaba este cráter con agua. Las rocas del delta podrían guardar señales de vida antigua. ¿Cómo las recolectas?',
@@ -1186,8 +1186,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Two astronauts travel to the delta front in the pressurized rover.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +30 Ciencia, pero -10% Soporte Vital, -10% Energía, +0.4 mSv y mañana la tripulación está agotada (-5% Salud).',
-          'TRADE-OFF: +30 Science, but -10% Life Support, -10% Power, +0.4 mSv and tomorrow the crew is exhausted (-5% Health).'
+          '+30 Ciencia, pero -10% Soporte Vital, -10% Energía, +0.4 mSv y mañana la tripulación está agotada (-5% Salud).',
+          '+30 Science, but -10% Life Support, -10% Power, +0.4 mSv and tomorrow the crew is exhausted (-5% Health).'
         ),
         resourceDelta: { sciencePoints: 30, lifeSupport: -10, power: -10, radiationDoseMsv: 0.4 },
         nextTurnEffect: {
@@ -1208,8 +1208,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'The rover works alone; the crew supervises from the habitat.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: Sin riesgo para la tripulación, pero el rover es lento (+14 Ciencia) y gasta -14% Energía.',
-          'TRADE-OFF: No risk to the crew, but the rover is slow (+14 Science) and uses -14% Power.'
+          'Sin riesgo para la tripulación, pero el rover es lento (+14 Ciencia) y gasta -14% Energía.',
+          'No risk to the crew, but the rover is slow (+14 Science) and uses -14% Power.'
         ),
         resourceDelta: { sciencePoints: 14, power: -14 },
         outcomeFeedback: t(
@@ -1225,8 +1225,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
     siteFilter: 'mars-jezero',
     highlightedTermId: 'msv',
     title: t(
-      '🛏️ Radiación Cósmica Mientras Duermen',
-      '🛏️ Cosmic Radiation While They Sleep'
+      'Radiación Cósmica Mientras Duermen',
+      'Cosmic Radiation While They Sleep'
     ),
     situation: t(
       'Marte no tiene un campo magnético global, así que los rayos cósmicos llegan todos los días (~0.67 mSv por Sol). La tripulación pasa 8 horas durmiendo: ¿proteges el dormitorio?',
@@ -1241,8 +1241,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Fill bags with Martian soil and pile them on the roof.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +16% Blindaje hoy y +4% mañana, pero cuesta -10% Energía y -6% Soporte Vital (trabajo afuera).',
-          'TRADE-OFF: +16% Shielding today and +4% tomorrow, but costs -10% Power and -6% Life Support (outdoor work).'
+          '+16% Blindaje hoy y +4% mañana, pero cuesta -10% Energía y -6% Soporte Vital (trabajo afuera).',
+          '+16% Shielding today and +4% tomorrow, but costs -10% Power and -6% Life Support (outdoor work).'
         ),
         resourceDelta: { shielding: 16, power: -10, lifeSupport: -6 },
         nextTurnEffect: {
@@ -1263,8 +1263,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
           'Water stops radiation well. Move the tanks around the bunks.'
         ),
         tradeoffWarning: t(
-          'TRADE-OFF: +10% Blindaje con poca energía (-4%), pero esa agua ya no riega el invernadero (-8% Comida).',
-          'TRADE-OFF: +10% Shielding with little power (-4%), but that water no longer irrigates the greenhouse (-8% Food).'
+          '+10% Blindaje con poca energía (-4%), pero esa agua ya no riega el invernadero (-8% Comida).',
+          '+10% Shielding with little power (-4%), but that water no longer irrigates the greenhouse (-8% Food).'
         ),
         resourceDelta: { shielding: 10, power: -4, food: -8 },
         outcomeFeedback: t(
@@ -1278,8 +1278,8 @@ export const INITIAL_DILEMMA_CARDS: MissionDilemmaCard[] = [
         label: t('No Mover Nada y Seguir con la Ciencia', 'Change Nothing & Keep Doing Science'),
         description: t('Usa el tiempo para el laboratorio en vez de construir.', 'Use the time for the lab instead of building.'),
         tradeoffWarning: t(
-          'TRADE-OFF: +16 Ciencia, pero +0.8 mSv extra y -3% Salud.',
-          'TRADE-OFF: +16 Science, but +0.8 mSv extra and -3% Health.'
+          '+16 Ciencia, pero +0.8 mSv extra y -3% Salud.',
+          '+16 Science, but +0.8 mSv extra and -3% Health.'
         ),
         resourceDelta: { sciencePoints: 16, radiationDoseMsv: 0.8, crewHealth: -3 },
         outcomeFeedback: t(
