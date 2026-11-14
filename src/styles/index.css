@@ -62,6 +62,7 @@ body {
   background-color: var(--paper);
   color: var(--ink);
   font-family: var(--font-body);
+  font-size: 16px;
   line-height: 1.5;
   min-height: 100vh;
   max-width: 100%;
@@ -122,17 +123,16 @@ body {
 
 .brand-block h1 {
   font-family: var(--font-display);
-  font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+  font-size: clamp(1.3rem, 2.2vw, 1.8rem);
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.015em;
   color: var(--ink);
 }
 
 .brand-subtitle {
   color: var(--ink-secondary);
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.82rem;
 }
 
 .nav-controls {
@@ -166,20 +166,19 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
-  max-width: 760px;
+  max-width: 70ch;
   min-width: 0;
 }
 
 .timeline-label strong {
   font-family: var(--font-display);
   color: var(--nasa-blue);
-  font-size: 1.05rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-size: 1.12rem;
+  letter-spacing: 0.015em;
 }
 
 .timeline-label span {
-  font-size: 0.82rem;
+  font-size: 0.94rem;
   color: var(--ink-secondary);
 }
 
@@ -223,9 +222,8 @@ body {
 .site-tab {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 0.94rem;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  font-size: 1rem;
+  letter-spacing: 0.015em;
   min-height: 44px;
   min-width: 44px;
   padding: 0.5rem 0.95rem;
@@ -512,8 +510,7 @@ body {
   gap: 0.45rem;
   margin-top: 0.15rem;
   font-family: var(--font-display);
-  font-size: 1.05rem;
-  text-transform: uppercase;
+  font-size: 1.12rem;
 }
 
 .rank-score-pill {
@@ -543,9 +540,8 @@ body {
 
 .section-title-row h2 {
   font-family: var(--font-display);
-  font-size: 1.1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-size: 1.15rem;
+  letter-spacing: 0.015em;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -573,6 +569,111 @@ body {
   gap: 0.65rem;
 }
 
+/* C14: Hoja de Checklist de Vitales */
+.vitals-checklist {
+  display: flex;
+  flex-direction: column;
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+.vital-checklist-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.vital-checklist-row:last-child {
+  border-bottom: none;
+}
+
+.vital-row-warning {
+  background: rgba(138, 79, 0, 0.05);
+}
+
+.vital-row-critical {
+  background: rgba(252, 61, 33, 0.08);
+}
+
+.vital-checklist-main {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1 1 170px;
+}
+
+.vital-checkbox-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.12rem 0.35rem;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--paper-sheet);
+  flex-shrink: 0;
+}
+
+.vital-checkbox-square {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid currentColor;
+  border-radius: 1px;
+}
+
+.vital-check-nominal {
+  color: var(--ok-green);
+  border-color: var(--ok-green);
+}
+
+.vital-check-warning {
+  color: var(--warn-ochre);
+  border-color: var(--warn-ochre);
+}
+
+.vital-check-critical {
+  color: #FFFFFF;
+  background: var(--nasa-red);
+  border-color: var(--nasa-red);
+}
+
+.vital-label-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.vital-watcher-name {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--ink-secondary);
+}
+
+.vital-numbers-col {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.vital-current-val {
+  font-size: 0.96rem;
+}
+
 .resource-row-header {
   display: flex;
   justify-content: space-between;
@@ -586,6 +687,8 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  font-weight: 600;
+  font-size: 0.92rem;
 }
 
 .resource-val-group {
@@ -674,25 +777,27 @@ body {
   border-left: 4px solid var(--nasa-red);
   border-radius: var(--radius);
   padding: 0.6rem 0.75rem;
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  max-width: 68ch;
 }
 
 .pending-effects-box strong {
   color: var(--crit-red);
   font-family: var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  font-size: 1.02rem;
+  letter-spacing: 0.015em;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
 }
 
 .helper-note {
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   color: var(--ink-secondary);
+  max-width: 68ch;
 }
 
 /* C3: Presets de Energía tipo Casillas de Orden de Vuelo */
@@ -711,7 +816,7 @@ body {
   border-radius: var(--radius);
   min-height: 54px;
   padding: 0.55rem 0.65rem;
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   font-family: var(--font-display);
   font-weight: 700;
   cursor: pointer;
@@ -750,18 +855,17 @@ body {
 }
 
 .preset-large-text strong {
-  font-size: 0.88rem;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  font-size: 0.98rem;
+  letter-spacing: 0.01em;
   line-height: 1.15;
 }
 
 .preset-large-text small {
   font-family: var(--font-body);
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-weight: 500;
   color: var(--ink-secondary);
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
 .advanced-toggle-btn {
@@ -773,10 +877,9 @@ body {
   width: 100%;
   padding: 0.45rem 0.75rem;
   font-family: var(--font-display);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.015em;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -814,10 +917,9 @@ body {
   border-radius: var(--radius);
   padding: 0.5rem 0.8rem;
   font-family: var(--font-display);
-  font-size: 0.88rem;
+  font-size: 0.98rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.015em;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -851,7 +953,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.82rem;
+  font-size: 0.92rem;
   font-weight: 600;
 }
 
@@ -938,14 +1040,14 @@ body {
 
 .surface-header h3 {
   font-family: var(--font-display);
-  font-size: 1.3rem;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  font-size: 1.35rem;
+  letter-spacing: 0.015em;
 }
 
 .surface-subtitle {
   color: var(--ink-secondary);
-  font-size: 0.82rem;
+  font-size: 0.95rem;
+  max-width: 68ch;
 }
 
 .weather-pill {
@@ -1096,8 +1198,7 @@ body {
 
 .outpost-module h4 {
   font-family: var(--font-display);
-  font-size: 0.95rem;
-  text-transform: uppercase;
+  font-size: 1.05rem;
 }
 
 .module-delta-pill {
@@ -1133,19 +1234,20 @@ body {
   align-items: center;
   flex-wrap: wrap;
   gap: 0.5rem;
-  font-size: 0.88rem;
+  font-size: 0.96rem;
 }
 
 .inspector-telemetry {
   font-family: var(--font-mono);
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-weight: 700;
   color: var(--nasa-blue);
 }
 
 .inspector-note {
-  font-size: 0.82rem;
+  font-size: 1rem;
   color: var(--ink-secondary);
+  max-width: 68ch;
 }
 
 /* Simulador de Retraso de Señal (Light-Time Delay) */
@@ -1163,7 +1265,7 @@ body {
 }
 
 .comm-header-line {
-  font-size: 0.85rem;
+  font-size: 0.96rem;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1194,7 +1296,7 @@ body {
   border-radius: var(--radius);
   padding: 0.45rem 0.65rem;
   font-family: var(--font-body);
-  font-size: 0.84rem;
+  font-size: 0.96rem;
 }
 
 .comm-wave-track {
@@ -1227,8 +1329,9 @@ body {
   border-radius: var(--radius);
   padding: 0.55rem 0.75rem;
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   color: var(--ink);
+  max-width: 68ch;
 }
 
 /* Tarjeta de Decisión / Orden de Trabajo del Comandante */
@@ -1245,9 +1348,8 @@ body {
 
 .dilemma-card h2 {
   font-family: var(--font-display);
-  font-size: 1.35rem;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  font-size: 1.4rem;
+  letter-spacing: 0.015em;
 }
 
 .dilemma-meta {
@@ -1283,7 +1385,8 @@ body {
 
 .dilemma-situation {
   color: var(--ink-secondary);
-  font-size: 0.92rem;
+  font-size: 1rem;
+  max-width: 68ch;
 }
 
 .choices-grid {
@@ -1317,14 +1420,14 @@ body {
 
 .choice-box h4 {
   font-family: var(--font-display);
-  font-size: 1.08rem;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  font-size: 1.15rem;
+  letter-spacing: 0.015em;
 }
 
 .choice-box p {
-  font-size: 0.86rem;
+  font-size: 1rem;
   color: var(--ink-secondary);
+  max-width: 65ch;
 }
 
 .choice-deltas-row {
@@ -1361,17 +1464,18 @@ body {
   border-left: 3px solid var(--nasa-blue);
   padding: 0.6rem 0.75rem;
   border-radius: var(--radius);
-  font-size: 0.8rem;
+  font-size: 0.94rem;
   color: var(--ink);
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  max-width: 65ch;
 }
 
 .delayed-callout-line {
   color: var(--ink-secondary);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.78rem;
 }
 
 .choice-footer {
@@ -1408,9 +1512,8 @@ body {
 
 .logs-card h3 {
   font-family: var(--font-display);
-  font-size: 1.15rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-size: 1.2rem;
+  letter-spacing: 0.015em;
 }
 
 .log-item {
@@ -1419,7 +1522,8 @@ body {
   border-left: 3px solid var(--nasa-blue);
   border-radius: var(--radius);
   padding: 0.65rem 0.85rem;
-  font-size: 0.84rem;
+  font-size: 1rem;
+  max-width: 72ch;
 }
 
 .log-item-head {
@@ -1480,9 +1584,8 @@ body {
 
 .modal-header h2 {
   font-family: var(--font-display);
-  font-size: 1.45rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-size: 1.5rem;
+  letter-spacing: 0.015em;
 }
 
 .nasa-badge {
@@ -1490,8 +1593,7 @@ body {
   font-size: 0.74rem;
   font-weight: 700;
   color: var(--nasa-red);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
 }
 
 .section-tag {
@@ -1499,7 +1601,6 @@ body {
   font-size: 0.74rem;
   font-weight: 700;
   color: var(--nasa-blue);
-  text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
@@ -1519,7 +1620,7 @@ body {
   justify-content: space-between;
   gap: 0.65rem;
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px dashed var(--rule);
 }
@@ -1538,9 +1639,8 @@ body {
 
 .badges-heading {
   font-family: var(--font-display);
-  font-size: 1.12rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-size: 1.18rem;
+  letter-spacing: 0.015em;
   margin-bottom: 0.6rem;
   display: inline-flex;
   align-items: center;
@@ -1594,13 +1694,13 @@ body {
 
 .badge-card h4 {
   font-family: var(--font-display);
-  font-size: 0.98rem;
-  text-transform: uppercase;
+  font-size: 1.05rem;
 }
 
 .badge-card p {
-  font-size: 0.78rem;
+  font-size: 0.94rem;
   color: var(--ink-secondary);
+  max-width: 60ch;
 }
 
 .cert-footer-actions {
@@ -1609,68 +1709,79 @@ body {
   gap: 0.6rem;
 }
 
-/* C1: Pantalla de Briefing / Portada del Plan de Vuelo */
+/* C1 & C17: Pantalla de Briefing / Portada del Plan de Vuelo (cabe en 1440x900 sin scroll) */
 .briefing-screen {
   background: var(--paper-sheet);
   border: var(--border);
-  border-top: 5px solid var(--nasa-blue);
+  border-top: 4px solid var(--nasa-blue);
   border-radius: var(--radius);
-  padding: 1.2rem;
+  padding: 0.45rem 0.85rem;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.3rem;
 }
 
 .briefing-hero {
   display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  padding-bottom: 0.75rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.2rem 1rem;
+  padding-bottom: 0.22rem;
   border-bottom: 1.5px solid var(--ink);
+}
+
+.briefing-hero-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .briefing-title {
   font-family: var(--font-display);
-  font-size: clamp(1.45rem, 2.6vw, 2rem);
+  font-size: clamp(1.15rem, 1.5vw, 1.35rem);
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.015em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .briefing-lead {
   color: var(--ink-secondary);
-  font-size: 0.95rem;
-  max-width: 780px;
+  font-size: 0.96rem;
+  max-width: 68ch;
+  line-height: 1.2;
 }
 
 .briefing-section-heading {
   font-family: var(--font-display);
-  font-size: 1.15rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  margin-bottom: 0.75rem;
+  font-size: 0.92rem;
+  letter-spacing: 0.015em;
+  margin-bottom: 0.15rem;
   color: var(--nasa-blue);
 }
 
 .tutorial-steps-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-  gap: 0.8rem;
+  gap: 0.4rem;
 }
 
 .tutorial-step-card {
   background: var(--paper);
   border: var(--border);
   border-radius: var(--radius);
-  padding: 0.9rem;
+  padding: 0.28rem 0.5rem;
   display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 .tutorial-step-badge {
-  width: 44px;
-  height: 44px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius);
   background: var(--paper-sheet);
   border: var(--border);
@@ -1683,40 +1794,41 @@ body {
 
 .tutorial-step-body h4 {
   font-family: var(--font-display);
-  font-size: 1rem;
-  text-transform: uppercase;
-  margin-bottom: 0.2rem;
+  font-size: 0.94rem;
+  margin-bottom: 0.02rem;
 }
 
 .tutorial-step-body p {
-  font-size: 0.84rem;
+  font-size: 0.88rem;
   color: var(--ink-secondary);
+  max-width: 58ch;
+  line-height: 1.2;
 }
 
 .briefing-sites-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
-  gap: 1rem;
+  gap: 0.6rem;
 }
 
 .briefing-site-card {
   background: var(--paper);
   border-radius: var(--radius);
   border: var(--border);
-  padding: 1.2rem;
+  padding: 0.48rem 0.75rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 0.9rem;
+  gap: 0.3rem;
   cursor: pointer;
 }
 
 .site-card-lunar {
-  border-top: 5px solid var(--nasa-blue);
+  border-top: 4px solid var(--nasa-blue);
 }
 
 .site-card-mars {
-  border-top: 5px solid var(--nasa-red);
+  border-top: 4px solid var(--nasa-red);
 }
 
 .briefing-site-card.site-card-selected {
@@ -1727,13 +1839,13 @@ body {
 
 .site-card-header {
   display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 .site-planet-badge {
-  width: 44px;
-  height: 44px;
+  width: 30px;
+  height: 30px;
   border: var(--border);
   border-radius: var(--radius);
   background: var(--paper-sheet);
@@ -1750,76 +1862,70 @@ body {
 
 .site-card-header h4 {
   font-family: var(--font-display);
-  font-size: 1.25rem;
-  text-transform: uppercase;
+  font-size: 1.08rem;
+  line-height: 1.1;
 }
 
 .site-location-sub {
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   color: var(--ink-secondary);
 }
 
 .site-card-desc {
-  font-size: 0.88rem;
+  font-size: 0.95rem;
   color: var(--ink);
+  max-width: 65ch;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .site-specs-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.3rem;
 }
 
 .site-spec-pill {
   background: var(--paper-sheet);
   border: 1px solid var(--ink);
   border-radius: var(--radius);
-  padding: 0.45rem 0.6rem;
+  padding: 0.2rem 0.4rem;
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
-  font-size: 0.78rem;
+  gap: 0.02rem;
+  font-size: 0.76rem;
 }
 
 .spec-label {
   color: var(--ink-muted);
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.64rem;
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
 }
 
-.site-initial-resources {
+.site-card-footer {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  font-family: var(--font-mono);
-  font-size: 0.76rem;
-  font-weight: 700;
-  background: var(--paper-aged);
-  border: 1px solid var(--ink);
-  padding: 0.5rem 0.7rem;
-  border-radius: var(--radius);
-}
-
-.site-res-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
+  flex-direction: column;
+  gap: 0.22rem;
 }
 
 .site-nasa-ref {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   color: var(--ink-secondary);
 }
 
 .briefing-launch-btn {
-  min-height: 48px;
+  min-height: 44px;
   width: 100%;
   font-size: 0.98rem;
+  padding: 0.4rem 0.8rem;
 }
 
 /* C4: TurnReport / Informe de Cierre de Turno */
@@ -1846,8 +1952,7 @@ body {
 
 .turn-report-title {
   font-family: var(--font-display);
-  font-size: 1.3rem;
-  text-transform: uppercase;
+  font-size: 1.35rem;
   margin-top: 0.1rem;
 }
 
@@ -1979,8 +2084,7 @@ body {
 
 .turn-consequences-heading {
   font-family: var(--font-display);
-  font-size: 1.05rem;
-  text-transform: uppercase;
+  font-size: 1.12rem;
   color: var(--nasa-blue);
   display: inline-flex;
   align-items: center;
@@ -2000,10 +2104,11 @@ body {
   border-left: 4px solid var(--ink);
   border-radius: var(--radius);
   padding: 0.65rem 0.85rem;
-  font-size: 0.84rem;
+  font-size: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  max-width: 72ch;
 }
 
 .turn-consequence-item.turn-log-critical {
@@ -2098,13 +2203,12 @@ body {
   flex-wrap: wrap;
   gap: 0.5rem;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--ink-secondary);
   border-bottom: 1.5px solid var(--ink);
   padding-bottom: 0.45rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
 }
 
 .cert-header-actions {
@@ -2132,9 +2236,8 @@ body {
 
 .cert-name-label {
   font-family: var(--font-display);
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 700;
-  text-transform: uppercase;
   color: var(--ink);
   display: inline-flex;
   align-items: center;
@@ -2150,7 +2253,7 @@ body {
   border-radius: var(--radius);
   padding: 0.45rem 0.75rem;
   font-family: var(--font-mono);
-  font-size: 0.88rem;
+  font-size: 0.95rem;
 }
 
 .cert-diploma-banner {
@@ -2165,28 +2268,27 @@ body {
 
 .cert-diploma-overline {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.74rem;
   font-weight: 700;
   color: var(--nasa-blue);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
   display: block;
 }
 
 .cert-diploma-recipient {
   font-family: var(--font-display);
-  font-size: 1.45rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-size: 1.5rem;
+  letter-spacing: 0.015em;
   color: var(--ink);
   display: block;
 }
 
 .cert-diploma-citation {
-  font-size: 0.82rem;
+  font-size: 1rem;
   color: var(--ink-secondary);
   margin-top: 0.2rem;
   max-width: 68ch;
-  line-height: 1.38;
+  line-height: 1.42;
 }
 
 .cert-official-stamp {
@@ -2222,7 +2324,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  font-size: 0.78rem;
+  font-size: 0.82rem;
 }
 
 .cert-history-top {
@@ -2255,7 +2357,7 @@ body {
   flex-direction: column;
   gap: 0.1rem;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   color: var(--ink);
 }
 
@@ -2285,10 +2387,9 @@ body {
 
 .cert-sig-line {
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.7rem;
   color: var(--ink-muted);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .cert-seal-box {
@@ -2344,8 +2445,7 @@ body {
 
 .daily-challenge-strip strong {
   font-family: var(--font-display);
-  font-size: 1.1rem;
-  text-transform: uppercase;
+  font-size: 1.15rem;
   color: var(--nasa-red);
 }
 
@@ -2539,3 +2639,260 @@ button:active,
     transition: none !important;
   }
 }
+
+/* ============================================================================
+ * C13: Retratos y Lista de Tripulación (`CrewPortrait` & `CrewRoster`)
+ * ============================================================================ */
+.crew-portrait-svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.crew-roster {
+  width: 100%;
+}
+
+.crew-roster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 0.75rem;
+}
+
+.crew-card {
+  background: var(--paper-sheet);
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.crew-card-great {
+  border-left: 4px solid var(--ok-green);
+}
+
+.crew-card-ok {
+  border-left: 4px solid var(--nasa-blue);
+}
+
+.crew-card-worried {
+  border-left: 4px solid var(--warn-ochre);
+}
+
+.crew-card-critical {
+  border-left: 4px solid var(--nasa-red);
+}
+
+.crew-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.crew-card-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.crew-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.crew-member-name {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.15;
+}
+
+.crew-member-role {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--ink-secondary);
+}
+
+.crew-mood-tag {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--ink);
+  background: var(--paper);
+}
+
+.crew-mood-tag-great {
+  color: var(--ok-green);
+  border-color: var(--ok-green);
+}
+
+.crew-mood-tag-ok {
+  color: var(--nasa-blue);
+  border-color: var(--nasa-blue);
+}
+
+.crew-mood-tag-worried {
+  color: var(--warn-ochre);
+  border-color: var(--warn-ochre);
+}
+
+.crew-mood-tag-critical {
+  color: #FFFFFF;
+  background: var(--nasa-red);
+  border-color: var(--nasa-red);
+}
+
+/* Globo de cómic de papel con pico apuntando hacia el retrato */
+.crew-speech-bubble {
+  position: relative;
+  margin: 0.2rem 0 0 0;
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.75rem;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--ink);
+  max-width: 65ch;
+}
+
+.crew-speech-bubble::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 18px;
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 8px solid var(--ink);
+}
+
+.crew-speech-bubble::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 19px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 7px solid var(--paper);
+}
+
+.crew-speech-bubble p {
+  margin: 0;
+}
+
+/* Modo compacto (`compact = true`): solo retratos y nombre */
+.crew-roster-compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.crew-compact-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--paper-sheet);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+}
+
+.crew-compact-name {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* ============================================================================
+   C16: Informe del día con voz (.turn-crew-voice)
+   ============================================================================ */
+.turn-crew-voice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--paper-sheet);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+.turn-crew-voice.mood-critical {
+  border-color: var(--nasa-red);
+  background: var(--alert-red-tint);
+}
+
+.turn-crew-voice.mood-worried {
+  border-color: var(--warn-ochre);
+  background: var(--warn-ochre-tint);
+}
+
+.turn-crew-voice-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+/* ============================================================================
+   C17: Retratos de la tripulación en el Certificado (.cert-crew-section)
+   ============================================================================ */
+.cert-crew-section {
+  background: var(--paper);
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 0.9rem;
+}
+
+.cert-crew-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 175px), 1fr));
+  gap: 0.55rem;
+}
+
+.cert-crew-card {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: var(--paper-sheet);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.55rem;
+}
+
+.cert-crew-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+  min-width: 0;
+}
+
+.cert-crew-info strong {
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  color: var(--ink);
+  line-height: 1.15;
+}
+
+.cert-crew-info span {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-secondary);
+}
+

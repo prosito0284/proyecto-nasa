@@ -6,6 +6,8 @@
 
 import React, { useEffect, useState } from 'react';
 import {
+  CrewMood,
+  CrewStatus,
   DecisionRecord,
   Language,
   OutpostSiteConfig,
@@ -13,6 +15,7 @@ import {
 } from '../../types/mission';
 import type { CommanderEvaluation } from '../../engine/simulationEngine';
 import { missionAudio } from '../../utils/sound';
+import { CrewPortrait } from '../crew';
 import {
   AlertIcon,
   ArrowIcon,
@@ -43,6 +46,8 @@ export interface CommanderCertificateProps {
   history?: DecisionRecord[];
   /** C6: Nombre opcional inicial del astronauta */
   astronautName?: string;
+  /** C17: Estado opcional de la tripulación para mostrar sus retratos en el diploma */
+  crew?: CrewStatus[];
 }
 
 export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
@@ -57,6 +62,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
   onRestartMission,
   history,
   astronautName,
+  crew,
 }) => {
   const [commanderName, setCommanderName] = useState(astronautName ?? '');
 
@@ -150,6 +156,44 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
 
   const earnedBadgesCount = evaluation.badges.filter((b) => b.earned).length;
 
+  const defaultCrewMood: CrewMood =
+    missionStatus === 'won' ? 'great' : missionStatus === 'failed' ? 'worried' : 'ok';
+
+  const diplomaCrew =
+    crew && crew.length > 0
+      ? crew.map((c) => ({
+          id: c.member.id,
+          name: c.member.name,
+          role: c.member.role[lang],
+          mood: c.mood,
+        }))
+      : [
+          {
+            id: 'commander',
+            name: 'Cmdr. Vega',
+            role: lang === 'es' ? 'Comandante de misión' : 'Mission commander',
+            mood: defaultCrewMood,
+          },
+          {
+            id: 'engineer',
+            name: 'Ing. Sato',
+            role: lang === 'es' ? 'Ingeniería eléctrica' : 'Power engineer',
+            mood: defaultCrewMood,
+          },
+          {
+            id: 'botanist',
+            name: 'Dra. Okafor',
+            role: lang === 'es' ? 'Botánica e invernadero' : 'Botanist & greenhouse',
+            mood: defaultCrewMood,
+          },
+          {
+            id: 'medic',
+            name: 'Dr. Ríos',
+            role: lang === 'es' ? 'Medicina y dosimetría' : 'Flight surgeon & RAD',
+            mood: defaultCrewMood,
+          },
+        ];
+
   return (
     <div
       className="modal-backdrop certificate-backdrop"
@@ -162,7 +206,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
         <div className="cert-paper-diploma-frame">
           {/* C12: Cinta Técnica de Serie del Documento Oficial */}
           <div className="cert-serial-bar">
-            <span>FORM JSC-2026-CERT // NASA SPACE APPS CHALLENGE</span>
+            <span>FORM JSC-2026-CERT</span>
             <span>
               SITE: {site.id.toUpperCase()} ({site.coordinates})
             </span>
@@ -173,7 +217,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
 
           <div className="modal-header cert-diploma-header">
             <div>
-              <span className="nasa-badge">NASA JUNIOR ASTRONAUT MISSION EVALUATION</span>
+              <span className="nasa-badge">EVALUACIÓN NASA</span>
               <h2 id="certificate-modal-title">
                 <PatchIcon size={22} /> {evaluation.rank.title[lang]} — {evaluation.score}/100 pts
               </h2>
@@ -190,7 +234,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                 id="print-certificate-btn"
               >
                 <PrintIcon size={16} />{' '}
-                {lang === 'es' ? 'Imprimir Diploma (A4/Carta)' : 'Print Diploma (A4/Letter)'}
+                {lang === 'es' ? 'Imprimir diploma (A4/Carta)' : 'Print diploma (A4/Letter)'}
               </button>
               <button
                 type="button"
@@ -212,8 +256,8 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
               <label htmlFor="astronaut-name-input" className="cert-name-label">
                 <HelmetIcon size={16} />{' '}
                 {lang === 'es'
-                  ? 'Nombre del Astronauta / Comandante:'
-                  : 'Astronaut / Commander Name:'}
+                  ? 'Nombre del astronauta / comandante:'
+                  : 'Astronaut / commander name:'}
               </label>
               <input
                 id="astronaut-name-input"
@@ -233,8 +277,8 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
               <div>
                 <span className="cert-diploma-overline">
                   {lang === 'es'
-                    ? 'DIPLOMA OFICIAL DE ENTRENAMIENTO DE MISIÓN OTORGADO A'
-                    : 'OFFICIAL MISSION TRAINING DIPLOMA AWARDED TO'}
+                    ? 'Diploma oficial de entrenamiento de misión otorgado a'
+                    : 'Official mission training diploma awarded to'}
                 </span>
                 <strong className="cert-diploma-recipient">{displayCommanderName}</strong>
                 <p className="cert-diploma-citation">
@@ -252,6 +296,25 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                     ? 'REGISTRO DE VUELO'
                     : 'FLIGHT RECORD'}
               </span>
+            </div>
+          </div>
+
+          {/* C17: Retratos de la tripulación en el certificado */}
+          <div className="cert-crew-section">
+            <h3 className="badges-heading">
+              <HelmetIcon size={17} />{' '}
+              {lang === 'es' ? 'Tripulación de la misión' : 'Mission crew roster'}
+            </h3>
+            <div className="cert-crew-grid">
+              {diplomaCrew.map((member) => (
+                <div key={member.id} className="cert-crew-card">
+                  <CrewPortrait memberId={member.id} mood={member.mood} size={46} />
+                  <div className="cert-crew-info">
+                    <strong>{member.name}</strong>
+                    <span>{member.role}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -382,8 +445,8 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
               <span className="cert-sig-script">NASA Flight Control — Houston</span>
               <span className="cert-sig-line">
                 {lang === 'es'
-                  ? 'DIRECCIÓN DE ENTRENAMIENTO ARTEMIS / MARTE'
-                  : 'ARTEMIS / MARS TRAINING DIRECTORATE'}
+                  ? 'Dirección de entrenamiento Artemis / Marte'
+                  : 'Artemis / Mars training directorate'}
               </span>
             </div>
             <div className="cert-seal-box">
@@ -394,8 +457,8 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
               <span className="cert-sig-script">{displayCommanderName}</span>
               <span className="cert-sig-line">
                 {lang === 'es'
-                  ? 'FIRMA DEL COMANDANTE ESPACIAL JUNIOR'
-                  : 'JUNIOR SPACE COMMANDER SIGNATURE'}
+                  ? 'Firma del comandante espacial junior'
+                  : 'Junior space commander signature'}
               </span>
             </div>
           </div>
