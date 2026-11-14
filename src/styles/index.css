@@ -1756,5 +1756,180 @@ body {
   border-color: hsla(12, 88%, 56%, 0.65);
 }
 
+/* C6: CommanderCertificate Astronaut Name, History & Print Styles */
+.cert-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.cert-astronaut-name-box {
+  background: var(--bg-panel-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cert-name-input-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.cert-name-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cert-name-input {
+  flex: 1 1 240px;
+  min-height: 44px;
+  background: var(--bg-space-deep);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 0.5rem 0.85rem;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+}
+
+.cert-diploma-banner {
+  border-top: 1px dashed var(--border-subtle);
+  padding-top: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.cert-diploma-overline {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--accent-amber);
+  letter-spacing: 0.04em;
+}
+
+.cert-diploma-recipient {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.cert-history-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.cert-history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: 0.6rem;
+}
+
+.cert-history-item {
+  background: var(--bg-panel-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 0.65rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+
+.cert-history-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.cert-history-day {
+  font-family: var(--font-mono);
+  color: var(--accent-amber);
+  font-size: 0.78rem;
+}
+
+.cert-history-weather {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.cert-history-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  color: var(--text-primary);
+}
+
+@media print {
+  @page {
+    size: auto;
+    margin: 10mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  .top-header,
+  .site-selector-bar,
+  .status-banner,
+  .mission-main-grid,
+  .no-print {
+    display: none !important;
+  }
+
+  .modal-backdrop.certificate-backdrop {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  .certificate-modal-card {
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 2px solid #0f172a !important;
+    box-shadow: none !important;
+    padding: 1rem !important;
+    gap: 0.75rem !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .certificate-modal-card * {
+    color: #0f172a !important;
+  }
+
+  .cert-astronaut-name-box,
+  .cert-breakdown-box,
+  .cert-history-item,
+  .badge-card {
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 0.55rem 0.7rem !important;
+  }
+
+  .cert-bars-grid,
+  .cert-history-grid,
+  .badges-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.45rem !important;
+  }
+}
+
+
 
 

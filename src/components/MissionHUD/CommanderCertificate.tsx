@@ -4,12 +4,12 @@
  * Conectado con `evaluateCommanderPerformance` del Bloque A (Claude Code).
  */
 
-import React from 'react';
-import { Language, OutpostSiteConfig } from '../../types/mission';
-import { CommanderEvaluation } from '../../engine/simulationEngine';
+import React, { useEffect, useState } from 'react';
+import { DecisionRecord, Language, OutpostSiteConfig, SpaceWeatherEvent } from '../../types/mission';
+import type { CommanderEvaluation } from '../../engine/simulationEngine';
 import { missionAudio } from '../../utils/sound';
 
-interface CommanderCertificateProps {
+export interface CommanderCertificateProps {
   lang: Language;
   isOpen: boolean;
   onClose: () => void;
@@ -19,6 +19,10 @@ interface CommanderCertificateProps {
   totalDays: number;
   missionStatus: 'briefing' | 'playing' | 'won' | 'failed';
   onRestartMission: () => void;
+  /** C6: Historial opcional de decisiones día por día (provisto por state.engine?.history) */
+  history?: DecisionRecord[];
+  /** C6: Nombre opcional inicial del astronauta */
+  astronautName?: string;
 }
 
 export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
@@ -31,7 +35,29 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
   totalDays,
   missionStatus,
   onRestartMission,
+  history,
+  astronautName,
 }) => {
+  const [commanderName, setCommanderName] = useState(astronautName ?? '');
+
+  useEffect(() => {
+    if (astronautName !== undefined) {
+      setCommanderName(astronautName);
+    }
+  }, [astronautName]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        missionAudio.playClick();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const breakdownItems = [
@@ -62,32 +88,120 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
     },
   ];
 
+  const formatWeatherBadge = (weatherType: SpaceWeatherEvent['type']) => {
+    switch (weatherType) {
+      case 'FLR':
+        return {
+          icon: '⚡',
+          label: lang === 'es' ? 'Llamarada Solar (FLR)' : 'Solar Flare (FLR)',
+        };
+      case 'SEP':
+        return {
+          icon: '☢️',
+          label: lang === 'es' ? 'Partículas SEP' : 'SEP Radiation',
+        };
+      case 'CME':
+        return {
+          icon: '🌩️',
+          label: lang === 'es' ? 'Tormenta Solar (CME)' : 'CME Storm',
+        };
+      case 'DUST_STORM':
+        return {
+          icon: '🌪️',
+          label: lang === 'es' ? 'Tormenta de Polvo' : 'Dust Storm',
+        };
+      default:
+        return {
+          icon: '☀️',
+          label: lang === 'es' ? 'Sol en Calma' : 'Quiet Sun',
+        };
+    }
+  };
+
+  const formatCodeLabel = (rawId: string) =>
+    rawId
+      .replace(/^(MOON|MARS|BOTH|SHARED)-/i, '')
+      .replace(/-/g, ' ')
+      .toUpperCase();
+
+  const displayCommanderName =
+    commanderName.trim() ||
+    (lang === 'es' ? 'Comandante Espacial Junior' : 'Junior Space Commander');
+
   return (
     <div
-      className="modal-backdrop"
+      className="modal-backdrop certificate-backdrop"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="certificate-modal-title"
       id="commander-certificate-modal"
     >
       <div className="modal-card certificate-modal-card">
         <div className="modal-header">
           <div>
             <span className="nasa-badge">NASA JUNIOR ASTRONAUT MISSION EVALUATION</span>
-            <h2>
+            <h2 id="certificate-modal-title">
               {evaluation.rank.emoji} {evaluation.rank.title[lang]} — {evaluation.score}/100 pts
             </h2>
             <p className="brand-subtitle">{evaluation.rank.message[lang]}</p>
           </div>
-          <button
-            className="btn-secondary"
-            onClick={() => {
-              missionAudio.playClick();
-              onClose();
-            }}
-            id="close-certificate-modal-btn"
-          >
-            {lang === 'es' ? 'Cerrar ✕' : 'Close ✕'}
-          </button>
+          <div className="cert-header-actions no-print">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                missionAudio.playClick();
+                window.print();
+              }}
+              id="print-certificate-btn"
+            >
+              🖨️ {lang === 'es' ? 'Imprimir Certificado' : 'Print Certificate'}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                missionAudio.playClick();
+                onClose();
+              }}
+              id="close-certificate-modal-btn"
+            >
+              {lang === 'es' ? 'Cerrar ✕' : 'Close ✕'}
+            </button>
+          </div>
+        </div>
+
+        {/* C6: Campo de nombre del Astronauta Junior + Encabezado de Diploma Imprimible */}
+        <div className="cert-astronaut-name-box">
+          <div className="cert-name-input-group no-print">
+            <label htmlFor="astronaut-name-input" className="cert-name-label">
+              🧑‍🚀{' '}
+              {lang === 'es'
+                ? 'Nombre del Astronauta / Comandante:'
+                : 'Astronaut / Commander Name:'}
+            </label>
+            <input
+              id="astronaut-name-input"
+              type="text"
+              className="cert-name-input"
+              maxLength={48}
+              value={commanderName}
+              onChange={(e) => setCommanderName(e.target.value)}
+              placeholder={
+                lang === 'es'
+                  ? 'Escribe tu nombre para el certificado...'
+                  : 'Enter your name for the certificate...'
+              }
+            />
+          </div>
+          <div className="cert-diploma-banner">
+            <span className="cert-diploma-overline">
+              {lang === 'es'
+                ? 'CERTIFICADO OFICIAL DE ENTRENAMIENTO DE MISIÓN'
+                : 'OFFICIAL MISSION TRAINING CERTIFICATE'}
+            </span>
+            <strong className="cert-diploma-recipient">{displayCommanderName}</strong>
+          </div>
         </div>
 
         {/* Desglose de Puntuación de Ingeniería */}
@@ -125,6 +239,50 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
           </div>
         </div>
 
+        {/* C6: Repaso Día por Día de la Misión (history?: DecisionRecord[]) */}
+        <div className="cert-history-section">
+          <h3 className="badges-heading">
+            🗓️{' '}
+            {lang === 'es'
+              ? `Repaso Día por Día (${site.dayName[lang]} a ${site.dayName[lang]})`
+              : `Day-by-Day Mission Review (${site.dayName[lang]} by ${site.dayName[lang]})`}
+          </h3>
+          {history && history.length > 0 ? (
+            <div className="cert-history-grid">
+              {history.map((record, idx) => {
+                const weatherInfo = formatWeatherBadge(record.weatherType);
+                return (
+                  <div key={`${record.day}-${record.cardId}-${idx}`} className="cert-history-item">
+                    <div className="cert-history-top">
+                      <strong className="cert-history-day">
+                        {site.dayName[lang]} {record.day}
+                      </strong>
+                      <span className="cert-history-weather">
+                        <span aria-hidden="true">{weatherInfo.icon}</span> {weatherInfo.label}
+                      </span>
+                    </div>
+                    <div className="cert-history-detail">
+                      <span className="cert-history-card-id">
+                        📋 {formatCodeLabel(record.cardId)}
+                      </span>
+                      <span className="cert-history-choice-id">
+                        ✅ {lang === 'es' ? 'Opción:' : 'Choice:'}{' '}
+                        <strong>{formatCodeLabel(record.choiceId)}</strong>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="helper-note">
+              {lang === 'es'
+                ? 'Toma decisiones cada día para registrar aquí tu historial completo de mando.'
+                : 'Make decisions each day to record your complete command history here.'}
+            </p>
+          )}
+        </div>
+
         {/* Insignias Desbloqueables */}
         <div>
           <h3 className="badges-heading">
@@ -158,20 +316,21 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
           </div>
         </div>
 
-        {missionStatus !== 'playing' && (
-          <div className="cert-footer-actions">
+        <div className="cert-footer-actions no-print">
+          {missionStatus !== 'playing' && (
             <button
               type="button"
               className="btn-primary"
               onClick={() => {
+                missionAudio.playClick();
                 onClose();
                 onRestartMission();
               }}
             >
               🔄 {lang === 'es' ? 'Jugar Nueva Misión' : 'Play Another Mission'}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
