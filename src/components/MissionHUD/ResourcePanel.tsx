@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import {
   CoreResources,
+  CrewStatus,
   Language,
   PowerAllocation,
   TradeoffChoice,
@@ -17,8 +18,10 @@ import type {
 } from '../../engine/simulationEngine';
 import { missionAudio } from '../../utils/sound';
 import {
+  AlertIcon,
   ArrowIcon,
   BatteryIcon,
+  CheckIcon,
   ClockIcon,
   DropletIcon,
   HelmetIcon,
@@ -29,9 +32,10 @@ import {
   ShieldIcon,
   SlidersIcon,
 } from '../icons';
+import { CrewPortrait } from '../crew';
 import { MissionPatch } from './MissionPatch';
 
-interface ResourcePanelProps {
+export interface ResourcePanelProps {
   lang: Language;
   resources: CoreResources;
   allocation: PowerAllocation;
@@ -44,6 +48,8 @@ interface ResourcePanelProps {
   evaluation: CommanderEvaluation;
   onChangeAllocation: (next: PowerAllocation) => void;
   onOpenBadgesModal: () => void;
+  /** C14: Estado opcional de la tripulación para mostrar el retrato de quien vigila cada vital */
+  crew?: CrewStatus[];
 }
 
 const POWER_PRESETS: Array<{
@@ -122,6 +128,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   evaluation,
   onChangeAllocation,
   onOpenBadgesModal,
+  crew,
 }) => {
   const [showAdvancedSliders, setShowAdvancedSliders] = useState(false);
   const totalPowerUsed = projection.load;
@@ -316,12 +323,12 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
           </div>
         </div>
 
-        {/* Vitales con Proyección en Tiempo Real */}
+        {/* C14: Vitales como Hoja de Checklist con Casilla de Estado, Retrato Opcional y Proyección */}
         <div className="panel-section">
           <div className="section-title-row">
             <h2>
               <SlidersIcon size={17} />{' '}
-              {lang === 'es' ? 'Vitales de la Base' : 'Outpost Vitals'}
+              {lang === 'es' ? 'Checklist de vitales' : 'Vitals checklist'}
             </h2>
             <span className="science-score-badge" aria-live="polite">
               <ScienceIcon size={15} /> {resources.sciencePoints} (
@@ -329,42 +336,91 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
             </span>
           </div>
 
-          <div className="bars-list">
+          <div className="vitals-checklist" role="list">
             {metrics.map((m) => {
               const delta = getCombinedDelta(m.id);
               const projectedVal = Math.max(0, Math.min(100, m.value + delta));
-              const statusClass =
-                m.value <= 25 ? 'bar-critical' : m.value <= 50 ? 'bar-warning' : 'bar-nominal';
+              const isCrit = m.value <= 25;
+              const isWarn = m.value > 25 && m.value <= 50;
+              const statusKey = isCrit ? 'critical' : isWarn ? 'warning' : 'nominal';
+              const statusWord = isCrit
+                ? lang === 'es'
+                  ? 'CRÍTICO'
+                  : 'CRIT'
+                : isWarn
+                  ? lang === 'es'
+                    ? 'ATENCIÓN'
+                    : 'WATCH'
+                  : lang === 'es'
+                    ? 'BIEN'
+                    : 'OK';
+
+              const watcher = crew?.find((c) => c.member.watches === m.id);
+
               return (
-                <div key={m.id} className="resource-row">
-                  <div className="resource-row-header">
-                    <span className="resource-label-inline">
-                      {m.icon} {m.label}
-                    </span>
-                    <div className="resource-val-group">
-                      <strong className="mono-val">
-                        {m.value}
-                        {m.unit}
-                      </strong>
-                      <span
-                        className={`proj-badge ${
-                          delta > 0 ? 'proj-up' : delta < 0 ? 'proj-down' : 'proj-flat'
-                        }`}
-                        title={
-                          lang === 'es'
-                            ? `Proyección al final del día: ${projectedVal}%`
-                            : `End-of-day projection: ${projectedVal}%`
-                        }
-                      >
-                        {delta > 0 ? `+${delta}%` : delta < 0 ? `${delta}%` : '0%'}
+                <div
+                  key={m.id}
+                  role="listitem"
+                  className={`vital-checklist-row vital-row-${statusKey}`}
+                >
+                  <div className="vital-checklist-main">
+                    {/* Casilla de checklist con estado (bien / atención / crítico) */}
+                    <span
+                      className={`vital-checkbox-badge vital-check-${statusKey}`}
+                      title={
+                        lang === 'es'
+                          ? `Estado actual: ${statusWord}`
+                          : `Current status: ${statusWord}`
+                      }
+                    >
+                      <span className="vital-checkbox-square" aria-hidden="true">
+                        {isCrit || isWarn ? <AlertIcon size={12} /> : <CheckIcon size={12} />}
                       </span>
+                      <span className="vital-status-word">{statusWord}</span>
+                    </span>
+
+                    {/* Retrato pequeño de quien vigila este vital (si `crew` está presente) */}
+                    {watcher && (
+                      <CrewPortrait
+                        memberId={watcher.member.id}
+                        mood={watcher.mood}
+                        size={30}
+                        title={`${watcher.member.name} (${watcher.member.role[lang]}): "${watcher.line[lang]}"`}
+                        className="vital-watcher-portrait"
+                      />
+                    )}
+
+                    {/* Nombre del vital + responsable opcional */}
+                    <div className="vital-label-col">
+                      <span className="resource-label-inline">
+                        {m.icon} {m.label}
+                      </span>
+                      {watcher && (
+                        <small className="vital-watcher-name">
+                          {watcher.member.name} · {watcher.member.role[lang]}
+                        </small>
+                      )}
                     </div>
                   </div>
-                  <div className="progress-track">
-                    <div
-                      className={`progress-fill ${statusClass}`}
-                      style={{ width: `${m.value}%` }}
-                    />
+
+                  {/* Valor actual y proyección de mañana */}
+                  <div className="vital-numbers-col">
+                    <strong className="mono-val vital-current-val">
+                      {m.value}
+                      {m.unit}
+                    </strong>
+                    <span
+                      className={`proj-badge ${
+                        delta > 0 ? 'proj-up' : delta < 0 ? 'proj-down' : 'proj-flat'
+                      }`}
+                      title={
+                        lang === 'es'
+                          ? `Proyección mañana: ${projectedVal}% (${delta >= 0 ? '+' + delta : delta}%)`
+                          : `Tomorrow projection: ${projectedVal}% (${delta >= 0 ? '+' + delta : delta}%)`
+                      }
+                    >
+                      → {projectedVal}% ({delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : '±0'})
+                    </span>
                   </div>
                 </div>
               );

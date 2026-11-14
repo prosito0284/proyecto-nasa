@@ -573,6 +573,111 @@ body {
   gap: 0.65rem;
 }
 
+/* C14: Hoja de Checklist de Vitales */
+.vitals-checklist {
+  display: flex;
+  flex-direction: column;
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+.vital-checklist-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.vital-checklist-row:last-child {
+  border-bottom: none;
+}
+
+.vital-row-warning {
+  background: rgba(138, 79, 0, 0.05);
+}
+
+.vital-row-critical {
+  background: rgba(252, 61, 33, 0.08);
+}
+
+.vital-checklist-main {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1 1 170px;
+}
+
+.vital-checkbox-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.12rem 0.35rem;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--paper-sheet);
+  flex-shrink: 0;
+}
+
+.vital-checkbox-square {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid currentColor;
+  border-radius: 1px;
+}
+
+.vital-check-nominal {
+  color: var(--ok-green);
+  border-color: var(--ok-green);
+}
+
+.vital-check-warning {
+  color: var(--warn-ochre);
+  border-color: var(--warn-ochre);
+}
+
+.vital-check-critical {
+  color: #FFFFFF;
+  background: var(--nasa-red);
+  border-color: var(--nasa-red);
+}
+
+.vital-label-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.vital-watcher-name {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--ink-secondary);
+}
+
+.vital-numbers-col {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.vital-current-val {
+  font-size: 0.96rem;
+}
+
 .resource-row-header {
   display: flex;
   justify-content: space-between;
@@ -586,6 +691,8 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  font-weight: 600;
+  font-size: 0.92rem;
 }
 
 .resource-val-group {
