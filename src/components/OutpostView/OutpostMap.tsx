@@ -365,506 +365,801 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
           </div>
         )}
 
-        {/* Escenario Visual SVG Interactivo de la Base */}
+        {/* C11 & C5: Diagrama Técnico a Dos Tintas por Sitio con Rótulos de Plano y 5 Estados Visuales */}
         <div
           className={`svg-outpost-wrapper ${isLunar ? 'svg-env-lunar' : 'svg-env-mars'} ${
             isDustStorm ? 'svg-env-dust-storm' : ''
           } ${isLowPowerBlackout ? 'svg-env-blackout' : ''}`}
         >
-          <svg
-            viewBox="0 0 860 270"
-            className="outpost-svg"
-            role="img"
-            aria-label={
-              isLunar
-                ? 'Interactive diagram of Artemis Lunar South Pole Outpost'
-                : 'Interactive diagram of Martian Jezero Crater Outpost'
-            }
-          >
-            {/* Fondo de cielo planetario plano */}
-            <rect
-              x="0"
-              y="0"
-              width="860"
-              height="270"
-              fill={isLunar ? '#0B1322' : '#2C150F'}
-            />
+          {(() => {
+            // Dos tintas técnicas por sitio: gris-azul lunar vs óxido marciano
+            const skyBg = isLunar ? '#0C1828' : '#24110B';
+            const terrainMid = isLunar ? '#15273E' : '#3A1B11';
+            const terrainFg = isLunar ? '#1E3552' : '#4E2417';
+            const inkPrimary = isLunar ? '#B8D8F8' : '#F4C39B';
+            const inkSecondary = isLunar ? '#6794C1' : '#C87D52';
+            const gridStroke = isLunar
+              ? 'rgba(184, 216, 248, 0.12)'
+              : 'rgba(244, 195, 155, 0.12)';
+            const calloutStroke = isLunar ? '#93C5FD' : '#FDBA74';
 
-            {/* Estrellas */}
-            <g fill="#f1f5f9" opacity={isDustStorm ? 0.12 : isLunar ? 0.92 : 0.45}>
-              <circle cx="65" cy="34" r="1.5" />
-              <circle cx="115" cy="18" r="1.0" />
-              <circle cx="145" cy="22" r="1.2" />
-              <circle cx="255" cy="48" r="1.6" />
-              <circle cx="315" cy="19" r="1.1" />
-              <circle cx="380" cy="25" r="1.3" />
-              <circle cx="510" cy="38" r="1.7" />
-              <circle cx="595" cy="16" r="1.1" />
-              <circle cx="670" cy="24" r="1.3" />
-              <circle cx="790" cy="42" r="1.5" />
-            </g>
-
-            {/* Astro en el cielo: Tierra vista desde la Luna o Fobos/Deimos desde Marte */}
-            {isLunar ? (
-              <g transform="translate(755, 56)">
-                <circle cx="0" cy="0" r="24" fill="#1d4ed8" />
-                <path
-                  d="M-12,-8 Q-2,-14 8,-6 Q14,2 4,12 Q-6,16 -14,6 Z"
-                  fill="#22c55e"
-                  opacity="0.85"
-                />
-                <circle
-                  cx="0"
-                  cy="0"
-                  r="25"
-                  fill="none"
-                  stroke="#93c5fd"
-                  strokeWidth="1.5"
-                  opacity="0.7"
-                />
-                <text
-                  x="0"
-                  y="38"
-                  textAnchor="middle"
-                  fill="#93c5fd"
-                  fontSize="10"
-                  fontFamily="monospace"
-                >
-                  EARTH (1.3s)
-                </text>
-              </g>
-            ) : (
-              <g transform="translate(745, 52)">
-                <ellipse cx="-18" cy="-4" rx="10" ry="8" fill="#e7cba9" />
-                <circle cx="-21" cy="-5" r="2.2" fill="#a88b6d" />
-                <circle cx="18" cy="10" r="5" fill="#c7ab8e" />
-                <text
-                  x="0"
-                  y="34"
-                  textAnchor="middle"
-                  fill="#fed7aa"
-                  fontSize="10"
-                  fontFamily="monospace"
-                >
-                  PHOBOS &amp; DEIMOS
-                </text>
-              </g>
-            )}
-
-            {/* Sol / Fuente de Clima Espacial DONKI */}
-            <g
-              transform="translate(62, 50)"
-              opacity={isRimShadowPass ? 0.45 : isDustStorm ? 0.55 : 1}
-            >
-              <circle
-                cx="0"
-                cy="0"
-                r={isSolarStorm ? 24 : 18}
-                fill={isSolarStorm ? '#f97316' : '#facc15'}
-                className={isSolarStorm ? 'pulse-sun' : ''}
-              />
-              <circle
-                cx="0"
-                cy="0"
-                r={isSolarStorm ? 34 : 24}
-                fill="none"
-                stroke={isSolarStorm ? '#ef4444' : '#f59e0b'}
-                strokeWidth="2"
-                strokeDasharray="4 4"
-              />
-              <text
-                x="0"
-                y="44"
-                textAnchor="middle"
-                fill="#fde68a"
-                fontSize="10"
-                fontFamily="monospace"
+            return (
+              <svg
+                viewBox="0 0 860 280"
+                className="outpost-svg"
+                role="img"
+                aria-label={
+                  isLunar
+                    ? 'Technical blueprint diagram of Artemis Lunar South Pole Outpost'
+                    : 'Technical blueprint diagram of Martian Jezero Crater Outpost'
+                }
               >
-                {isRimShadowPass
-                  ? 'LOW HORIZON SUN'
-                  : weather.type === 'NOMINAL'
-                  ? 'QUIET SUN'
-                  : `DONKI ${weather.type}`}
-              </text>
-            </g>
+                {/* 1. Fondo Técnico Plano a Dos Tintas */}
+                <rect x="0" y="0" width="860" height="280" fill={skyBg} />
 
-            {/* Ondas de partículas solares si hay tormenta DONKI (FLR / SEP / CME) */}
-            {isSolarStorm && (
-              <g stroke="#fb923c" strokeWidth="2" strokeDasharray="8 6" opacity="0.85">
-                <line x1="95" y1="62" x2="380" y2="145" className="solar-ray-anim" />
-                <line x1="88" y1="78" x2="355" y2="175" className="solar-ray-anim" />
-                <line x1="102" y1="48" x2="445" y2="125" className="solar-ray-anim" />
-              </g>
-            )}
-
-            {/* Montañas / Borde escarpado del Cráter Shackleton vs Mesetas escalonadas del Delta Jezero */}
-            {isLunar ? (
-              <path
-                d="M0,182 L88,118 L185,168 L310,122 L455,170 L615,126 L750,164 L860,148 L860,270 L0,270 Z"
-                fill="#1e293b"
-                stroke="#475569"
-                strokeWidth="1"
-              />
-            ) : (
-              <path
-                d="M0,176 L95,142 L215,142 L265,168 L395,134 L515,134 L575,165 L710,138 L860,162 L860,270 L0,270 Z"
-                fill="#6b2713"
-                stroke="#9a3412"
-                strokeWidth="1"
-              />
-            )}
-
-            {/* Superficie planetaria */}
-            <path
-              d="M0,192 Q240,176 460,190 T860,184 L860,270 L0,270 Z"
-              fill={isLunar ? '#334155' : '#7c2d12'}
-            />
-
-            {/* Depósito de Hielo Polar (Luna) o Sedimentos del Delta (Marte) */}
-            {isLunar ? (
-              <g transform="translate(740, 218)">
-                <ellipse
-                  cx="0"
-                  cy="0"
-                  rx="68"
-                  ry="16"
-                  fill="#0f172a"
-                  stroke="#38bdf8"
-                  strokeWidth="1.5"
-                />
-                <path d="M-40,2 L-25,-6 L-10,3 L12,-7 L32,3 Z" fill="#38bdf8" opacity="0.75" />
-                <text
-                  x="0"
-                  y="25"
-                  textAnchor="middle"
-                  fill="#7dd3fc"
-                  fontSize="10"
-                  fontFamily="monospace"
-                >
-                  SHACKLETON ICE TRAP
-                </text>
-              </g>
-            ) : (
-              <g transform="translate(742, 220)">
-                <ellipse
-                  cx="0"
-                  cy="0"
-                  rx="68"
-                  ry="15"
-                  fill="#431407"
-                  stroke="#fb923c"
-                  strokeWidth="1.5"
-                />
-                <path d="M-38,0 Q-10,-6 20,0 T45,2" stroke="#fdba74" strokeWidth="1.5" fill="none" />
-                <text
-                  x="0"
-                  y="24"
-                  textAnchor="middle"
-                  fill="#fed7aa"
-                  fontSize="10"
-                  fontFamily="monospace"
-                >
-                  JEZERO DELTA (CO2/H2O)
-                </text>
-              </g>
-            )}
-
-            {/* MÓDULO 1: Granja Solar y Baterías */}
-            <g
-              transform="translate(135, 145)"
-              className={`svg-module-node ${selectedModule === 'solar' ? 'svg-node-selected' : ''}`}
-              onClick={() => handleSelectModuleFromSvg('solar')}
-              onKeyDown={(e) => handleSvgKeyDown(e, 'solar')}
-              tabIndex={0}
-              role="button"
-              aria-label={
-                lang === 'es'
-                  ? `Granja Solar y Baterías: ${resources.power}% de energía`
-                  : `Solar Array and Batteries: ${resources.power}% power`
-              }
-            >
-              <rect
-                x="-48"
-                y="0"
-                width="42"
-                height="52"
-                rx="2"
-                fill={isRimShadowPass ? '#0f172a' : isDustStorm ? '#78350f' : '#1e3a8a'}
-                stroke={isRimShadowPass ? '#475569' : '#60a5fa'}
-                strokeWidth="2"
-              />
-              <line x1="-27" y1="0" x2="-27" y2="52" stroke="#93c5fd" strokeWidth="1" opacity={isRimShadowPass ? 0.35 : 1} />
-              <line x1="-48" y1="18" x2="-6" y2="18" stroke="#93c5fd" strokeWidth="1" opacity={isRimShadowPass ? 0.35 : 1} />
-              <line x1="-48" y1="35" x2="-6" y2="35" stroke="#93c5fd" strokeWidth="1" opacity={isRimShadowPass ? 0.35 : 1} />
-
-              <rect
-                x="6"
-                y="0"
-                width="42"
-                height="52"
-                rx="2"
-                fill={isRimShadowPass ? '#0f172a' : isDustStorm ? '#78350f' : '#1e3a8a'}
-                stroke={isRimShadowPass ? '#475569' : '#60a5fa'}
-                strokeWidth="2"
-              />
-              <line x1="27" y1="0" x2="27" y2="52" stroke="#93c5fd" strokeWidth="1" opacity={isRimShadowPass ? 0.35 : 1} />
-              <line x1="6" y1="18" x2="48" y2="18" stroke="#93c5fd" strokeWidth="1" opacity={isRimShadowPass ? 0.35 : 1} />
-              <line x1="6" y1="35" x2="48" y2="35" stroke="#93c5fd" strokeWidth="1" opacity={isRimShadowPass ? 0.35 : 1} />
-
-              {/* C5: Sombra proyectada sobre los paneles cuando weather.id === 'MOON-RIM-SHADOW-PASS' */}
-              {isRimShadowPass && (
-                <g pointerEvents="none">
-                  <polygon
-                    points="-62,-18 64,-4 56,56 -62,56"
-                    fill="rgba(2, 6, 23, 0.68)"
-                    stroke="#38bdf8"
-                    strokeDasharray="3 3"
-                    strokeWidth="1"
-                  />
-                  <text
-                    x="0"
-                    y="-8"
-                    textAnchor="middle"
-                    fill="#7dd3fc"
-                    fontSize="9.5"
-                    fontFamily="monospace"
-                    fontWeight="bold"
-                  >
-                    {lang === 'es' ? 'SOMBRA DEL CRÁTER' : 'CRATER RIM SHADOW'}
-                  </text>
+                {/* 2. Retícula de Plano de Ingeniería (Blueprint Grid) */}
+                <g stroke={gridStroke} strokeWidth="1" pointerEvents="none">
+                  <line x1="0" y1="56" x2="860" y2="56" />
+                  <line x1="0" y1="112" x2="860" y2="112" />
+                  <line x1="0" y1="168" x2="860" y2="168" />
+                  <line x1="0" y1="224" x2="860" y2="224" />
+                  <line x1="120" y1="0" x2="120" y2="280" />
+                  <line x1="260" y1="0" x2="260" y2="280" />
+                  <line x1="415" y1="0" x2="415" y2="280" />
+                  <line x1="575" y1="0" x2="575" y2="280" />
+                  <line x1="725" y1="0" x2="725" y2="280" />
                 </g>
-              )}
 
-              <rect
-                x="-32"
-                y="54"
-                width="64"
-                height="20"
-                rx="2"
-                fill="#1e293b"
-                stroke="#f59e0b"
-                strokeWidth="1.8"
-              />
-              <rect
-                x="-28"
-                y="58"
-                width={Math.max(4, Math.round((resources.power / 100) * 56))}
-                height="12"
-                rx="1"
-                fill={resources.power >= 30 ? '#22c55e' : resources.power >= 15 ? '#f59e0b' : '#ef4444'}
-              />
-              <text x="0" y="90" textAnchor="middle" fill="#f8fafc" fontSize="11" fontWeight="bold">
-                PWR {resources.power}% kWh
-              </text>
-            </g>
+                {/* Marcas de registro técnico (+) y cartela de plano */}
+                <g
+                  stroke={inkSecondary}
+                  strokeWidth="1"
+                  opacity="0.7"
+                  pointerEvents="none"
+                >
+                  <path d="M12 16h8M16 12v8M840 16h8M844 12v8M12 264h8M16 260v8M840 264h8M844 260v8" />
+                </g>
+                <text
+                  x="28"
+                  y="19"
+                  fill={inkSecondary}
+                  fontSize="9.5"
+                  fontFamily="IBM Plex Mono, monospace"
+                  letterSpacing="0.8"
+                >
+                  {isLunar
+                    ? `DWG // ARTEMIS-SHACKLETON-89.9S — DAY ${currentDay}`
+                    : `DWG // MARS-JEZERO-18.3N — SOL ${currentDay}`}
+                </text>
 
-            {/* MÓDULO 2 y 3: Domo Central ECLSS/MOXIE + Escudo de Agua Anti-Radiación */}
-            <g transform="translate(415, 165)">
-              <path
-                d="M-105,40 A110,95 0 0,1 105,40"
-                fill="rgba(56, 189, 248, 0.12)"
-                stroke={projection.effectiveShielding >= 60 ? '#38bdf8' : '#f59e0b'}
-                strokeWidth={projection.effectiveShielding >= 60 ? '3.5' : '1.8'}
-                strokeDasharray={projection.effectiveShielding >= 60 ? 'none' : '6 4'}
-                onClick={() => handleSelectModuleFromSvg('shielding')}
-                onKeyDown={(e) => handleSvgKeyDown(e, 'shielding')}
-                tabIndex={0}
-                role="button"
-                aria-label={
-                  lang === 'es'
-                    ? `Escudo de Radiación: ${projection.effectiveShielding}% efectivo`
-                    : `Radiation Shielding: ${projection.effectiveShielding}% effective`
-                }
-                className="svg-module-node"
-              />
+                {/* Estrellas de referencia astrométrica */}
+                <g fill={inkPrimary} opacity={isDustStorm ? 0.1 : isLunar ? 0.85 : 0.4}>
+                  <circle cx="150" cy="30" r="1.3" />
+                  <circle cx="220" cy="18" r="1.1" />
+                  <circle cx="320" cy="24" r="1.4" />
+                  <circle cx="490" cy="20" r="1.2" />
+                  <circle cx="610" cy="28" r="1.3" />
+                  <circle cx="685" cy="16" r="1.1" />
+                </g>
 
-              <g
-                className={`svg-module-node ${
-                  selectedModule === 'eclss' ? 'svg-node-selected' : ''
-                }`}
-                onClick={() => handleSelectModuleFromSvg('eclss')}
-                onKeyDown={(e) => handleSvgKeyDown(e, 'eclss')}
-                tabIndex={0}
-                role="button"
-                aria-label={
-                  lang === 'es'
-                    ? `Domo Hábitat y Soporte Vital: ${resources.lifeSupport}%`
-                    : `Habitat Dome and Life Support: ${resources.lifeSupport}%`
-                }
-              >
-                <path
-                  d="M-72,40 A72,62 0 0,1 72,40 Z"
-                  fill={isLowPowerBlackout ? '#334155' : '#cbd5e1'}
-                  stroke={isLowPowerBlackout ? '#64748b' : '#f8fafc'}
-                  strokeWidth="2.5"
-                />
-                <path
-                  d="M-64,38 A64,54 0 0,1 64,38"
-                  fill="none"
-                  stroke="#0284c7"
-                  strokeWidth={Math.max(2, Math.round((projection.effectiveShielding / 100) * 8))}
-                  opacity={isLowPowerBlackout ? 0.35 : 0.75}
-                />
-                <rect
-                  x="-16"
-                  y="12"
-                  width="32"
-                  height="28"
-                  rx="2"
-                  fill="#0f172a"
-                  stroke="#94a3b8"
-                  strokeWidth="2"
-                />
-                <circle
-                  cx="-38"
-                  cy="16"
-                  r="8"
-                  fill={isLowPowerBlackout ? '#090d16' : '#fef08a'}
-                  stroke={isLowPowerBlackout ? '#334155' : '#f59e0b'}
-                  strokeWidth="1.5"
-                />
-                <circle
-                  cx="38"
-                  cy="16"
-                  r="8"
-                  fill={isLowPowerBlackout ? '#090d16' : '#fef08a'}
-                  stroke={isLowPowerBlackout ? '#334155' : '#f59e0b'}
-                  strokeWidth="1.5"
-                />
-                <circle
-                  cx="0"
-                  cy="-6"
-                  r="10"
-                  fill={isLowPowerBlackout ? '#1e293b' : '#38bdf8'}
-                  stroke={isLowPowerBlackout ? '#ef4444' : '#bae6fd'}
-                  strokeWidth="1.5"
-                />
-                {isLowPowerBlackout && (
-                  <g pointerEvents="none">
-                    <circle cx="0" cy="-28" r="4.5" fill="#ef4444" />
+                {/* 3. Astro en el Cielo: Tierra (Luna) vs Fobos y Deimos (Marte) */}
+                {isLunar ? (
+                  <g transform="translate(772, 48)">
+                    <circle
+                      cx="0"
+                      cy="0"
+                      r="18"
+                      fill={terrainMid}
+                      stroke={inkPrimary}
+                      strokeWidth="1.6"
+                    />
+                    <path
+                      d="M-8,-6 L2,-10 L9,-2 L4,9 L-7,6 Z"
+                      fill="none"
+                      stroke={inkPrimary}
+                      strokeWidth="1.2"
+                    />
+                    <circle
+                      cx="0"
+                      cy="0"
+                      r="22"
+                      fill="none"
+                      stroke={inkSecondary}
+                      strokeWidth="1"
+                      strokeDasharray="3 2"
+                    />
                     <text
                       x="0"
-                      y="-36"
+                      y="33"
                       textAnchor="middle"
-                      fill="#fca5a5"
+                      fill={inkPrimary}
                       fontSize="9.5"
-                      fontFamily="monospace"
-                      fontWeight="bold"
+                      fontFamily="IBM Plex Mono, monospace"
                     >
-                      {lang === 'es' ? 'LUCES APAGADAS (<15% PWR)' : 'LIGHTS OFF (<15% PWR)'}
+                      TERRA // 1.3s
+                    </text>
+                  </g>
+                ) : (
+                  <g transform="translate(765, 48)">
+                    <ellipse
+                      cx="-14"
+                      cy="-2"
+                      rx="9"
+                      ry="6.5"
+                      fill={terrainMid}
+                      stroke={inkPrimary}
+                      strokeWidth="1.5"
+                    />
+                    <circle cx="-17" cy="-3" r="1.8" fill={inkPrimary} />
+                    <circle
+                      cx="14"
+                      cy="7"
+                      r="4.5"
+                      fill={terrainMid}
+                      stroke={inkPrimary}
+                      strokeWidth="1.3"
+                    />
+                    <text
+                      x="0"
+                      y="28"
+                      textAnchor="middle"
+                      fill={inkPrimary}
+                      fontSize="9.5"
+                      fontFamily="IBM Plex Mono, monospace"
+                    >
+                      PHOBOS / DEIMOS
                     </text>
                   </g>
                 )}
-                <text
-                  x="0"
-                  y="58"
-                  textAnchor="middle"
-                  fill="#f8fafc"
-                  fontSize="11"
-                  fontWeight="bold"
-                >
-                  O2 {resources.lifeSupport}% | SHD {projection.effectiveShielding}%
-                </text>
-              </g>
-            </g>
 
-            {/* MÓDULO 4: Invernadero Hidropónico Veggie */}
-            <g
-              transform="translate(625, 172)"
-              className={`svg-module-node ${
-                selectedModule === 'greenhouse' ? 'svg-node-selected' : ''
-              }`}
-              onClick={() => handleSelectModuleFromSvg('greenhouse')}
-              onKeyDown={(e) => handleSvgKeyDown(e, 'greenhouse')}
-              tabIndex={0}
-              role="button"
-              aria-label={
-                lang === 'es'
-                  ? `Invernadero Hidropónico Veggie: ${resources.food}% alimentos`
-                  : `Veggie Hydroponic Greenhouse: ${resources.food}% food`
-              }
-            >
-              <rect
-                x="-58"
-                y="0"
-                width="116"
-                height="36"
-                rx="14"
-                fill={isGreenhouseWilted ? '#292524' : isLowPowerBlackout ? '#0f172a' : '#064e3b'}
-                stroke={isGreenhouseWilted ? '#a16207' : '#34d399'}
-                strokeWidth="2.2"
-              />
-              {isGreenhouseWilted ? (
-                <g>
-                  <ellipse cx="-32" cy="24" rx="7" ry="4" fill="#a16207" />
-                  <path d="M-32,28 Q-36,18 -41,22" stroke="#ca8a04" strokeWidth="2" fill="none" />
-                  <ellipse cx="-10" cy="25" rx="8" ry="4" fill="#854d0e" />
-                  <path d="M-10,28 Q-6,19 -1,24" stroke="#a16207" strokeWidth="2" fill="none" />
-                  <ellipse cx="14" cy="24" rx="7" ry="4" fill="#a16207" />
-                  <path d="M14,28 Q10,19 5,23" stroke="#ca8a04" strokeWidth="2" fill="none" />
-                  <ellipse cx="35" cy="25" rx="6" ry="3.5" fill="#854d0e" />
+                {/* 4. Vector Solar y Clima Espacial DONKI */}
+                <g
+                  transform="translate(64, 54)"
+                  opacity={isRimShadowPass ? 0.45 : isDustStorm ? 0.55 : 1}
+                >
+                  <circle
+                    cx="0"
+                    cy="0"
+                    r={isSolarStorm ? 20 : 15}
+                    fill={isSolarStorm ? '#FC3D21' : terrainMid}
+                    stroke={isSolarStorm ? '#FC3D21' : inkPrimary}
+                    strokeWidth="1.8"
+                  />
+                  <circle
+                    cx="0"
+                    cy="0"
+                    r={isSolarStorm ? 28 : 21}
+                    fill="none"
+                    stroke={isSolarStorm ? '#FC3D21' : inkSecondary}
+                    strokeWidth="1.4"
+                    strokeDasharray="4 3"
+                  />
                   <text
                     x="0"
-                    y="-7"
+                    y="39"
                     textAnchor="middle"
-                    fill="#fde047"
+                    fill={isSolarStorm ? '#FC3D21' : inkPrimary}
                     fontSize="9.5"
-                    fontFamily="monospace"
+                    fontFamily="IBM Plex Mono, monospace"
                     fontWeight="bold"
                   >
-                    {lang === 'es' ? 'CULTIVO MARCHITO' : 'WILTED CROPS'}
+                    {isRimShadowPass
+                      ? 'LOW HORIZON SUN'
+                      : weather.type === 'NOMINAL'
+                        ? 'SOL // NOMINAL'
+                        : `DONKI // ${weather.type}`}
                   </text>
                 </g>
-              ) : (
-                <g>
-                  <circle cx="-32" cy="18" r="8" fill="#22c55e" />
-                  <circle cx="-10" cy="16" r="9" fill="#4ade80" />
-                  <circle cx="14" cy="18" r="8" fill="#22c55e" />
-                  <circle cx="35" cy="17" r="7" fill="#4ade80" />
-                </g>
-              )}
-              <text x="0" y="53" textAnchor="middle" fill="#f8fafc" fontSize="11" fontWeight="bold">
-                VEGGIE {resources.food}%
-              </text>
-            </g>
 
-            {/* Antena de Espacio Profundo */}
-            <g transform="translate(275, 158)">
-              <line x1="0" y1="45" x2="0" y2="15" stroke="#94a3b8" strokeWidth="3" />
-              <path d="M-16,8 Q0,24 16,8" fill="none" stroke="#f59e0b" strokeWidth="2.5" />
-              <circle
-                cx="0"
-                cy="6"
-                r="3.5"
-                fill={commState === 'transmitting' ? '#22c55e' : '#f59e0b'}
-              />
-            </g>
+                {/* Vectores de radiación solar durante tormenta DONKI (FLR / SEP / CME) */}
+                {isSolarStorm && (
+                  <g
+                    stroke="#FC3D21"
+                    strokeWidth="1.6"
+                    strokeDasharray="7 5"
+                    opacity="0.9"
+                    pointerEvents="none"
+                  >
+                    <line x1="94" y1="62" x2="365" y2="142" className="solar-ray-anim" />
+                    <line x1="88" y1="76" x2="345" y2="172" className="solar-ray-anim" />
+                    <line x1="100" y1="48" x2="435" y2="122" className="solar-ray-anim" />
+                  </g>
+                )}
 
-            {/* C5: Velo de polvo naranja y ráfagas en DUST_STORM */}
-            {isDustStorm && (
-              <g pointerEvents="none">
-                <rect
-                  x="0"
-                  y="0"
-                  width="860"
-                  height="270"
-                  fill="rgba(217, 119, 6, 0.42)"
+                {/* 5. Relieve Planetario (Cráter Shackleton Lunar vs Mesetas del Delta Jezero) */}
+                {isLunar ? (
+                  <path
+                    d="M0,186 L88,124 L185,172 L310,128 L455,174 L615,132 L750,168 L860,152 L860,280 L0,280 Z"
+                    fill={terrainMid}
+                    stroke={inkSecondary}
+                    strokeWidth="1.4"
+                  />
+                ) : (
+                  <path
+                    d="M0,180 L95,146 L215,146 L265,172 L395,138 L515,138 L575,169 L710,142 L860,166 L860,280 L0,280 Z"
+                    fill={terrainMid}
+                    stroke={inkSecondary}
+                    strokeWidth="1.4"
+                  />
+                )}
+
+                {/* Plano de suelo de ingeniería y cota de nivel */}
+                <path
+                  d="M0,198 L860,198 L860,280 L0,280 Z"
+                  fill={terrainFg}
+                  stroke={inkPrimary}
+                  strokeWidth="1.5"
                 />
-                <g stroke="rgba(253, 186, 116, 0.55)" strokeWidth="2" strokeDasharray="18 10">
-                  <line x1="40" y1="85" x2="820" y2="65" />
-                  <line x1="15" y1="145" x2="845" y2="120" />
-                  <line x1="60" y1="210" x2="830" y2="190" />
+                {/* Achurado técnico del subsuelo (regolito) */}
+                <g stroke={gridStroke} strokeWidth="1" pointerEvents="none">
+                  <line x1="40" y1="198" x2="10" y2="280" />
+                  <line x1="140" y1="198" x2="110" y2="280" />
+                  <line x1="240" y1="198" x2="210" y2="280" />
+                  <line x1="340" y1="198" x2="310" y2="280" />
+                  <line x1="440" y1="198" x2="410" y2="280" />
+                  <line x1="540" y1="198" x2="510" y2="280" />
+                  <line x1="640" y1="198" x2="610" y2="280" />
+                  <line x1="740" y1="198" x2="710" y2="280" />
+                  <line x1="840" y1="198" x2="810" y2="280" />
                 </g>
-                <g fill="#fdba74" opacity="0.65">
-                  <circle cx="190" cy="110" r="2.5" />
-                  <circle cx="340" cy="95" r="3" />
-                  <circle cx="490" cy="135" r="2.2" />
-                  <circle cx="660" cy="105" r="2.8" />
-                  <circle cx="570" cy="195" r="2.5" />
+
+                {/* 6. Depósito ISRU: Trampa Fría de Hielo Shackleton (Luna) vs Sedimentos Delta Jezero (Marte) */}
+                {isLunar ? (
+                  <g transform="translate(755, 224)">
+                    <rect
+                      x="-64"
+                      y="-10"
+                      width="128"
+                      height="22"
+                      fill={skyBg}
+                      stroke={inkPrimary}
+                      strokeWidth="1.5"
+                    />
+                    <path
+                      d="M-48,8 L-30,-4 L-12,8 L8,-5 L28,8 L46,-3"
+                      fill="none"
+                      stroke={inkPrimary}
+                      strokeWidth="1.5"
+                    />
+                    {/* Rótulo con línea guía */}
+                    <polyline
+                      points="0,-10 12,-24 62,-24"
+                      fill="none"
+                      stroke={calloutStroke}
+                      strokeWidth="1.2"
+                    />
+                    <circle cx="0" cy="-10" r="2.2" fill={calloutStroke} />
+                    <text
+                      x="0"
+                      y="25"
+                      textAnchor="middle"
+                      fill={inkPrimary}
+                      fontSize="9.5"
+                      fontFamily="IBM Plex Mono, monospace"
+                    >
+                      ISRU // H2O ICE TRAP
+                    </text>
+                  </g>
+                ) : (
+                  <g transform="translate(755, 224)">
+                    <rect
+                      x="-64"
+                      y="-10"
+                      width="128"
+                      height="22"
+                      fill={skyBg}
+                      stroke={inkPrimary}
+                      strokeWidth="1.5"
+                    />
+                    <path
+                      d="M-50,-2 H50 M-42,4 H42"
+                      stroke={inkPrimary}
+                      strokeWidth="1.3"
+                      strokeDasharray="6 3"
+                    />
+                    <circle cx="0" cy="-10" r="2.2" fill={calloutStroke} />
+                    <text
+                      x="0"
+                      y="25"
+                      textAnchor="middle"
+                      fill={inkPrimary}
+                      fontSize="9.5"
+                      fontFamily="IBM Plex Mono, monospace"
+                    >
+                      ISRU // JEZERO DELTA
+                    </text>
+                  </g>
+                )}
+
+                {/* 7. MÓDULO 1: Granja Solar y Banco de Baterías (con línea guía de plano) */}
+                <g
+                  transform="translate(142, 146)"
+                  className={`svg-module-node ${
+                    selectedModule === 'solar' ? 'svg-node-selected' : ''
+                  }`}
+                  onClick={() => handleSelectModuleFromSvg('solar')}
+                  onKeyDown={(e) => handleSvgKeyDown(e, 'solar')}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={
+                    lang === 'es'
+                      ? `Granja Solar y Baterías: ${resources.power}% de energía`
+                      : `Solar Array and Batteries: ${resources.power}% power`
+                  }
+                >
+                  {/* Rótulo Técnico con Línea Guía: SOLAR ARRAY */}
+                  <polyline
+                    points="-27,0 -42,-26 58,-26"
+                    fill="none"
+                    stroke={calloutStroke}
+                    strokeWidth="1.2"
+                  />
+                  <circle cx="-27" cy="0" r="2.5" fill={calloutStroke} />
+                  <text
+                    x="-38"
+                    y="-31"
+                    fill={inkPrimary}
+                    fontSize="9.5"
+                    fontFamily="IBM Plex Mono, monospace"
+                    fontWeight="bold"
+                  >
+                    ARRAY 01 — SOLAR PV
+                  </text>
+
+                  {/* Panel izquierdo */}
+                  <rect
+                    x="-48"
+                    y="0"
+                    width="42"
+                    height="52"
+                    fill={isRimShadowPass ? '#070E17' : isDustStorm ? '#4E2417' : terrainMid}
+                    stroke={inkPrimary}
+                    strokeWidth="1.8"
+                  />
+                  <line
+                    x1="-27"
+                    y1="0"
+                    x2="-27"
+                    y2="52"
+                    stroke={inkSecondary}
+                    strokeWidth="1"
+                  />
+                  <line
+                    x1="-48"
+                    y1="17"
+                    x2="-6"
+                    y2="17"
+                    stroke={inkSecondary}
+                    strokeWidth="1"
+                  />
+                  <line
+                    x1="-48"
+                    y1="34"
+                    x2="-6"
+                    y2="34"
+                    stroke={inkSecondary}
+                    strokeWidth="1"
+                  />
+
+                  {/* Panel derecho */}
+                  <rect
+                    x="6"
+                    y="0"
+                    width="42"
+                    height="52"
+                    fill={isRimShadowPass ? '#070E17' : isDustStorm ? '#4E2417' : terrainMid}
+                    stroke={inkPrimary}
+                    strokeWidth="1.8"
+                  />
+                  <line x1="27" y1="0" x2="27" y2="52" stroke={inkSecondary} strokeWidth="1" />
+                  <line x1="6" y1="17" x2="48" y2="17" stroke={inkSecondary} strokeWidth="1" />
+                  <line x1="6" y1="34" x2="48" y2="34" stroke={inkSecondary} strokeWidth="1" />
+
+                  {/* C5: Sombra proyectada sobre los paneles cuando weather.id === 'MOON-RIM-SHADOW-PASS' */}
+                  {isRimShadowPass && (
+                    <g pointerEvents="none">
+                      <polygon
+                        points="-58,-12 58,-2 54,54 -58,54"
+                        fill="rgba(5, 10, 20, 0.76)"
+                        stroke="#FC3D21"
+                        strokeDasharray="4 3"
+                        strokeWidth="1.5"
+                      />
+                      <text
+                        x="0"
+                        y="-14"
+                        textAnchor="middle"
+                        fill="#FC3D21"
+                        fontSize="9.5"
+                        fontFamily="IBM Plex Mono, monospace"
+                        fontWeight="bold"
+                      >
+                        {lang === 'es' ? 'SOMBRA DEL CRÁTER' : 'CRATER RIM SHADOW'}
+                      </text>
+                    </g>
+                  )}
+
+                  {/* Banco de baterías */}
+                  <rect
+                    x="-36"
+                    y="54"
+                    width="72"
+                    height="18"
+                    fill={skyBg}
+                    stroke={inkPrimary}
+                    strokeWidth="1.6"
+                  />
+                  <rect
+                    x="-32"
+                    y="58"
+                    width={Math.max(4, Math.round((resources.power / 100) * 64))}
+                    height="10"
+                    fill={
+                      resources.power >= 30
+                        ? '#2E7D4F'
+                        : resources.power >= 15
+                          ? inkPrimary
+                          : '#FC3D21'
+                    }
+                  />
+                  <text
+                    x="0"
+                    y="88"
+                    textAnchor="middle"
+                    fill={inkPrimary}
+                    fontSize="10.5"
+                    fontFamily="IBM Plex Mono, monospace"
+                    fontWeight="bold"
+                  >
+                    BATT // {resources.power}% kWh
+                  </text>
                 </g>
-              </g>
-            )}
-          </svg>
+
+                {/* 8. Antena de Espacio Profundo DSN (con línea guía) */}
+                <g transform="translate(274, 156)">
+                  <line x1="0" y1="42" x2="0" y2="12" stroke={inkPrimary} strokeWidth="2.2" />
+                  <line x1="-10" y1="42" x2="10" y2="42" stroke={inkPrimary} strokeWidth="2" />
+                  <path
+                    d="M-16,4 Q0,22 16,4"
+                    fill="none"
+                    stroke={inkPrimary}
+                    strokeWidth="2"
+                  />
+                  <circle
+                    cx="0"
+                    cy="2"
+                    r="3.2"
+                    fill={commState === 'transmitting' ? '#2E7D4F' : '#FC3D21'}
+                  />
+                  <polyline
+                    points="0,2 -14,-18 -64,-18"
+                    fill="none"
+                    stroke={calloutStroke}
+                    strokeWidth="1"
+                  />
+                  <text
+                    x="-64"
+                    y="-22"
+                    fill={inkSecondary}
+                    fontSize="8.5"
+                    fontFamily="IBM Plex Mono, monospace"
+                  >
+                    DSN RELAY
+                  </text>
+                </g>
+
+                {/* 9. MÓDULO 2 y 3: Domo Hábitat ECLSS/MOXIE + Escudo de Agua Anti-Radiación */}
+                <g transform="translate(415, 162)">
+                  {/* Rótulo con línea guía para el Escudo de Agua */}
+                  <polyline
+                    points="-68,-38 -92,-64 18,-64"
+                    fill="none"
+                    stroke={calloutStroke}
+                    strokeWidth="1.2"
+                  />
+                  <circle cx="-68" cy="-38" r="2.5" fill={calloutStroke} />
+                  <text
+                    x="-90"
+                    y="-69"
+                    fill={inkPrimary}
+                    fontSize="9.5"
+                    fontFamily="IBM Plex Mono, monospace"
+                    fontWeight="bold"
+                  >
+                    SHIELD 02 — H2O WALL ({projection.effectiveShielding}%)
+                  </text>
+
+                  {/* Arco exterior de blindaje contra radiación */}
+                  <path
+                    d="M-104,36 A108,92 0 0,1 104,36"
+                    fill="none"
+                    stroke={projection.effectiveShielding >= 60 ? inkPrimary : '#FC3D21'}
+                    strokeWidth={projection.effectiveShielding >= 60 ? '2.8' : '1.8'}
+                    strokeDasharray={projection.effectiveShielding >= 60 ? 'none' : '6 4'}
+                    onClick={() => handleSelectModuleFromSvg('shielding')}
+                    onKeyDown={(e) => handleSvgKeyDown(e, 'shielding')}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={
+                      lang === 'es'
+                        ? `Escudo de Radiación: ${projection.effectiveShielding}% efectivo`
+                        : `Radiation Shielding: ${projection.effectiveShielding}% effective`
+                    }
+                    className="svg-module-node"
+                  />
+
+                  {/* Domo central presurizado ECLSS / MOXIE */}
+                  <g
+                    className={`svg-module-node ${
+                      selectedModule === 'eclss' ? 'svg-node-selected' : ''
+                    }`}
+                    onClick={() => handleSelectModuleFromSvg('eclss')}
+                    onKeyDown={(e) => handleSvgKeyDown(e, 'eclss')}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={
+                      lang === 'es'
+                        ? `Domo Hábitat y Soporte Vital: ${resources.lifeSupport}%`
+                        : `Habitat Dome and Life Support: ${resources.lifeSupport}%`
+                    }
+                  >
+                    {/* Rótulo con línea guía: HABITAT — ECLSS */}
+                    <polyline
+                      points="28,-22 52,-44 156,-44"
+                      fill="none"
+                      stroke={calloutStroke}
+                      strokeWidth="1.2"
+                    />
+                    <circle cx="28" cy="-22" r="2.5" fill={calloutStroke} />
+                    <text
+                      x="54"
+                      y="-49"
+                      fill={inkPrimary}
+                      fontSize="9.5"
+                      fontFamily="IBM Plex Mono, monospace"
+                      fontWeight="bold"
+                    >
+                      {isLunar ? 'HABITAT — ECLSS' : 'HABITAT — ECLSS + MOXIE'}
+                    </text>
+
+                    {/* Casco estructural del hábitat */}
+                    <path
+                      d="M-72,36 A72,62 0 0,1 72,36 Z"
+                      fill={isLowPowerBlackout ? '#090F18' : terrainMid}
+                      stroke={inkPrimary}
+                      strokeWidth="2.2"
+                    />
+                    {/* Costillas estructurales geodésicas del plano */}
+                    <line
+                      x1="0"
+                      y1="-26"
+                      x2="0"
+                      y2="36"
+                      stroke={inkSecondary}
+                      strokeWidth="1"
+                      strokeDasharray="3 2"
+                    />
+                    <path
+                      d="M-62,34 A62,52 0 0,1 62,34"
+                      fill="none"
+                      stroke={inkSecondary}
+                      strokeWidth={Math.max(1.5, Math.round((projection.effectiveShielding / 100) * 5))}
+                    />
+
+                    {/* Esclusa EVA central */}
+                    <rect
+                      x="-15"
+                      y="10"
+                      width="30"
+                      height="26"
+                      fill={skyBg}
+                      stroke={inkPrimary}
+                      strokeWidth="1.8"
+                    />
+
+                    {/* Escotillas iluminadas (C5: se apagan si power < 15) */}
+                    <rect
+                      x="-46"
+                      y="10"
+                      width="16"
+                      height="12"
+                      fill={isLowPowerBlackout ? '#05080D' : '#F2EBDD'}
+                      stroke={inkPrimary}
+                      strokeWidth="1.5"
+                    />
+                    <rect
+                      x="30"
+                      y="10"
+                      width="16"
+                      height="12"
+                      fill={isLowPowerBlackout ? '#05080D' : '#F2EBDD'}
+                      stroke={inkPrimary}
+                      strokeWidth="1.5"
+                    />
+
+                    {/* C5: Alerta de apagón cuando power < 15 */}
+                    {isLowPowerBlackout && (
+                      <g pointerEvents="none">
+                        <circle cx="0" cy="-12" r="4.5" fill="#FC3D21" />
+                        <text
+                          x="0"
+                          y="-28"
+                          textAnchor="middle"
+                          fill="#FC3D21"
+                          fontSize="9.5"
+                          fontFamily="IBM Plex Mono, monospace"
+                          fontWeight="bold"
+                        >
+                          {lang === 'es' ? 'APAGÓN (<15% PWR)' : 'BLACKOUT (<15% PWR)'}
+                        </text>
+                      </g>
+                    )}
+
+                    <text
+                      x="0"
+                      y="54"
+                      textAnchor="middle"
+                      fill={inkPrimary}
+                      fontSize="10.5"
+                      fontFamily="IBM Plex Mono, monospace"
+                      fontWeight="bold"
+                    >
+                      ECLSS O2 {resources.lifeSupport}% // SHD {projection.effectiveShielding}%
+                    </text>
+                  </g>
+                </g>
+
+                {/* 10. MÓDULO 4: Invernadero Hidropónico Veggie (con línea guía y estado marchito C5) */}
+                <g
+                  transform="translate(622, 162)"
+                  className={`svg-module-node ${
+                    selectedModule === 'greenhouse' ? 'svg-node-selected' : ''
+                  }`}
+                  onClick={() => handleSelectModuleFromSvg('greenhouse')}
+                  onKeyDown={(e) => handleSvgKeyDown(e, 'greenhouse')}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={
+                    lang === 'es'
+                      ? `Invernadero Hidropónico Veggie: ${resources.food}% alimentos`
+                      : `Veggie Hydroponic Greenhouse: ${resources.food}% food`
+                  }
+                >
+                  {/* Rótulo con línea guía: AGR 04 — VEGGIE */}
+                  <polyline
+                    points="0,0 16,-24 118,-24"
+                    fill="none"
+                    stroke={calloutStroke}
+                    strokeWidth="1.2"
+                  />
+                  <circle cx="0" cy="0" r="2.5" fill={calloutStroke} />
+                  <text
+                    x="20"
+                    y="-29"
+                    fill={inkPrimary}
+                    fontSize="9.5"
+                    fontFamily="IBM Plex Mono, monospace"
+                    fontWeight="bold"
+                  >
+                    AGR 04 — VEGGIE DOME
+                  </text>
+
+                  {/* Cilindro técnico de invernadero */}
+                  <rect
+                    x="-58"
+                    y="0"
+                    width="116"
+                    height="36"
+                    rx="2"
+                    fill={skyBg}
+                    stroke={isGreenhouseWilted ? '#FC3D21' : inkPrimary}
+                    strokeWidth="1.8"
+                  />
+                  {/* Divisiones estructurales del módulo agrícola */}
+                  <line x1="-20" y1="0" x2="-20" y2="36" stroke={inkSecondary} strokeWidth="1" />
+                  <line x1="20" y1="0" x2="20" y2="36" stroke={inkSecondary} strokeWidth="1" />
+
+                  {/* C5: Cultivos marchitos si food < 25 vs brotes sanos */}
+                  {isGreenhouseWilted ? (
+                    <g>
+                      <path
+                        d="M-38,30 L-38,20 L-45,25 M-2,30 L-2,20 L6,25 M34,30 L34,20 L27,25"
+                        fill="none"
+                        stroke="#FC3D21"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                      <text
+                        x="0"
+                        y="-7"
+                        textAnchor="middle"
+                        fill="#FC3D21"
+                        fontSize="9.5"
+                        fontFamily="IBM Plex Mono, monospace"
+                        fontWeight="bold"
+                      >
+                        {lang === 'es' ? 'CULTIVO MARCHITO (<25%)' : 'WILTED CROPS (<25%)'}
+                      </text>
+                    </g>
+                  ) : (
+                    <g>
+                      {/* Tres cámaras de brotes hidropónicos sanos */}
+                      <path
+                        d="M-38,30 V14 M-38,22 L-45,16 M-38,20 L-31,14"
+                        stroke="#2E7D4F"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M0,30 V12 M0,21 L-7,15 M0,19 L7,13"
+                        stroke="#2E7D4F"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M38,30 V14 M38,22 L31,16 M38,20 L45,14"
+                        stroke="#2E7D4F"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                      />
+                    </g>
+                  )}
+
+                  <text
+                    x="0"
+                    y="54"
+                    textAnchor="middle"
+                    fill={inkPrimary}
+                    fontSize="10.5"
+                    fontFamily="IBM Plex Mono, monospace"
+                    fontWeight="bold"
+                  >
+                    VEGGIE // FOOD {resources.food}%
+                  </text>
+                </g>
+
+                {/* Conductos de potencia e interconexión sobre superficie */}
+                <g
+                  stroke={inkSecondary}
+                  strokeWidth="1.5"
+                  strokeDasharray="4 2"
+                  pointerEvents="none"
+                >
+                  <line x1="190" y1="198" x2="340" y2="198" />
+                  <line x1="490" y1="198" x2="564" y2="198" />
+                </g>
+
+                {/* 11. C5: Velo de Polvo Marciano y Vectores de Viento en DUST_STORM */}
+                {isDustStorm && (
+                  <g pointerEvents="none">
+                    <rect
+                      x="0"
+                      y="0"
+                      width="860"
+                      height="280"
+                      fill="rgba(194, 65, 12, 0.38)"
+                    />
+                    <g stroke="#FDBA74" strokeWidth="1.8" strokeDasharray="16 8">
+                      <line x1="35" y1="84" x2="825" y2="66" />
+                      <line x1="20" y1="142" x2="840" y2="122" />
+                      <line x1="55" y1="212" x2="830" y2="192" />
+                    </g>
+                    <text
+                      x="430"
+                      y="104"
+                      textAnchor="middle"
+                      fill="#F2EBDD"
+                      fontSize="10.5"
+                      fontFamily="IBM Plex Mono, monospace"
+                      fontWeight="bold"
+                    >
+                      ALERT // MARTIAN GLOBAL DUST VEIL — SOLAR EFFICIENCY REDUCED
+                    </text>
+                  </g>
+                )}
+              </svg>
+            );
+          })()}
         </div>
 
         {/* C3: Botones plegables para Detalles de Módulos y Simulador de Retraso (plegados por defecto) */}
