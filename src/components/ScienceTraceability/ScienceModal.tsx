@@ -451,7 +451,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
             <div className="science-annex-doc-meta">
               <span className="science-annex-doc-code">
                 <ScienceIcon size={14} />
-                <span>ANEXO NASA</span>
+                <span>{lang === 'es' ? 'ANEXO NASA' : 'NASA ANNEX'}</span>
               </span>
               <SourceStamp
                 source="DONKI"
@@ -763,7 +763,13 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                       <div className="science-library-card-header">
                         <span>
                           {ev.type} //{' '}
-                          {ev.isLiveNasaData ? 'EN VIVO' : 'ARCHIVO'}
+                          {ev.isLiveNasaData
+                            ? lang === 'es'
+                              ? 'EN VIVO'
+                              : 'LIVE'
+                            : lang === 'es'
+                              ? 'ARCHIVO'
+                              : 'ARCHIVE'}
                         </span>
                         <span>{ev.startTime.slice(0, 10)}</span>
                       </div>
