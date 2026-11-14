@@ -22,6 +22,7 @@ import {
   SpaceWeatherEvent,
 } from '../../types/mission';
 import {
+  GlossaryTermWithEvidence,
   NASA_OSDR_STUDIES,
   NasaGalleryImage,
   NasaOsdrStudy,
@@ -827,7 +828,6 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                     }}
                   >
                     <span className="nasa-badge">
-                      🎯{' '}
                       {lang === 'es'
                         ? 'TÉRMINO CIENTÍFICO DESTACADO DEL DILEMA'
                         : 'HIGHLIGHTED DILEMMA SCIENCE TERM'}
@@ -850,8 +850,28 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                     {focusedTerm.shortDefinition[lang]}
                   </p>
                   <p className="glossary-analogy">
-                    💡 {focusedTerm.kidAnalogy[lang]}
+                    {focusedTerm.kidAnalogy[lang]}
                   </p>
+                  {(focusedTerm as GlossaryTermWithEvidence).howWeKnow && (
+                    <p
+                      className="glossary-how-we-know"
+                      style={{
+                        fontSize: '0.8rem',
+                        marginTop: '0.2rem',
+                      }}
+                    >
+                      <strong>
+                        {lang === 'es'
+                          ? '¿Cómo lo sabemos? '
+                          : 'How do we know? '}
+                      </strong>
+                      {
+                        (focusedTerm as GlossaryTermWithEvidence).howWeKnow?.[
+                          lang
+                        ]
+                      }
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -860,6 +880,9 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   const isFocused = Boolean(
                     focusTermId && item.id === focusTermId
                   );
+                  const howWeKnow =
+                    (item as GlossaryTermWithEvidence).howWeKnow ||
+                    getGlossaryTerm(item.id)?.howWeKnow;
                   return (
                     <article
                       key={item.id}
@@ -876,10 +899,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                       }
                     >
                       <div className="glossary-item-header">
-                        <h4>
-                          {isFocused ? '🎯 ' : ''}
-                          {item.term[lang]}
-                        </h4>
+                        <h4>{item.term[lang]}</h4>
                         <span className="source-tag">
                           NASA {item.nasaSource}
                         </span>
@@ -888,8 +908,27 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                         {item.shortDefinition[lang]}
                       </p>
                       <p className="glossary-analogy">
-                        💡 {item.kidAnalogy[lang]}
+                        {item.kidAnalogy[lang]}
                       </p>
+                      {howWeKnow && (
+                        <p
+                          className="glossary-how-we-know"
+                          style={{
+                            fontSize: '0.78rem',
+                            lineHeight: 1.4,
+                            paddingTop: '0.35rem',
+                            borderTop:
+                              '1px dashed var(--rule, rgba(27,31,42,0.25))',
+                          }}
+                        >
+                          <strong>
+                            {lang === 'es'
+                              ? '¿Cómo lo sabemos? '
+                              : 'How do we know? '}
+                          </strong>
+                          {howWeKnow[lang]}
+                        </p>
+                      )}
                       <a
                         href={item.nasaStudyOrUrl}
                         target="_blank"
@@ -902,8 +941,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                         }}
                       >
                         {lang === 'es'
-                          ? 'Fuente Oficial de la NASA ↗'
-                          : 'Official NASA Source ↗'}
+                          ? 'Fuente Oficial de la NASA [REF]'
+                          : 'Official NASA Source [REF]'}
                       </a>
                     </article>
                   );
