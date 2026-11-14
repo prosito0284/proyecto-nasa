@@ -1509,3 +1509,203 @@ body {
   font-size: 0.96rem;
 }
 
+/* C4: TurnReport Component */
+.turn-report-card {
+  background: var(--bg-panel-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.turn-report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.turn-report-title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  margin-top: 0.15rem;
+}
+
+.turn-secondary-deltas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.turn-pill-metric {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: var(--bg-panel-subtle);
+  border: 1px solid var(--border-subtle);
+}
+
+.turn-bars-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 0.85rem;
+  background: var(--bg-panel-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+}
+
+.turn-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.turn-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.84rem;
+}
+
+.turn-bar-name {
+  font-weight: 600;
+}
+
+.turn-bar-numbers {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.turn-prev-num {
+  color: var(--text-secondary);
+}
+
+.turn-arrow {
+  color: var(--text-secondary);
+}
+
+.turn-curr-num {
+  color: var(--text-primary);
+}
+
+.turn-delta-badge {
+  padding: 0.1rem 0.4rem;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.74rem;
+}
+
+.turn-delta-pos {
+  color: var(--status-nominal);
+  background: hsla(152, 68%, 46%, 0.16);
+}
+
+.turn-delta-neg {
+  color: hsl(24, 95%, 68%);
+  background: hsla(16, 88%, 54%, 0.18);
+}
+
+.turn-delta-neutral {
+  color: var(--text-secondary);
+  background: hsla(215, 16%, 62%, 0.14);
+}
+
+.turn-bar-track {
+  position: relative;
+  height: 12px;
+  background: var(--bg-space-deep);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.turn-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.turn-bar-prev-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.75);
+  pointer-events: none;
+}
+
+.turn-consequences-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.turn-consequences-heading {
+  font-family: var(--font-display);
+  font-size: 0.96rem;
+  color: var(--accent-amber);
+}
+
+.turn-consequences-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.turn-consequence-item {
+  background: var(--bg-panel-subtle);
+  border-left: 4px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.84rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.turn-consequence-item.turn-log-critical {
+  border-left-color: var(--status-critical);
+}
+
+.turn-consequence-item.turn-log-warning {
+  border-left-color: var(--status-warning);
+}
+
+.turn-consequence-item.turn-log-success {
+  border-left-color: var(--status-nominal);
+}
+
+.turn-consequence-item.turn-log-info {
+  border-left-color: var(--accent-amber);
+}
+
+.turn-consequence-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.turn-report-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.turn-continue-btn {
+  min-height: 48px;
+  padding: 0.65rem 1.35rem;
+}
+
+
