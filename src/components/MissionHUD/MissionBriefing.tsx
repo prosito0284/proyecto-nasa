@@ -1,14 +1,26 @@
 /**
  * BLOQUE C (Asignado a: Antigravity Principal - Rama: feat/outpost-ui)
- * C1 — Pantalla de Bienvenida y Entrenamiento (MissionBriefing.tsx)
- * Permite a niños de 7 a 12 años entender el ciclo de juego en 3 pasos sencillos
- * ("reparte la energía → elige → mira la consecuencia de mañana") y elegir entre
+ * C1 & C9 — Portada del Cuaderno de Vuelo (MissionBriefing.tsx)
+ * Explica el ciclo operativo en 3 pasos y permite elegir entre
  * Luna (Cráter Shackleton - Artemis) o Marte (Cráter Jezero - Perseverance).
  */
 
 import React, { useState } from 'react';
 import { Language, OutpostSiteConfig, OutpostSiteId } from '../../types/mission';
 import { missionAudio } from '../../utils/sound';
+import {
+  AntennaIcon,
+  ArrowIcon,
+  BatteryIcon,
+  ClockIcon,
+  DropletIcon,
+  HelmetIcon,
+  LanguageIcon,
+  LeafIcon,
+  ShieldIcon,
+  SlidersIcon,
+  SunIcon,
+} from '../icons';
 
 export interface MissionBriefingProps {
   lang: Language;
@@ -29,22 +41,22 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
   const tutorialSteps = [
     {
       step: '1',
-      icon: '⚡',
+      icon: <BatteryIcon size={22} />,
       title: {
         es: '1. Reparte la Energía',
         en: '1. Budget Your Power',
       },
       desc: {
-        es: 'Elige un modo de energía para el oxígeno, el escudo solar y el invernadero. ¡Si gastas más de 100%, tu batería bajará!',
-        en: 'Pick a power mode for oxygen, solar shielding, and the greenhouse. Using over 100% drains your battery!',
+        es: 'Asigna energía entre oxígeno, blindaje solar e invernadero. Superar el 100% de carga consume reserva de batería.',
+        en: 'Assign power across oxygen, solar shielding, and the greenhouse. Exceeding 100% load drains battery reserves.',
       },
     },
     {
       step: '2',
-      icon: '🎯',
+      icon: <SlidersIcon size={22} />,
       title: {
-        es: '2. Elige tu Trade-Off',
-        en: '2. Make a Trade-Off Choice',
+        es: '2. Firma la Orden del Día',
+        en: '2. Sign the Daily Work Order',
       },
       desc: {
         es: 'En el espacio ninguna decisión es gratis: proteger un sistema hoy siempre cuesta otro recurso.',
@@ -53,14 +65,14 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
     },
     {
       step: '3',
-      icon: '⏱️',
+      icon: <ClockIcon size={22} />,
       title: {
-        es: '3. Mira la Consecuencia de Mañana',
-        en: '3. Watch Tomorrow’s Consequence',
+        es: '3. Revisa la Consecuencia de Mañana',
+        en: '3. Review Tomorrow’s Consequence',
       },
       desc: {
-        es: 'Lo que decides hoy afecta a tu base mañana. ¡Mantén viva a la tripulación durante los 8 días para graduarte!',
-        en: 'What you choose today echoes tomorrow. Keep your crew safe across all 8 days to graduate!',
+        es: 'Cada decisión altera los sistemas del día siguiente. Mantén operativa la base durante los 8 días de misión.',
+        en: 'Every decision alters tomorrow’s systems. Keep the outpost operational across all 8 mission days.',
       },
     },
   ];
@@ -77,35 +89,36 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
       id="mission-briefing-screen"
     >
       <div className="briefing-hero">
-        <span className="nasa-badge">NASA SPACE APPS 2026 • JUNIOR ASTRONAUT TRAINER</span>
+        <span className="nasa-badge">NASA FLIGHT PLAN • JUNIOR ASTRONAUT MISSION TRAINER</span>
         <h2 id="briefing-main-title" className="briefing-title">
+          <HelmetIcon size={24} />{' '}
           {lang === 'es'
-            ? '👨‍🚀 ¡Bienvenido, Comandante Junior!'
-            : '👨‍🚀 Welcome, Junior Commander!'}
+            ? 'Manual de Operaciones del Comandante'
+            : 'Commander Flight Operations Manual'}
         </h2>
         <p className="briefing-lead">
           {lang === 'es'
-            ? 'Tu misión es dirigir una base espacial real de la NASA durante 8 días. Aprende cómo los ingenieros espaciales toman decisiones difíciles cuando los recursos son limitados.'
-            : 'Your mission is to command a real NASA space outpost for 8 days. Experience how flight controllers make tough trade-off decisions when resources are limited.'}
+            ? 'Dirige una base espacial de la NASA durante 8 días. Evalúa datos reales de clima espacial y toma decisiones de ingeniería con recursos limitados.'
+            : 'Command a NASA space outpost for 8 days. Evaluate real space weather telemetry and make engineering trade-offs with limited resources.'}
         </p>
       </div>
 
-      {/* Tutorial Visual de 3 Pasos */}
+      {/* Procedimiento Operativo de 3 Pasos */}
       <div
         className="briefing-tutorial"
         role="region"
-        aria-label={lang === 'es' ? 'Tutorial de 3 pasos' : '3-step tutorial'}
+        aria-label={lang === 'es' ? 'Procedimiento en 3 pasos' : '3-step procedure'}
       >
         <h3 className="briefing-section-heading">
           {lang === 'es'
-            ? '🧭 Cómo Sobrevivir en el Espacio en 3 Pasos'
-            : '🧭 How to Survive Deep Space in 3 Steps'}
+            ? 'Procedimiento de Control de Misión (3 Pasos)'
+            : 'Mission Control Procedure (3 Steps)'}
         </h3>
         <div className="tutorial-steps-grid">
           {tutorialSteps.map((st) => (
             <div key={st.step} className="tutorial-step-card">
               <div className="tutorial-step-badge" aria-hidden="true">
-                <span>{st.icon}</span>
+                {st.icon}
               </div>
               <div className="tutorial-step-body">
                 <h4>{st.title[lang]}</h4>
@@ -116,12 +129,12 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
         </div>
       </div>
 
-      {/* Selección de Destino con Tarjetas Grandes */}
+      {/* Selección de Destino con Fichas Técnicas */}
       <div className="briefing-sites-section">
         <h3 className="briefing-section-heading">
           {lang === 'es'
-            ? '🚀 Elige tu Base Espacial para Comenzar'
-            : '🚀 Choose Your Space Outpost to Launch'}
+            ? 'Selecciona el Destino de tu Misión'
+            : 'Select Your Mission Outpost'}
         </h3>
 
         <div className="briefing-sites-grid">
@@ -141,8 +154,8 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
                 }}
               >
                 <div className="site-card-header">
-                  <span className="site-planet-emoji" aria-hidden="true">
-                    {isLunar ? '🌕' : '🔴'}
+                  <span className="site-planet-badge" aria-hidden="true">
+                    <LanguageIcon size={22} />
                   </span>
                   <div>
                     <span className="coord-pill">{site.coordinates}</span>
@@ -157,25 +170,29 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
                 <div className="site-specs-grid">
                   <div className="site-spec-pill">
                     <span className="spec-label">
-                      {lang === 'es' ? '📡 Señal a Tierra' : '📡 Signal Delay'}
+                      <AntennaIcon size={13} />{' '}
+                      {lang === 'es' ? 'Señal a Tierra' : 'Signal Delay'}
                     </span>
                     <strong>{site.commDelayDisplay[lang]}</strong>
                   </div>
                   <div className="site-spec-pill">
                     <span className="spec-label">
-                      {lang === 'es' ? '🌡️ Temperatura' : '🌡️ Temperature'}
+                      <SunIcon size={13} />{' '}
+                      {lang === 'es' ? 'Temperatura' : 'Temperature'}
                     </span>
                     <strong>{site.avgTempCelsius}</strong>
                   </div>
                   <div className="site-spec-pill">
                     <span className="spec-label">
-                      {lang === 'es' ? '🌍 Gravedad' : '🌍 Gravity'}
+                      <LanguageIcon size={13} />{' '}
+                      {lang === 'es' ? 'Gravedad' : 'Gravity'}
                     </span>
                     <strong>{site.gravityG}g</strong>
                   </div>
                   <div className="site-spec-pill">
                     <span className="spec-label">
-                      {lang === 'es' ? '🗓️ Duración' : '🗓️ Duration'}
+                      <ClockIcon size={13} />{' '}
+                      {lang === 'es' ? 'Duración' : 'Duration'}
                     </span>
                     <strong>
                       {site.totalMissionDays} {site.dayName[lang]}s
@@ -185,13 +202,23 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
 
                 {/* Recursos Iniciales */}
                 <div className="site-initial-resources">
-                  <span>⚡ {site.initialResources.power}%</span>
-                  <span>🫧 O₂ {site.initialResources.lifeSupport}%</span>
-                  <span>🌱 {site.initialResources.food}%</span>
-                  <span>🛡️ {site.initialResources.shielding}%</span>
+                  <span className="site-res-chip">
+                    <BatteryIcon size={14} /> {site.initialResources.power}%
+                  </span>
+                  <span className="site-res-chip">
+                    <DropletIcon size={14} /> O₂ {site.initialResources.lifeSupport}%
+                  </span>
+                  <span className="site-res-chip">
+                    <LeafIcon size={14} /> {site.initialResources.food}%
+                  </span>
+                  <span className="site-res-chip">
+                    <ShieldIcon size={14} /> {site.initialResources.shielding}%
+                  </span>
                 </div>
 
-                <small className="site-nasa-ref">🛰️ {site.nasaMissionReference[lang]}</small>
+                <small className="site-nasa-ref">
+                  REF: {site.nasaMissionReference[lang]}
+                </small>
 
                 <button
                   type="button"
@@ -204,11 +231,12 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
                 >
                   {isLunar
                     ? lang === 'es'
-                      ? '🌕 Despegar a la Luna (Artemis) →'
-                      : '🌕 Launch to the Moon (Artemis) →'
+                      ? 'Iniciar Misión en la Luna (Artemis)'
+                      : 'Start Moon Mission (Artemis)'
                     : lang === 'es'
-                      ? '🔴 Despegar a Marte (Jezero) →'
-                      : '🔴 Launch to Mars (Jezero) →'}
+                      ? 'Iniciar Misión en Marte (Jezero)'
+                      : 'Start Mars Mission (Jezero)'}
+                  <ArrowIcon size={16} direction="right" />
                 </button>
               </article>
             );

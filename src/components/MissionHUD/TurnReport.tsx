@@ -1,6 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { CoreResources, Language, LocalizedText, MissionLogEntry } from '../../types/mission';
 import { missionAudio } from '../../utils/sound';
+import {
+  AlertIcon,
+  AntennaIcon,
+  ArrowIcon,
+  BatteryIcon,
+  CheckIcon,
+  DropletIcon,
+  HelmetIcon,
+  LeafIcon,
+  RadiationIcon,
+  ScienceIcon,
+  ShieldIcon,
+} from '../icons';
 
 export interface TurnReportProps {
   lang: Language;
@@ -14,34 +27,34 @@ export interface TurnReportProps {
 
 interface BarMetricConfig {
   key: keyof Pick<CoreResources, 'power' | 'lifeSupport' | 'shielding' | 'food' | 'crewHealth'>;
-  icon: string;
+  icon: React.ReactNode;
   label: LocalizedText;
 }
 
 const BAR_METRICS: BarMetricConfig[] = [
   {
     key: 'power',
-    icon: '⚡',
+    icon: <BatteryIcon size={16} />,
     label: { es: 'Energía (Baterías / Solar)', en: 'Power (Batteries / Solar)' },
   },
   {
     key: 'lifeSupport',
-    icon: '🫧',
+    icon: <DropletIcon size={16} />,
     label: { es: 'Soporte Vital (O₂ + H₂O)', en: 'Life Support (O₂ + H₂O)' },
   },
   {
     key: 'shielding',
-    icon: '🛡️',
+    icon: <ShieldIcon size={16} />,
     label: { es: 'Blindaje Antirradiación', en: 'Radiation Shielding' },
   },
   {
     key: 'food',
-    icon: '🌱',
+    icon: <LeafIcon size={16} />,
     label: { es: 'Alimentos y Cosechas', en: 'Food & Greenhouse Crops' },
   },
   {
     key: 'crewHealth',
-    icon: '❤️',
+    icon: <HelmetIcon size={16} />,
     label: { es: 'Salud de la Tripulación', en: 'Crew Health' },
   },
 ];
@@ -89,11 +102,11 @@ export const TurnReport: React.FC<TurnReportProps> = ({
   const getSeverityBadge = (severity: MissionLogEntry['severity']) => {
     switch (severity) {
       case 'critical':
-        return { icon: '🚨', className: 'turn-log-critical' };
+        return { icon: <AlertIcon size={15} />, className: 'turn-log-critical' };
       case 'warning':
-        return { icon: '⚠️', className: 'turn-log-warning' };
+        return { icon: <AlertIcon size={15} />, className: 'turn-log-warning' };
       default:
-        return { icon: '📡', className: 'turn-log-info' };
+        return { icon: <AntennaIcon size={15} />, className: 'turn-log-info' };
     }
   };
 
@@ -107,8 +120,8 @@ export const TurnReport: React.FC<TurnReportProps> = ({
         <div>
           <span className="section-tag">
             {lang === 'es'
-              ? `📊 REPORTE DE FIN DE TURNO · ${dayLabel.toUpperCase()} ${reportDay}`
-              : `📊 END-OF-TURN REPORT · ${dayLabel.toUpperCase()} ${reportDay}`}
+              ? `REPORTE DE FIN DE TURNO · ${dayLabel.toUpperCase()} ${reportDay}`
+              : `END-OF-TURN REPORT · ${dayLabel.toUpperCase()} ${reportDay}`}
           </span>
           <h3 id="turn-report-heading" className="turn-report-title">
             {lang === 'es'
@@ -120,13 +133,14 @@ export const TurnReport: React.FC<TurnReportProps> = ({
           <span
             className={`turn-pill-metric ${radDelta > 5 ? 'turn-delta-neg' : 'turn-delta-neutral'}`}
           >
-            ☢️ {previous.radiationDoseMsv.toFixed(1)} → {current.radiationDoseMsv.toFixed(1)} mSv (
+            <RadiationIcon size={14} /> {previous.radiationDoseMsv.toFixed(1)} →{' '}
+            {current.radiationDoseMsv.toFixed(1)} mSv (
             {radDelta >= 0 ? `+${radDelta}` : radDelta} mSv)
           </span>
           <span
             className={`turn-pill-metric ${sciDelta > 0 ? 'turn-delta-pos' : 'turn-delta-neutral'}`}
           >
-            🔬 {previous.sciencePoints} → {current.sciencePoints} pts (
+            <ScienceIcon size={14} /> {previous.sciencePoints} → {current.sciencePoints} pts (
             {sciDelta >= 0 ? `+${sciDelta}` : sciDelta})
           </span>
         </div>
@@ -192,9 +206,10 @@ export const TurnReport: React.FC<TurnReportProps> = ({
       {/* Consequences List */}
       <div className="turn-consequences-section">
         <h4 className="turn-consequences-heading">
+          <CheckIcon size={16} />{' '}
           {lang === 'es'
-            ? '📋 Consecuencias Registradas en Bitácora'
-            : '📋 Consequences Recorded in Mission Log'}
+            ? 'Consecuencias Registradas en Bitácora'
+            : 'Consequences Recorded in Mission Log'}
         </h4>
         {latestLogs.length === 0 ? (
           <p className="helper-note">
@@ -212,10 +227,10 @@ export const TurnReport: React.FC<TurnReportProps> = ({
                   className={`turn-consequence-item ${badge.className}`}
                 >
                   <div className="turn-consequence-top">
-                    <strong>
+                    <strong className="resource-label-inline">
                       <span aria-hidden="true">{badge.icon}</span> {entry.title[lang]}
                     </strong>
-                    {entry.nasaTag && <span className="nasa-tag">🛰️ {entry.nasaTag}</span>}
+                    {entry.nasaTag && <span className="nasa-tag">REF: {entry.nasaTag}</span>}
                   </div>
                   <p>{entry.detail[lang]}</p>
                 </li>
@@ -234,7 +249,8 @@ export const TurnReport: React.FC<TurnReportProps> = ({
             onContinue();
           }}
         >
-          {lang === 'es' ? 'Continuar al Siguiente Día ➔' : 'Continue to Next Day ➔'}
+          {lang === 'es' ? 'Continuar al Siguiente Día' : 'Continue to Next Day'}
+          <ArrowIcon size={16} direction="right" />
         </button>
       </div>
     </section>

@@ -1,29 +1,44 @@
 /**
  * BLOQUE C (Asignado a: Antigravity Principal - Rama: feat/outpost-ui)
- * C2 & C3 — Panel de Recursos Vitales y Presupuesto de Energía Simplificado para 7–12 años.
- * Los 4 presets de energía son botones grandes principales y los sliders individuales
- * quedan plegados por defecto bajo "Avanzado".
+ * Panel de Control de Recursos Vitales, Modos de Energía y Rango de Comandante.
+ * C9: Cero emoji; usa exclusivamente iconos SVG de trazo de `src/components/icons`.
  */
 
 import React, { useState } from 'react';
 import {
   CoreResources,
   Language,
-  LocalizedText,
   PowerAllocation,
   TradeoffChoice,
 } from '../../types/mission';
-import type { CommanderEvaluation, TurnProjection } from '../../engine/simulationEngine';
+import type {
+  CommanderEvaluation,
+  TurnProjection,
+} from '../../engine/simulationEngine';
 import { missionAudio } from '../../utils/sound';
+import {
+  ArrowIcon,
+  BatteryIcon,
+  ClockIcon,
+  DropletIcon,
+  HelmetIcon,
+  LeafIcon,
+  PatchIcon,
+  RadiationIcon,
+  ScienceIcon,
+  ShieldIcon,
+  SlidersIcon,
+} from '../icons';
+import { MissionPatch } from './MissionPatch';
 
-export interface ResourcePanelProps {
+interface ResourcePanelProps {
   lang: Language;
   resources: CoreResources;
   allocation: PowerAllocation;
   projection: TurnProjection;
   hoveredChoice: TradeoffChoice | null;
   pendingEffects: Array<{
-    description: LocalizedText;
+    description: { es: string; en: string };
     resourceDelta: Partial<CoreResources>;
   }>;
   evaluation: CommanderEvaluation;
@@ -31,61 +46,59 @@ export interface ResourcePanelProps {
   onOpenBadgesModal: () => void;
 }
 
-interface PowerPresetOption {
-  id: string;
-  icon: string;
-  title: LocalizedText;
-  subtitle: LocalizedText;
+const POWER_PRESETS: Array<{
+  id: 'balanced' | 'storm' | 'greenhouse' | 'science';
+  icon: React.ReactNode;
+  title: { es: string; en: string };
+  subtitle: { es: string; en: string };
   alloc: PowerAllocation;
-}
-
-const POWER_PRESETS: PowerPresetOption[] = [
+}> = [
   {
     id: 'balanced',
-    icon: '⚖️',
+    icon: <SlidersIcon size={18} />,
     title: { es: 'Equilibrado', en: 'Balanced' },
-    subtitle: { es: 'Todo estable (100% carga)', en: 'All steady (100% load)' },
-    alloc: {
-      lifeSupportAlloc: 25,
-      shieldingAlloc: 25,
-      greenhouseAlloc: 25,
-      scienceAndCommsAlloc: 25,
-    },
-  },
-  {
-    id: 'storm-shield',
-    icon: '🛡️',
-    title: { es: 'Modo Tormenta', en: 'Storm Shield' },
-    subtitle: { es: 'Máximo escudo solar', en: 'Max radiation shield' },
-    alloc: {
-      lifeSupportAlloc: 25,
-      shieldingAlloc: 45,
-      greenhouseAlloc: 15,
-      scienceAndCommsAlloc: 15,
-    },
-  },
-  {
-    id: 'boost-o2',
-    icon: '🫧',
-    title: { es: 'Prioridad O₂ y Cultivo', en: 'Boost O₂ & Crops' },
-    subtitle: { es: '+Aire y comida vital', en: '+Air & greenhouse' },
+    subtitle: { es: 'Estable para días normales', en: 'Steady for normal days' },
     alloc: {
       lifeSupportAlloc: 35,
-      shieldingAlloc: 20,
-      greenhouseAlloc: 30,
+      shieldingAlloc: 25,
+      greenhouseAlloc: 25,
       scienceAndCommsAlloc: 15,
     },
   },
   {
-    id: 'save-battery',
-    icon: '🔋',
-    title: { es: 'Recargar Batería', en: 'Save Battery' },
-    subtitle: { es: 'Bajo consumo (75% carga)', en: 'Low drain (75% load)' },
+    id: 'storm',
+    icon: <ShieldIcon size={18} />,
+    title: { es: 'Escudo Tormenta', en: 'Storm Shield' },
+    subtitle: { es: 'Máxima defensa radiación', en: 'Max radiation defense' },
     alloc: {
-      lifeSupportAlloc: 20,
+      lifeSupportAlloc: 35,
+      shieldingAlloc: 40,
+      greenhouseAlloc: 15,
+      scienceAndCommsAlloc: 10,
+    },
+  },
+  {
+    id: 'greenhouse',
+    icon: <LeafIcon size={18} />,
+    title: { es: 'Invernadero', en: 'Greenhouse' },
+    subtitle: { es: 'Impulsa cosechas y O₂', en: 'Boosts crops & O₂' },
+    alloc: {
+      lifeSupportAlloc: 35,
+      shieldingAlloc: 15,
+      greenhouseAlloc: 40,
+      scienceAndCommsAlloc: 10,
+    },
+  },
+  {
+    id: 'science',
+    icon: <ScienceIcon size={18} />,
+    title: { es: 'Ciencia', en: 'Science' },
+    subtitle: { es: 'Más datos y telemetría', en: 'More data & telemetry' },
+    alloc: {
+      lifeSupportAlloc: 30,
       shieldingAlloc: 20,
       greenhouseAlloc: 20,
-      scienceAndCommsAlloc: 15,
+      scienceAndCommsAlloc: 30,
     },
   },
 ];
@@ -140,43 +153,43 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
   const metrics: Array<{
     id: 'power' | 'lifeSupport' | 'shielding' | 'food' | 'crewHealth';
-    shortIcon: string;
+    icon: React.ReactNode;
     label: string;
     value: number;
     unit: string;
   }> = [
     {
       id: 'power',
-      shortIcon: '⚡',
-      label: lang === 'es' ? '⚡ Energía (Baterías)' : '⚡ Power (Batteries)',
+      icon: <BatteryIcon size={16} />,
+      label: lang === 'es' ? 'Energía (Baterías)' : 'Power (Batteries)',
       value: resources.power,
       unit: '%',
     },
     {
       id: 'lifeSupport',
-      shortIcon: '🫧',
-      label: lang === 'es' ? '🫧 Soporte Vital (O₂/H₂O)' : '🫧 Life Support (O₂/H₂O)',
+      icon: <DropletIcon size={16} />,
+      label: lang === 'es' ? 'Soporte Vital (O₂/H₂O)' : 'Life Support (O₂/H₂O)',
       value: resources.lifeSupport,
       unit: '%',
     },
     {
       id: 'shielding',
-      shortIcon: '🛡️',
-      label: lang === 'es' ? '🛡️ Blindaje Radiación' : '🛡️ Radiation Shielding',
+      icon: <ShieldIcon size={16} />,
+      label: lang === 'es' ? 'Blindaje Radiación' : 'Radiation Shielding',
       value: resources.shielding,
       unit: '%',
     },
     {
       id: 'food',
-      shortIcon: '🌱',
-      label: lang === 'es' ? '🌱 Cultivos / Comida' : '🌱 Crops / Food',
+      icon: <LeafIcon size={16} />,
+      label: lang === 'es' ? 'Cultivos / Comida' : 'Crops / Food',
       value: resources.food,
       unit: '%',
     },
     {
       id: 'crewHealth',
-      shortIcon: '❤️',
-      label: lang === 'es' ? '❤️ Salud Tripulación' : '❤️ Crew Health',
+      icon: <HelmetIcon size={16} />,
+      label: lang === 'es' ? 'Salud Tripulación' : 'Crew Health',
       value: resources.crewHealth,
       unit: '%',
     },
@@ -208,7 +221,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                 }`}
               >
                 <span className="mv-icon" aria-hidden="true">
-                  {m.shortIcon}
+                  {m.icon}
                 </span>
                 <span className="mv-val">
                   {m.value}%
@@ -232,7 +245,9 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
             }}
             aria-label={lang === 'es' ? 'Ver rango e insignias' : 'View rank and badges'}
           >
-            <span>{evaluation.rank.emoji}</span>
+            <span className="mv-icon" aria-hidden="true">
+              <PatchIcon size={15} />
+            </span>
             <span className="mv-val">
               {earnedBadgesCount}/{evaluation.badges.length}
             </span>
@@ -244,37 +259,73 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
       <div className="hud-details-panel">
         {/* Tarjeta de Rango Actual e Insignias */}
         <div className="commander-mini-card">
-          <div>
-            <span className="rank-eyebrow">
-              {lang === 'es' ? 'RANGO DE COMANDANTE' : 'COMMANDER RANK'}
-            </span>
-            <div className="rank-title-row">
-              <strong>
-                {evaluation.rank.emoji} {evaluation.rank.title[lang]}
-              </strong>
-              <span className="rank-score-pill">{evaluation.score}/100</span>
+          <div className="commander-mini-top">
+            <div>
+              <span className="rank-eyebrow">
+                {lang === 'es' ? 'Rango de Comandante' : 'Commander Rank'}
+              </span>
+              <div className="rank-title-row">
+                <HelmetIcon size={18} />
+                <strong>{evaluation.rank.title[lang]}</strong>
+                <span className="rank-score-pill">{evaluation.score}/100</span>
+              </div>
             </div>
+            <button
+              type="button"
+              id="open-badges-modal-btn"
+              className="btn-secondary btn-compact"
+              onClick={() => {
+                missionAudio.playClick();
+                onOpenBadgesModal();
+              }}
+            >
+              <PatchIcon size={16} /> {earnedBadgesCount}/{evaluation.badges.length}{' '}
+              {lang === 'es' ? 'Parches' : 'Patches'}
+            </button>
           </div>
-          <button
-            type="button"
-            id="open-badges-modal-btn"
-            className="btn-secondary btn-compact"
-            onClick={() => {
-              missionAudio.playClick();
-              onOpenBadgesModal();
-            }}
+          <div
+            className="commander-mini-patches"
+            role="group"
+            aria-label={
+              lang === 'es' ? 'Colección de parches de misión' : 'Mission patch collection'
+            }
           >
-            🏅 {earnedBadgesCount}/{evaluation.badges.length}{' '}
-            {lang === 'es' ? 'Insignias' : 'Badges'}
-          </button>
+            {evaluation.badges.map((badge) => (
+              <button
+                key={badge.id}
+                type="button"
+                className="commander-mini-patch-btn"
+                onClick={() => {
+                  missionAudio.playClick();
+                  onOpenBadgesModal();
+                }}
+                title={`${badge.title[lang]} — ${
+                  badge.earned
+                    ? lang === 'es'
+                      ? 'Ganado'
+                      : 'Earned'
+                    : lang === 'es'
+                      ? 'Por desbloquear'
+                      : 'Locked'
+                }`}
+                aria-label={badge.title[lang]}
+              >
+                <MissionPatch badgeId={badge.id} earned={badge.earned} size={26} />
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Vitales con Proyección en Tiempo Real */}
         <div className="panel-section">
           <div className="section-title-row">
-            <h2>{lang === 'es' ? '📊 Vitales de la Base' : '📊 Outpost Vitals'}</h2>
+            <h2>
+              <SlidersIcon size={17} />{' '}
+              {lang === 'es' ? 'Vitales de la Base' : 'Outpost Vitals'}
+            </h2>
             <span className="science-score-badge" aria-live="polite">
-              🔬 {resources.sciencePoints} ({scienceDelta >= 0 ? `+${scienceDelta}` : scienceDelta}) Pts
+              <ScienceIcon size={15} /> {resources.sciencePoints} (
+              {scienceDelta >= 0 ? `+${scienceDelta}` : scienceDelta}) Pts
             </span>
           </div>
 
@@ -287,7 +338,9 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
               return (
                 <div key={m.id} className="resource-row">
                   <div className="resource-row-header">
-                    <span>{m.label}</span>
+                    <span className="resource-label-inline">
+                      {m.icon} {m.label}
+                    </span>
                     <div className="resource-val-group">
                       <strong className="mono-val">
                         {m.value}
@@ -319,8 +372,9 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
           </div>
 
           <div className="radiation-readout">
-            <span>
-              {lang === 'es' ? '☢️ Dosis (NASA OSDR/RAD):' : '☢️ Dose (NASA OSDR/RAD):'}
+            <span className="resource-label-inline">
+              <RadiationIcon size={15} />{' '}
+              {lang === 'es' ? 'Dosis (NASA OSDR/RAD):' : 'Dose (NASA OSDR/RAD):'}
             </span>
             <strong>
               {resources.radiationDoseMsv} mSv{' '}
@@ -339,7 +393,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
           {pendingEffects.length > 0 && (
             <div className="pending-effects-box" role="status" aria-live="polite">
               <strong>
-                ⏱️{' '}
+                <ClockIcon size={15} />{' '}
                 {lang === 'es'
                   ? 'Consecuencia de Ayer Activa Hoy:'
                   : 'Yesterday’s Consequence Active Today:'}
@@ -354,7 +408,10 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
         {/* C3: Modos de Energía como Botones Grandes Principales + Sliders Plegados bajo "Avanzado" */}
         <div className="panel-section">
           <div className="section-title-row">
-            <h2>{lang === 'es' ? '⚡ Modo de Energía' : '⚡ Power Mode'}</h2>
+            <h2>
+              <BatteryIcon size={17} />{' '}
+              {lang === 'es' ? 'Modo de Energía' : 'Power Mode'}
+            </h2>
             <span className={totalPowerUsed > 100 ? 'alloc-warn' : 'alloc-ok'}>
               {totalPowerUsed}% {lang === 'es' ? 'Carga' : 'Load'}
             </span>
@@ -395,14 +452,15 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
               setShowAdvancedSliders((prev) => !prev);
             }}
           >
-            ⚙️{' '}
+            <SlidersIcon size={15} />{' '}
             {showAdvancedSliders
               ? lang === 'es'
-                ? 'Ocultar Ajustes Avanzados ▲'
-                : 'Hide Advanced Sliders ▲'
+                ? 'Ocultar Ajustes Avanzados'
+                : 'Hide Advanced Sliders'
               : lang === 'es'
-                ? 'Avanzado: Ajustar Sliders por Sistema ▼'
-                : 'Advanced: Fine-Tune System Sliders ▼'}
+                ? 'Avanzado: Ajustar Sliders por Sistema'
+                : 'Advanced: Fine-Tune System Sliders'}
+            <ArrowIcon size={14} direction={showAdvancedSliders ? 'up' : 'down'} />
           </button>
 
           {showAdvancedSliders && (
@@ -415,8 +473,9 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
               <div className="slider-group">
                 <label htmlFor="slider-lifesupport">
-                  <span>
-                    {lang === 'es' ? '🫧 Oxígeno y Agua (ECLSS)' : '🫧 Oxygen & Water (ECLSS)'}
+                  <span className="resource-label-inline">
+                    <DropletIcon size={14} />{' '}
+                    {lang === 'es' ? 'Oxígeno y Agua (ECLSS)' : 'Oxygen & Water (ECLSS)'}
                   </span>
                   <strong>{allocation.lifeSupportAlloc}%</strong>
                 </label>
@@ -433,8 +492,9 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
               <div className="slider-group">
                 <label htmlFor="slider-shielding">
-                  <span>
-                    {lang === 'es' ? '🛡️ Escudo Anti-Radiación' : '🛡️ Radiation Shielding'}
+                  <span className="resource-label-inline">
+                    <ShieldIcon size={14} />{' '}
+                    {lang === 'es' ? 'Escudo Anti-Radiación' : 'Radiation Shielding'}
                   </span>
                   <strong>{allocation.shieldingAlloc}%</strong>
                 </label>
@@ -451,8 +511,9 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
               <div className="slider-group">
                 <label htmlFor="slider-greenhouse">
-                  <span>
-                    {lang === 'es' ? '🌱 Invernadero Hidropónico' : '🌱 Hydroponic Greenhouse'}
+                  <span className="resource-label-inline">
+                    <LeafIcon size={14} />{' '}
+                    {lang === 'es' ? 'Invernadero Hidropónico' : 'Hydroponic Greenhouse'}
                   </span>
                   <strong>{allocation.greenhouseAlloc}%</strong>
                 </label>
@@ -469,10 +530,11 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
               <div className="slider-group">
                 <label htmlFor="slider-science">
-                  <span>
+                  <span className="resource-label-inline">
+                    <ScienceIcon size={14} />{' '}
                     {lang === 'es'
-                      ? '🔬 Ciencia, Rovers y Antena'
-                      : '🔬 Science, Rovers & Comms'}
+                      ? 'Ciencia, Rovers y Antena'
+                      : 'Science, Rovers & Comms'}
                   </span>
                   <strong>{allocation.scienceAndCommsAlloc}%</strong>
                 </label>
