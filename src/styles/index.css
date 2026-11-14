@@ -1050,3 +1050,181 @@ body {
   display: flex;
   justify-content: flex-end;
 }
+
+/* C1: Mission Briefing Screen */
+.briefing-screen {
+  background: var(--bg-panel-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.briefing-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.briefing-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.5vw, 1.85rem);
+  font-weight: 700;
+}
+
+.briefing-lead {
+  color: var(--text-secondary);
+  font-size: 0.96rem;
+  max-width: 780px;
+}
+
+.briefing-section-heading {
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  margin-bottom: 0.85rem;
+  color: var(--accent-amber);
+}
+
+.tutorial-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.9rem;
+}
+
+.tutorial-step-card {
+  background: var(--bg-panel-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.tutorial-step-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--bg-space-deep);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.tutorial-step-body h4 {
+  font-family: var(--font-display);
+  font-size: 0.96rem;
+  margin-bottom: 0.25rem;
+}
+
+.tutorial-step-body p {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.briefing-sites-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 1.15rem;
+}
+
+.briefing-site-card {
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--border-subtle);
+  padding: 1.35rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.site-card-lunar {
+  background: var(--surface-lunar-tint);
+}
+
+.site-card-mars {
+  background: var(--surface-mars-tint);
+}
+
+.briefing-site-card.site-card-selected {
+  border-color: var(--accent-amber);
+}
+
+.site-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.site-planet-emoji {
+  font-size: 2.3rem;
+  line-height: 1;
+}
+
+.site-card-header h4 {
+  font-family: var(--font-display);
+  font-size: 1.18rem;
+}
+
+.site-location-sub {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.site-card-desc {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.site-specs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.site-spec-pill {
+  background: var(--bg-panel-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.78rem;
+}
+
+.spec-label {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.site-initial-resources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  background: var(--bg-space-deep);
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+}
+
+.site-nasa-ref {
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  color: var(--text-secondary);
+}
+
+.briefing-launch-btn {
+  min-height: 48px;
+  width: 100%;
+  font-size: 0.96rem;
+}
+
