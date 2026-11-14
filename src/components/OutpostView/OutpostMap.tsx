@@ -107,6 +107,9 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   const isSolarStorm =
     weather.type === 'FLR' || weather.type === 'SEP' || weather.type === 'CME';
   const isDustStorm = weather.type === 'DUST_STORM';
+  const isRimShadowPass = weather.id === 'MOON-RIM-SHADOW-PASS';
+  const isLowPowerBlackout = resources.power < 15;
+  const isGreenhouseWilted = resources.food < 25;
 
   const realDelaySec =
     commDelaySeconds ??
@@ -124,6 +127,13 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
     missionAudio.playClick();
     setSelectedModule(mod);
     setShowSystemDetails(true);
+  };
+
+  const handleSvgKeyDown = (e: React.KeyboardEvent, mod: ModuleKey) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleSelectModuleFromSvg(mod);
+    }
   };
 
   const handleTestComms = () => {
@@ -269,6 +279,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
           <button
             type="button"
             className={`weather-pill severity-${weather.severity}`}
+            aria-live="polite"
             onClick={() => {
               missionAudio.playClick();
               onOpenScienceModal?.();
@@ -280,7 +291,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
             }
           >
             <span className="weather-icon" aria-hidden="true">
-              {isSolarStorm ? '⚡' : isDustStorm ? '🌪️' : '☀️'}
+              {isSolarStorm ? '⚡' : isDustStorm ? '🌪️' : isRimShadowPass ? '🌑' : '☀️'}
             </span>
             <div>
               <strong>{weather.classOrIntensity}</strong>
@@ -297,8 +308,47 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
           </button>
         </div>
 
+        {/* C5: Indicadores visuales de estado activo en el mapa */}
+        {(isDustStorm || isRimShadowPass || isLowPowerBlackout || isGreenhouseWilted) && (
+          <div className="outpost-state-badges" role="status" aria-live="polite">
+            {isDustStorm && (
+              <span className="state-alert-chip state-chip-dust">
+                🌪️ {lang === 'es' ? 'Velo de Polvo Marciano Activo' : 'Martian Dust Veil Active'}
+              </span>
+            )}
+            {isRimShadowPass && (
+              <span className="state-alert-chip state-chip-shadow">
+                🌑{' '}
+                {lang === 'es'
+                  ? 'Sombra del Cráter Cubriendo Paneles'
+                  : 'Crater Rim Shadow Over Solar Panels'}
+              </span>
+            )}
+            {isLowPowerBlackout && (
+              <span className="state-alert-chip state-chip-blackout">
+                🔌{' '}
+                {lang === 'es'
+                  ? 'Luces del Hábitat Apagadas (Energía < 15%)'
+                  : 'Habitat Lights Off (Power < 15%)'}
+              </span>
+            )}
+            {isGreenhouseWilted && (
+              <span className="state-alert-chip state-chip-wilted">
+                🥀{' '}
+                {lang === 'es'
+                  ? 'Invernadero Marchito (Comida < 25%)'
+                  : 'Greenhouse Wilted (Food < 25%)'}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Escenario Visual SVG Interactivo de la Base */}
-        <div className="svg-outpost-wrapper">
+        <div
+          className={`svg-outpost-wrapper ${isLunar ? 'svg-env-lunar' : 'svg-env-mars'} ${
+            isDustStorm ? 'svg-env-dust-storm' : ''
+          } ${isLowPowerBlackout ? 'svg-env-blackout' : ''}`}
+        >
           <svg
             viewBox="0 0 860 270"
             className="outpost-svg"
@@ -310,29 +360,38 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
             }
           >
             <defs>
+              {/* C5: Cielo lunar negro profundo sin atmósfera vs Cielo marciano ocre/cobrizo */}
               <linearGradient id="skyGradLunar" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#070b14" />
-                <stop offset="65%" stopColor="#101829" />
-                <stop offset="100%" stopColor="#1e2738" />
+                <stop offset="0%" stopColor="#02040a" />
+                <stop offset="65%" stopColor="#090f1d" />
+                <stop offset="100%" stopColor="#162033" />
               </linearGradient>
               <linearGradient id="skyGradMars" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#1f110e" />
-                <stop offset="60%" stopColor="#3b1e16" />
-                <stop offset="100%" stopColor="#5c2d1e" />
+                <stop offset="0%" stopColor="#2b110c" />
+                <stop offset="55%" stopColor="#692d1b" />
+                <stop offset="100%" stopColor="#a34928" />
               </linearGradient>
+              {/* Suelo lunar gris basáltico vs Suelo marciano óxido de hierro */}
               <linearGradient id="groundLunar" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#353f52" />
-                <stop offset="100%" stopColor="#1c222e" />
+                <stop offset="0%" stopColor="#475569" />
+                <stop offset="55%" stopColor="#334155" />
+                <stop offset="100%" stopColor="#1e293b" />
               </linearGradient>
               <linearGradient id="groundMars" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#7c3823" />
-                <stop offset="100%" stopColor="#421c11" />
+                <stop offset="0%" stopColor="#9a3412" />
+                <stop offset="55%" stopColor="#7c2d12" />
+                <stop offset="100%" stopColor="#431407" />
               </linearGradient>
               <radialGradient id="shieldAura" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stopColor="rgba(56, 189, 248, 0.05)" />
                 <stop offset="75%" stopColor="rgba(56, 189, 248, 0.18)" />
                 <stop offset="100%" stopColor="rgba(245, 158, 11, 0.55)" />
               </radialGradient>
+              <linearGradient id="dustVeilGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="rgba(234, 88, 12, 0.48)" />
+                <stop offset="50%" stopColor="rgba(180, 83, 9, 0.38)" />
+                <stop offset="100%" stopColor="rgba(217, 119, 6, 0.52)" />
+              </linearGradient>
             </defs>
 
             {/* Fondo de cielo planetario */}
@@ -344,14 +403,17 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
               fill={isLunar ? 'url(#skyGradLunar)' : 'url(#skyGradMars)'}
             />
 
-            {/* Estrellas */}
-            <g fill="#e2e8f0" opacity={isDustStorm ? 0.25 : 0.75}>
-              <circle cx="65" cy="34" r="1.4" />
-              <circle cx="145" cy="22" r="1.1" />
-              <circle cx="255" cy="48" r="1.5" />
-              <circle cx="380" cy="25" r="1.2" />
-              <circle cx="510" cy="38" r="1.6" />
-              <circle cx="670" cy="24" r="1.2" />
+            {/* Estrellas: nítidas en el vacío lunar, tenues en la atmósfera marciana */}
+            <g fill="#f1f5f9" opacity={isDustStorm ? 0.12 : isLunar ? 0.92 : 0.45}>
+              <circle cx="65" cy="34" r="1.5" />
+              <circle cx="115" cy="18" r="1.0" />
+              <circle cx="145" cy="22" r="1.2" />
+              <circle cx="255" cy="48" r="1.6" />
+              <circle cx="315" cy="19" r="1.1" />
+              <circle cx="380" cy="25" r="1.3" />
+              <circle cx="510" cy="38" r="1.7" />
+              <circle cx="595" cy="16" r="1.1" />
+              <circle cx="670" cy="24" r="1.3" />
               <circle cx="790" cy="42" r="1.5" />
             </g>
 
@@ -362,7 +424,14 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 <path
                   d="M-12,-8 Q-2,-14 8,-6 Q14,2 4,12 Q-6,16 -14,6 Z"
                   fill="#22c55e"
-                  opacity="0.8"
+                  opacity="0.85"
+                />
+                <path
+                  d="M-6,-18 Q6,-12 15,-4"
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                  fill="none"
+                  opacity="0.65"
                 />
                 <circle
                   cx="0"
@@ -371,7 +440,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   fill="none"
                   stroke="#93c5fd"
                   strokeWidth="1.5"
-                  opacity="0.6"
+                  opacity="0.7"
                 />
                 <text
                   x="0"
@@ -386,13 +455,14 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
               </g>
             ) : (
               <g transform="translate(745, 52)">
-                <circle cx="-18" cy="-4" r="9" fill="#d6b89c" />
-                <circle cx="18" cy="10" r="5" fill="#b89b82" />
+                <ellipse cx="-18" cy="-4" rx="10" ry="8" fill="#e7cba9" />
+                <circle cx="-21" cy="-5" r="2.2" fill="#a88b6d" />
+                <circle cx="18" cy="10" r="5" fill="#c7ab8e" />
                 <text
                   x="0"
                   y="34"
                   textAnchor="middle"
-                  fill="#fdba74"
+                  fill="#fed7aa"
                   fontSize="10"
                   fontFamily="monospace"
                 >
@@ -402,7 +472,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
             )}
 
             {/* Sol / Fuente de Clima Espacial DONKI */}
-            <g transform="translate(62, 50)">
+            <g transform="translate(62, 50)" opacity={isRimShadowPass ? 0.45 : isDustStorm ? 0.55 : 1}>
               <circle
                 cx="0"
                 cy="0"
@@ -427,7 +497,11 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 fontSize="10"
                 fontFamily="monospace"
               >
-                {weather.type === 'NOMINAL' ? 'QUIET SUN' : `DONKI ${weather.type}`}
+                {isRimShadowPass
+                  ? 'LOW HORIZON SUN'
+                  : weather.type === 'NOMINAL'
+                  ? 'QUIET SUN'
+                  : `DONKI ${weather.type}`}
               </text>
             </g>
 
@@ -440,17 +514,42 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
               </g>
             )}
 
-            {/* Montañas / Borde del Cráter Shackleton o Delta del Cráter Jezero */}
-            <path
-              d="M0,185 L120,135 L230,172 L370,128 L520,168 L675,132 L860,175 L860,270 L0,270 Z"
-              fill={isLunar ? '#263042' : '#572517'}
-            />
+            {/* Montañas / Borde escarpado del Cráter Shackleton vs Mesetas escalonadas del Delta Jezero */}
+            {isLunar ? (
+              <path
+                d="M0,182 L88,118 L185,168 L310,122 L455,170 L615,126 L750,164 L860,148 L860,270 L0,270 Z"
+                fill="#1e293b"
+                stroke="#475569"
+                strokeWidth="1"
+              />
+            ) : (
+              <path
+                d="M0,176 L95,142 L215,142 L265,168 L395,134 L515,134 L575,165 L710,138 L860,162 L860,270 L0,270 Z"
+                fill="#6b2713"
+                stroke="#9a3412"
+                strokeWidth="1"
+              />
+            )}
 
-            {/* Superficie planetaria */}
+            {/* Superficie planetaria con detalles de terreno distintos */}
             <path
               d="M0,192 Q240,176 460,190 T860,184 L860,270 L0,270 Z"
               fill={isLunar ? 'url(#groundLunar)' : 'url(#groundMars)'}
             />
+
+            {/* Detalles geológicos: Cráteres de impacto lunares vs Rocas rojizas y dunas marcianas */}
+            {isLunar ? (
+              <g opacity="0.65">
+                <ellipse cx="245" cy="232" rx="34" ry="8" fill="#0f172a" stroke="#64748b" strokeWidth="1" />
+                <ellipse cx="525" cy="242" rx="26" ry="6" fill="#0f172a" stroke="#64748b" strokeWidth="1" />
+              </g>
+            ) : (
+              <g opacity="0.75">
+                <polygon points="225,235 238,222 252,236" fill="#451a03" />
+                <polygon points="518,242 529,230 544,242" fill="#451a03" />
+                <path d="M270,226 Q320,218 370,228" stroke="#c2410c" strokeWidth="2" fill="none" />
+              </g>
+            )}
 
             {/* Depósito de Hielo Polar (Luna) o Sedimentos del Delta (Marte) */}
             {isLunar ? (
@@ -462,9 +561,9 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   ry="16"
                   fill="#0f172a"
                   stroke="#38bdf8"
-                  strokeWidth="1.2"
+                  strokeWidth="1.5"
                 />
-                <path d="M-40,2 L-25,-6 L-10,3 L12,-7 L32,3 Z" fill="#38bdf8" opacity="0.65" />
+                <path d="M-40,2 L-25,-6 L-10,3 L12,-7 L32,3 Z" fill="#38bdf8" opacity="0.75" />
                 <text
                   x="0"
                   y="25"
@@ -483,19 +582,20 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   cy="0"
                   rx="68"
                   ry="15"
-                  fill="#3b160c"
+                  fill="#431407"
                   stroke="#fb923c"
-                  strokeWidth="1.2"
+                  strokeWidth="1.5"
                 />
+                <path d="M-38,0 Q-10,-6 20,0 T45,2" stroke="#fdba74" strokeWidth="1.5" fill="none" />
                 <text
                   x="0"
                   y="24"
                   textAnchor="middle"
-                  fill="#fdba74"
+                  fill="#fed7aa"
                   fontSize="10"
                   fontFamily="monospace"
                 >
-                  REGOLITO RICO EN CO₂ / H₂O
+                  DELTA RÍO JEZERO (CO₂/H₂O)
                 </text>
               </g>
             )}
@@ -505,6 +605,14 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
               transform="translate(135, 145)"
               className={`svg-module-node ${selectedModule === 'solar' ? 'svg-node-selected' : ''}`}
               onClick={() => handleSelectModuleFromSvg('solar')}
+              onKeyDown={(e) => handleSvgKeyDown(e, 'solar')}
+              tabIndex={0}
+              role="button"
+              aria-label={
+                lang === 'es'
+                  ? `Granja Solar y Baterías: ${resources.power}% de energía`
+                  : `Solar Array and Batteries: ${resources.power}% power`
+              }
             >
               <rect
                 x="-48"
@@ -512,13 +620,13 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 width="42"
                 height="52"
                 rx="3"
-                fill="#1e3a8a"
-                stroke="#60a5fa"
+                fill={isRimShadowPass ? '#0f172a' : isDustStorm ? '#78350f' : '#1e3a8a'}
+                stroke={isRimShadowPass ? '#475569' : '#60a5fa'}
                 strokeWidth="2"
               />
-              <line x1="-27" y1="0" x2="-27" y2="52" stroke="#93c5fd" strokeWidth="1" />
-              <line x1="-48" y1="18" x2="-6" y2="18" stroke="#93c5fd" strokeWidth="1" />
-              <line x1="-48" y1="35" x2="-6" y2="35" stroke="#93c5fd" strokeWidth="1" />
+              <line x1="-27" y1="0" x2="-27" y2="52" stroke="#93c5fd" strokeWidth="1" opacity={isRimShadowPass ? 0.35 : 1} />
+              <line x1="-48" y1="18" x2="-6" y2="18" stroke="#93c5fd" strokeWidth="1" opacity={isRimShadowPass ? 0.35 : 1} />
+              <line x1="-48" y1="35" x2="-6" y2="35" stroke="#93c5fd" strokeWidth="1" opacity={isRimShadowPass ? 0.35 : 1} />
 
               <rect
                 x="6"
@@ -526,13 +634,37 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 width="42"
                 height="52"
                 rx="3"
-                fill="#1e3a8a"
-                stroke="#60a5fa"
+                fill={isRimShadowPass ? '#0f172a' : isDustStorm ? '#78350f' : '#1e3a8a'}
+                stroke={isRimShadowPass ? '#475569' : '#60a5fa'}
                 strokeWidth="2"
               />
-              <line x1="27" y1="0" x2="27" y2="52" stroke="#93c5fd" strokeWidth="1" />
-              <line x1="6" y1="18" x2="48" y2="18" stroke="#93c5fd" strokeWidth="1" />
-              <line x1="6" y1="35" x2="48" y2="35" stroke="#93c5fd" strokeWidth="1" />
+              <line x1="27" y1="0" x2="27" y2="52" stroke="#93c5fd" strokeWidth="1" opacity={isRimShadowPass ? 0.35 : 1} />
+              <line x1="6" y1="18" x2="48" y2="18" stroke="#93c5fd" strokeWidth="1" opacity={isRimShadowPass ? 0.35 : 1} />
+              <line x1="6" y1="35" x2="48" y2="35" stroke="#93c5fd" strokeWidth="1" opacity={isRimShadowPass ? 0.35 : 1} />
+
+              {/* C5: Sombra proyectada sobre los paneles cuando weather.id === 'MOON-RIM-SHADOW-PASS' */}
+              {isRimShadowPass && (
+                <g pointerEvents="none">
+                  <polygon
+                    points="-62,-18 64,-4 56,56 -62,56"
+                    fill="rgba(2, 6, 23, 0.68)"
+                    stroke="#38bdf8"
+                    strokeDasharray="3 3"
+                    strokeWidth="1"
+                  />
+                  <text
+                    x="0"
+                    y="-8"
+                    textAnchor="middle"
+                    fill="#7dd3fc"
+                    fontSize="9.5"
+                    fontFamily="monospace"
+                    fontWeight="bold"
+                  >
+                    {lang === 'es' ? '🌑 SOMBRA DEL CRÁTER' : '🌑 CRATER RIM SHADOW'}
+                  </text>
+                </g>
+              )}
 
               <rect
                 x="-32"
@@ -550,7 +682,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 width={Math.max(4, Math.round((resources.power / 100) * 56))}
                 height="12"
                 rx="2"
-                fill={resources.power > 30 ? '#22c55e' : '#ef4444'}
+                fill={resources.power >= 30 ? '#22c55e' : resources.power >= 15 ? '#f59e0b' : '#ef4444'}
               />
               <text x="0" y="90" textAnchor="middle" fill="#f8fafc" fontSize="11" fontWeight="bold">
                 ⚡ {resources.power}% kWh
@@ -566,6 +698,14 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 strokeWidth={projection.effectiveShielding >= 60 ? '3.5' : '1.8'}
                 strokeDasharray={projection.effectiveShielding >= 60 ? 'none' : '6 4'}
                 onClick={() => handleSelectModuleFromSvg('shielding')}
+                onKeyDown={(e) => handleSvgKeyDown(e, 'shielding')}
+                tabIndex={0}
+                role="button"
+                aria-label={
+                  lang === 'es'
+                    ? `Escudo de Radiación: ${projection.effectiveShielding}% efectivo`
+                    : `Radiation Shielding: ${projection.effectiveShielding}% effective`
+                }
                 className="svg-module-node"
               />
 
@@ -574,11 +714,20 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   selectedModule === 'eclss' ? 'svg-node-selected' : ''
                 }`}
                 onClick={() => handleSelectModuleFromSvg('eclss')}
+                onKeyDown={(e) => handleSvgKeyDown(e, 'eclss')}
+                tabIndex={0}
+                role="button"
+                aria-label={
+                  lang === 'es'
+                    ? `Domo Hábitat y Soporte Vital: ${resources.lifeSupport}%`
+                    : `Habitat Dome and Life Support: ${resources.lifeSupport}%`
+                }
               >
+                {/* C5: Si power < 15 (isLowPowerBlackout), el domo se oscurece y las ventanas se apagan */}
                 <path
                   d="M-72,40 A72,62 0 0,1 72,40 Z"
-                  fill="#cbd5e1"
-                  stroke="#f8fafc"
+                  fill={isLowPowerBlackout ? '#334155' : '#cbd5e1'}
+                  stroke={isLowPowerBlackout ? '#64748b' : '#f8fafc'}
                   strokeWidth="2.5"
                 />
                 <path
@@ -586,19 +735,60 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   fill="none"
                   stroke="#0284c7"
                   strokeWidth={Math.max(2, Math.round((projection.effectiveShielding / 100) * 8))}
-                  opacity="0.75"
+                  opacity={isLowPowerBlackout ? 0.35 : 0.75}
                 />
+                {/* Esclusa / Puerta central */}
                 <rect
-                  x="-18"
-                  y="10"
-                  width="36"
-                  height="30"
+                  x="-16"
+                  y="12"
+                  width="32"
+                  height="28"
                   rx="5"
-                  fill="#1e293b"
+                  fill="#0f172a"
                   stroke="#94a3b8"
                   strokeWidth="2"
                 />
-                <circle cx="0" cy="-6" r="10" fill="#38bdf8" opacity="0.85" />
+                {/* Ventanas del hábitat: encendidas (cálidas) o apagadas si power < 15 */}
+                <circle
+                  cx="-38"
+                  cy="16"
+                  r="8"
+                  fill={isLowPowerBlackout ? '#090d16' : '#fef08a'}
+                  stroke={isLowPowerBlackout ? '#334155' : '#f59e0b'}
+                  strokeWidth="1.5"
+                />
+                <circle
+                  cx="38"
+                  cy="16"
+                  r="8"
+                  fill={isLowPowerBlackout ? '#090d16' : '#fef08a'}
+                  stroke={isLowPowerBlackout ? '#334155' : '#f59e0b'}
+                  strokeWidth="1.5"
+                />
+                <circle
+                  cx="0"
+                  cy="-6"
+                  r="10"
+                  fill={isLowPowerBlackout ? '#1e293b' : '#38bdf8'}
+                  stroke={isLowPowerBlackout ? '#ef4444' : '#bae6fd'}
+                  strokeWidth="1.5"
+                />
+                {isLowPowerBlackout && (
+                  <g pointerEvents="none">
+                    <circle cx="0" cy="-28" r="4.5" fill="#ef4444" />
+                    <text
+                      x="0"
+                      y="-36"
+                      textAnchor="middle"
+                      fill="#fca5a5"
+                      fontSize="9.5"
+                      fontFamily="monospace"
+                      fontWeight="bold"
+                    >
+                      {lang === 'es' ? '🔌 LUCES APAGADAS (<15% ⚡)' : '🔌 LIGHTS OFF (<15% ⚡)'}
+                    </text>
+                  </g>
+                )}
                 <text
                   x="0"
                   y="58"
@@ -619,23 +809,58 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 selectedModule === 'greenhouse' ? 'svg-node-selected' : ''
               }`}
               onClick={() => handleSelectModuleFromSvg('greenhouse')}
+              onKeyDown={(e) => handleSvgKeyDown(e, 'greenhouse')}
+              tabIndex={0}
+              role="button"
+              aria-label={
+                lang === 'es'
+                  ? `Invernadero Hidropónico Veggie: ${resources.food}% alimentos`
+                  : `Veggie Hydroponic Greenhouse: ${resources.food}% food`
+              }
             >
+              {/* C5: Si food < 25 (isGreenhouseWilted), el invernadero pierde su brillo y las plantas se marchitan */}
               <rect
                 x="-58"
                 y="0"
                 width="116"
                 height="36"
                 rx="16"
-                fill="#064e3b"
-                stroke="#34d399"
+                fill={isGreenhouseWilted ? '#292524' : isLowPowerBlackout ? '#0f172a' : '#064e3b'}
+                stroke={isGreenhouseWilted ? '#a16207' : '#34d399'}
                 strokeWidth="2.2"
               />
-              <circle cx="-32" cy="18" r="8" fill="#22c55e" />
-              <circle cx="-10" cy="16" r="9" fill="#4ade80" />
-              <circle cx="14" cy="18" r="8" fill="#22c55e" />
-              <circle cx="35" cy="17" r="7" fill="#4ade80" />
+              {isGreenhouseWilted ? (
+                <g>
+                  {/* Plantas marchitas e inclinadas en tonos ocres/secos */}
+                  <ellipse cx="-32" cy="24" rx="7" ry="4" fill="#a16207" />
+                  <path d="M-32,28 Q-36,18 -41,22" stroke="#ca8a04" strokeWidth="2" fill="none" />
+                  <ellipse cx="-10" cy="25" rx="8" ry="4" fill="#854d0e" />
+                  <path d="M-10,28 Q-6,19 -1,24" stroke="#a16207" strokeWidth="2" fill="none" />
+                  <ellipse cx="14" cy="24" rx="7" ry="4" fill="#a16207" />
+                  <path d="M14,28 Q10,19 5,23" stroke="#ca8a04" strokeWidth="2" fill="none" />
+                  <ellipse cx="35" cy="25" rx="6" ry="3.5" fill="#854d0e" />
+                  <text
+                    x="0"
+                    y="-7"
+                    textAnchor="middle"
+                    fill="#fde047"
+                    fontSize="9.5"
+                    fontFamily="monospace"
+                    fontWeight="bold"
+                  >
+                    {lang === 'es' ? '🥀 CULTIVO MARCHITO' : '🥀 WILTED CROPS'}
+                  </text>
+                </g>
+              ) : (
+                <g>
+                  <circle cx="-32" cy="18" r="8" fill="#22c55e" />
+                  <circle cx="-10" cy="16" r="9" fill="#4ade80" />
+                  <circle cx="14" cy="18" r="8" fill="#22c55e" />
+                  <circle cx="35" cy="17" r="7" fill="#4ade80" />
+                </g>
+              )}
               <text x="0" y="53" textAnchor="middle" fill="#f8fafc" fontSize="11" fontWeight="bold">
-                🌱 Veggie {resources.food}%
+                {isGreenhouseWilted ? '🥀' : '🌱'} Veggie {resources.food}%
               </text>
             </g>
 
@@ -651,15 +876,29 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
               />
             </g>
 
+            {/* C5: Velo de polvo naranja y ráfagas en DUST_STORM */}
             {isDustStorm && (
-              <rect
-                x="0"
-                y="0"
-                width="860"
-                height="270"
-                fill="rgba(180, 83, 9, 0.28)"
-                pointerEvents="none"
-              />
+              <g pointerEvents="none">
+                <rect
+                  x="0"
+                  y="0"
+                  width="860"
+                  height="270"
+                  fill="url(#dustVeilGrad)"
+                />
+                <g stroke="rgba(253, 186, 116, 0.55)" strokeWidth="2" strokeDasharray="18 10">
+                  <line x1="40" y1="85" x2="820" y2="65" />
+                  <line x1="15" y1="145" x2="845" y2="120" />
+                  <line x1="60" y1="210" x2="830" y2="190" />
+                </g>
+                <g fill="#fdba74" opacity="0.65">
+                  <circle cx="190" cy="110" r="2.5" />
+                  <circle cx="340" cy="95" r="3" />
+                  <circle cx="490" cy="135" r="2.2" />
+                  <circle cx="660" cy="105" r="2.8" />
+                  <circle cx="570" cy="195" r="2.5" />
+                </g>
+              </g>
             )}
           </svg>
         </div>

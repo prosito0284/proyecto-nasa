@@ -1708,4 +1708,53 @@ body {
   padding: 0.65rem 1.35rem;
 }
 
+/* C5: OutpostMap Visual State Badges & Modifiers */
+.outpost-state-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.state-alert-chip {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+}
+
+.state-chip-dust {
+  background: hsla(24, 90%, 48%, 0.22);
+  color: hsl(32, 96%, 72%);
+  border-color: hsla(28, 92%, 56%, 0.55);
+}
+
+.state-chip-shadow {
+  background: hsla(200, 85%, 48%, 0.18);
+  color: hsl(198, 92%, 75%);
+  border-color: hsla(200, 88%, 58%, 0.5);
+}
+
+.state-chip-blackout {
+  background: hsla(12, 88%, 50%, 0.22);
+  color: hsl(12, 95%, 76%);
+  border-color: hsla(12, 88%, 56%, 0.55);
+}
+
+.state-chip-wilted {
+  background: hsla(44, 92%, 45%, 0.2);
+  color: hsl(48, 96%, 72%);
+  border-color: hsla(45, 92%, 55%, 0.55);
+}
+
+.svg-outpost-wrapper.svg-env-dust-storm {
+  border-color: hsla(28, 92%, 56%, 0.65);
+}
+
+.svg-outpost-wrapper.svg-env-blackout {
+  border-color: hsla(12, 88%, 56%, 0.65);
+}
+
+
 
