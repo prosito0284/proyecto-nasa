@@ -2081,6 +2081,32 @@ body {
 }
 
 /* C6 & C12: Certificado como Diploma Oficial de Papel */
+.cert-paper-diploma-frame {
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 1.1rem;
+  background: var(--paper-sheet);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.cert-serial-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink-secondary);
+  border-bottom: 1.5px solid var(--ink);
+  padding-bottom: 0.45rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .cert-header-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2132,9 +2158,9 @@ body {
   padding-top: 0.6rem;
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: flex-start;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.65rem;
 }
 
 .cert-diploma-overline {
@@ -2148,10 +2174,19 @@ body {
 
 .cert-diploma-recipient {
   font-family: var(--font-display);
-  font-size: 1.4rem;
+  font-size: 1.45rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--ink);
+  display: block;
+}
+
+.cert-diploma-citation {
+  font-size: 0.82rem;
+  color: var(--ink-secondary);
+  margin-top: 0.2rem;
+  max-width: 68ch;
+  line-height: 1.38;
 }
 
 .cert-official-stamp {
@@ -2162,8 +2197,9 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  padding: 0.2rem 0.55rem;
+  padding: 0.25rem 0.6rem;
   border-radius: var(--radius);
+  white-space: nowrap;
 }
 
 .cert-history-section {
@@ -2223,6 +2259,67 @@ body {
   color: var(--ink);
 }
 
+.cert-signature-footer {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: 1rem;
+  padding-top: 0.65rem;
+  border-top: 1.5px solid var(--ink);
+}
+
+.cert-sig-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.cert-sig-script {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--nasa-blue);
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 0.2rem;
+}
+
+.cert-sig-line {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cert-seal-box {
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 0.3rem 0.65rem;
+  text-align: center;
+  background: var(--paper);
+  font-family: var(--font-mono);
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.cert-seal-box span {
+  font-size: 0.6rem;
+  color: var(--ink-muted);
+  letter-spacing: 0.05em;
+}
+
+.cert-seal-box strong {
+  font-size: 0.72rem;
+  color: var(--nasa-red);
+}
+
+@media (max-width: 640px) {
+  .cert-signature-footer {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Franja de Reto del Día (conectada en App.tsx) */
 .daily-challenge-strip {
   display: flex;
@@ -2266,14 +2363,21 @@ body {
 @media print {
   @page {
     size: A4 portrait;
-    margin: 8mm;
+    margin: 6mm;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   html,
   body {
     background: #FFFFFF !important;
     color: #1B1F2A !important;
-    font-size: 11px !important;
+    font-size: 10px !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .top-nav,
@@ -2297,11 +2401,27 @@ body {
     overflow: visible !important;
     background: #FFFFFF !important;
     color: #1B1F2A !important;
-    border: 2px solid #1B1F2A !important;
-    padding: 8mm !important;
-    gap: 5mm !important;
+    border: none !important;
+    padding: 0 !important;
     page-break-inside: avoid;
     break-inside: avoid;
+  }
+
+  .cert-paper-diploma-frame {
+    border: 2px solid #1B1F2A !important;
+    padding: 4.5mm !important;
+    gap: 2.8mm !important;
+    background: #FFFFFF !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .cert-diploma-header {
+    padding-bottom: 2mm !important;
+  }
+
+  .cert-diploma-header h2 {
+    font-size: 1.25rem !important;
   }
 
   .cert-astronaut-name-box,
@@ -2310,23 +2430,57 @@ body {
   .badge-card {
     background: #FFFFFF !important;
     border: 1px solid #1B1F2A !important;
-    padding: 3mm 4mm !important;
+    padding: 2mm 3mm !important;
+    gap: 1.2mm !important;
     break-inside: avoid;
+  }
+
+  .cert-diploma-banner {
+    border-top: none !important;
+    padding-top: 0 !important;
+  }
+
+  .cert-diploma-recipient {
+    font-size: 1.2rem !important;
+  }
+
+  .cert-diploma-citation {
+    font-size: 0.72rem !important;
+    margin-top: 1mm !important;
   }
 
   .cert-bars-grid {
     grid-template-columns: repeat(5, 1fr) !important;
-    gap: 2.5mm !important;
+    gap: 2mm !important;
   }
 
   .cert-history-grid {
     grid-template-columns: repeat(4, 1fr) !important;
-    gap: 2.5mm !important;
+    gap: 1.8mm !important;
   }
 
   .badges-grid {
     grid-template-columns: repeat(3, 1fr) !important;
-    gap: 2.5mm !important;
+    gap: 1.8mm !important;
+  }
+
+  .badge-card .mission-patch-svg {
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  .badge-card h4 {
+    font-size: 0.78rem !important;
+  }
+
+  .badge-card p {
+    font-size: 0.66rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .cert-signature-footer {
+    grid-template-columns: 1fr auto 1fr !important;
+    padding-top: 2mm !important;
   }
 }
 
