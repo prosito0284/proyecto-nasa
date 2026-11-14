@@ -6,7 +6,12 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { VERIFIED_NASA_WEATHER_EVENTS, getGlossaryTerm } from '../../data/nasa-datasets';
+import {
+  JUNIOR_ASTRONAUT_QUIZ,
+  VERIFIED_NASA_WEATHER_EVENTS,
+  getGlossaryTerm,
+  getQuizQuestionsForSite,
+} from '../../data/nasa-datasets';
 import {
   DonkiCmeItem,
   DonkiFlrItem,
@@ -193,5 +198,25 @@ describe('nasaApi — funciones puras de mapeo DONKI y calidad del pool (B3 y B4
     const onOffline = await fetchLiveOrVerifiedSpaceWeather(true);
     expect(onOffline.length).toBeGreaterThan(0);
     expect(onOffline.every((e) => e.isLiveNasaData === false)).toBe(true);
+  });
+
+  it('JUNIOR_ASTRONAUT_QUIZ tiene 12+ preguntas bilingües con fuente NASA y filtro por sitio (B5)', () => {
+    expect(JUNIOR_ASTRONAUT_QUIZ.length).toBeGreaterThanOrEqual(12);
+    const ids = JUNIOR_ASTRONAUT_QUIZ.map((q) => q.id);
+    expect(new Set(ids).size).toBe(ids.length);
+
+    for (const q of JUNIOR_ASTRONAUT_QUIZ) {
+      expect(q.badgeSource).toMatch(/NASA/);
+      expect(q.question.es.length).toBeGreaterThan(0);
+      expect(q.question.en.length).toBeGreaterThan(0);
+      expect(q.explanation.es.length).toBeGreaterThan(0);
+      expect(q.explanation.en.length).toBeGreaterThan(0);
+      expect(q.options.some((o) => o.isCorrect)).toBe(true);
+    }
+
+    const moonQuiz = getQuizQuestionsForSite('moon-shackleton');
+    const marsQuiz = getQuizQuestionsForSite('mars-jezero');
+    expect(moonQuiz.every((q) => !q.siteFilter || q.siteFilter === 'both' || q.siteFilter === 'moon-shackleton')).toBe(true);
+    expect(marsQuiz.every((q) => !q.siteFilter || q.siteFilter === 'both' || q.siteFilter === 'mars-jezero')).toBe(true);
   });
 });

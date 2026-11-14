@@ -8,15 +8,15 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { GlossaryTerm, Language, SpaceWeatherEvent } from '../../types/mission';
+import { GlossaryTerm, Language, OutpostSiteId, SpaceWeatherEvent } from '../../types/mission';
 import {
-  JUNIOR_ASTRONAUT_QUIZ,
   NASA_OSDR_STUDIES,
   NasaGalleryImage,
   NasaOsdrStudy,
   VERIFIED_NASA_GALLERY_IMAGES,
   VERIFIED_NASA_WEATHER_EVENTS,
   getGlossaryTerm,
+  getQuizQuestionsForSite,
 } from '../../data/nasa-datasets';
 import {
   fetchLiveOrVerifiedSpaceWeather,
@@ -32,6 +32,8 @@ interface ScienceModalProps {
   currentWeather: SpaceWeatherEvent;
   /** ID opcional del término científico a resaltar al abrir el modal */
   focusTermId?: string;
+  /** ID opcional de la base actual ('moon-shackleton' | 'mars-jezero') para filtrar el Mini-Quiz */
+  siteId?: OutpostSiteId;
 }
 
 type ModalTab = 'donki-glossary' | 'osdr-studies' | 'nasa-photos' | 'mini-quiz';
@@ -43,6 +45,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
   glossary,
   currentWeather,
   focusTermId,
+  siteId,
 }) => {
   const [activeTab, setActiveTab] = useState<ModalTab>('donki-glossary');
 
@@ -76,9 +79,18 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
   const [failedImageIds, setFailedImageIds] = useState<Record<string, boolean>>({});
 
   // Estado Tab 4: Mini-Quiz para niños
+  const [quizSiteFilter, setQuizSiteFilter] = useState<OutpostSiteId | 'all'>(
+    siteId ?? 'all'
+  );
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>(
     {}
   );
+
+  useEffect(() => {
+    if (siteId) {
+      setQuizSiteFilter(siteId);
+    }
+  }, [siteId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -197,9 +209,12 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
     (st) => osdrCategory === 'all' || st.category === osdrCategory
   );
 
-  const totalQuestions = JUNIOR_ASTRONAUT_QUIZ.length;
-  const answeredCount = Object.keys(selectedAnswers).length;
-  const correctCount = JUNIOR_ASTRONAUT_QUIZ.reduce((acc, q) => {
+  const filteredQuizQuestions = getQuizQuestionsForSite(quizSiteFilter);
+  const totalQuestions = filteredQuizQuestions.length;
+  const answeredCount = filteredQuizQuestions.filter(
+    (q) => Boolean(selectedAnswers[q.id])
+  ).length;
+  const correctCount = filteredQuizQuestions.reduce((acc, q) => {
     const chosenId = selectedAnswers[q.id];
     const chosenOpt = q.options.find((o) => o.id === chosenId);
     return acc + (chosenOpt?.isCorrect ? 1 : 0);
@@ -1171,47 +1186,97 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
               className="science-weather-box"
               style={{
                 display: 'flex',
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '1rem',
+                flexDirection: 'column',
+                gap: '0.75rem',
               }}
             >
-              <div>
-                <h3>
-                  {lang === 'es'
-                    ? '🧠 Mini-Quiz de Entrenamiento: ¿Cuánto sabes de Ciencia Real de la NASA?'
-                    : '🧠 Training Mini-Quiz: How Much Real NASA Science Do You Know?'}
-                </h3>
-                <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
-                  {lang === 'es'
-                    ? 'Responde las 5 preguntas basadas en NASA DONKI, OSDR (OSD-379 y BioSentinel), Artemis y Marte para ganar tu insignia.'
-                    : 'Answer all 5 questions grounded in NASA DONKI, OSDR (OSD-379 & BioSentinel), Artemis, and Mars to earn your badge.'}
-                </p>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '1rem',
+                }}
+              >
+                <div>
+                  <h3>
+                    {lang === 'es'
+                      ? '🧠 Mini-Quiz de Entrenamiento: ¿Cuánto sabes de Ciencia Real de la NASA?'
+                      : '🧠 Training Mini-Quiz: How Much Real NASA Science Do You Know?'}
+                  </h3>
+                  <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
+                    {lang === 'es'
+                      ? `Responde las ${totalQuestions} preguntas sacadas de los dilemas reales de la misión (MOXIE, RAD, OSD-379, Shackleton, Jezero y DONKI).`
+                      : `Answer the ${totalQuestions} questions drawn from real mission dilemmas (MOXIE, RAD, OSD-379, Shackleton, Jezero & DONKI).`}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span className="science-score-badge" style={{ fontSize: '0.92rem' }}>
+                    🏆{' '}
+                    {lang === 'es'
+                      ? `Aciertos: ${correctCount} / ${totalQuestions}`
+                      : `Score: ${correctCount} / ${totalQuestions}`}
+                  </span>
+                  {answeredCount > 0 && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={handleResetQuiz}
+                      id="reset-quiz-btn"
+                    >
+                      {lang === 'es' ? '🔄 Reiniciar Quiz' : '🔄 Reset Quiz'}
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span className="science-score-badge" style={{ fontSize: '0.92rem' }}>
-                  🏆{' '}
-                  {lang === 'es'
-                    ? `Aciertos: ${correctCount} / ${totalQuestions}`
-                    : `Score: ${correctCount} / ${totalQuestions}`}
-                </span>
-                {answeredCount > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
+                {(
+                  [
+                    {
+                      id: 'all',
+                      labelEs: '🌌 Todas las Preguntas (14)',
+                      labelEn: '🌌 All Questions (14)',
+                    },
+                    {
+                      id: 'moon-shackleton',
+                      labelEs: '🌕 Base Lunar (Shackleton / Artemis)',
+                      labelEn: '🌕 Lunar Base (Shackleton / Artemis)',
+                    },
+                    {
+                      id: 'mars-jezero',
+                      labelEs: '🔴 Base Marciana (Jezero / MOXIE)',
+                      labelEn: '🔴 Martian Base (Jezero / MOXIE)',
+                    },
+                  ] as const
+                ).map((filterBtn) => (
                   <button
+                    key={filterBtn.id}
                     type="button"
                     className="btn-secondary"
-                    onClick={handleResetQuiz}
-                    id="reset-quiz-btn"
+                    style={{
+                      fontSize: '0.78rem',
+                      padding: '0.35rem 0.75rem',
+                      background:
+                        quizSiteFilter === filterBtn.id
+                          ? 'var(--accent-orange-nasa)'
+                          : 'var(--bg-space-deep)',
+                    }}
+                    onClick={() => {
+                      missionAudio.playClick();
+                      setQuizSiteFilter(filterBtn.id);
+                    }}
                   >
-                    {lang === 'es' ? '🔄 Reiniciar Quiz' : '🔄 Reset Quiz'}
+                    {lang === 'es' ? filterBtn.labelEs : filterBtn.labelEn}
                   </button>
-                )}
+                ))}
               </div>
             </div>
 
-            {answeredCount === totalQuestions && (
+            {answeredCount === totalQuestions && totalQuestions > 0 && (
               <div
                 className="tradeoff-callout"
                 style={{
@@ -1225,7 +1290,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                     ? lang === 'es'
                       ? '🌟 ¡INSIGNIA DESBLOQUEADA: Comandante Científico Jefe de la NASA! ¡Respondiste todo perfectamente!'
                       : '🌟 BADGE UNLOCKED: Chief NASA Science Commander! You answered every question perfectly!'
-                    : correctCount >= 3
+                    : correctCount >= Math.ceil(totalQuestions * 0.65)
                       ? lang === 'es'
                         ? '🚀 ¡INSIGNIA DESBLOQUEADA: Especialista de Misión Artemis & Marte! ¡Gran dominio de los trade-offs!'
                         : '🚀 BADGE UNLOCKED: Artemis & Mars Mission Specialist! Great mastery of engineering trade-offs!'
@@ -1237,7 +1302,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {JUNIOR_ASTRONAUT_QUIZ.map((q) => {
+              {filteredQuizQuestions.map((q) => {
                 const userChoiceId = selectedAnswers[q.id];
                 const isAnswered = Boolean(userChoiceId);
 
