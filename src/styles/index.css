@@ -1,0 +1,558 @@
+/**
+ * BLOQUE C (Asignado a: Antigravity Principal - Rama: feat/outpost-ui)
+ * Sistema de Diseño Espacial "Outpost Commander" (Vanilla CSS)
+ * Paleta: Deep Space Slate, Lunar Titanium, Solar Amber y NASA Safety Orange.
+ */
+
+:root {
+  --bg-space-deep: hsl(220, 26%, 8%);
+  --bg-panel-elevated: hsl(220, 22%, 12%);
+  --bg-panel-subtle: hsl(220, 18%, 16%);
+  --surface-lunar-tint: hsl(215, 16%, 15%);
+  --surface-mars-tint: hsl(18, 28%, 14%);
+
+  --text-primary: hsl(210, 25%, 96%);
+  --text-secondary: hsl(215, 16%, 72%);
+  --text-muted: hsl(215, 12%, 54%);
+
+  --accent-amber: hsl(38, 95%, 56%);
+  --accent-orange-nasa: hsl(16, 88%, 54%);
+  --status-nominal: hsl(152, 68%, 46%);
+  --status-warning: hsl(40, 94%, 54%);
+  --status-critical: hsl(4, 82%, 56%);
+
+  --border-subtle: hsla(210, 20%, 85%, 0.12);
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-space-deep);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-shell {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Header */
+.top-nav {
+  background: var(--bg-panel-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.brand-block h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 2vw, 1.65rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.brand-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.nav-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Buttons */
+.btn-primary,
+.btn-secondary,
+.site-tab {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
+  border: 1px solid var(--border-subtle);
+}
+
+.btn-primary {
+  background: var(--accent-amber);
+  color: hsl(220, 30%, 8%);
+  border-color: transparent;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  background: hsl(38, 98%, 62%);
+}
+
+.btn-secondary,
+.site-tab {
+  background: var(--bg-panel-subtle);
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover,
+.site-tab:hover {
+  background: hsl(220, 18%, 22%);
+}
+
+.site-tab.active {
+  background: var(--accent-orange-nasa);
+  color: #fff;
+  border-color: transparent;
+}
+
+/* Main Layout Grid */
+.mission-workspace {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 980px) {
+  .mission-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* HUD Panel */
+.hud-panel {
+  background: var(--bg-panel-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.section-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-title-row h2 {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.science-score-badge {
+  background: var(--bg-panel-subtle);
+  color: var(--accent-amber);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+}
+
+.bars-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.resource-row-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  margin-bottom: 0.3rem;
+}
+
+.mono-val {
+  font-family: var(--font-mono);
+}
+
+.progress-track {
+  height: 10px;
+  background: var(--bg-space-deep);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.35s ease;
+}
+
+.bar-nominal {
+  background: var(--status-nominal);
+}
+.bar-warning {
+  background: var(--status-warning);
+}
+.bar-critical {
+  background: var(--status-critical);
+}
+
+.radiation-readout {
+  background: var(--bg-panel-subtle);
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-md);
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
+}
+
+.helper-note {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.slider-group label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.slider-group input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent-amber);
+  cursor: pointer;
+}
+
+.alloc-warn {
+  color: var(--status-critical);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.alloc-ok {
+  color: var(--status-nominal);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+/* Right Column: Stage & Dilemma */
+.mission-center-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.surface-canvas {
+  border-radius: var(--radius-lg);
+  padding: 1.35rem;
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.surface-lunar {
+  background: var(--surface-lunar-tint);
+}
+
+.surface-mars {
+  background: var(--surface-mars-tint);
+}
+
+.surface-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.coord-pill {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--accent-amber);
+  text-transform: uppercase;
+}
+
+.surface-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.weather-pill {
+  background: var(--bg-panel-elevated);
+  padding: 0.6rem 0.95rem;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.85rem;
+}
+
+.weather-pill small {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.9rem;
+}
+
+.outpost-module {
+  background: var(--bg-panel-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.module-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.module-icon {
+  font-size: 1.4rem;
+}
+
+.module-alloc {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--accent-amber);
+}
+
+.outpost-module h4 {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+}
+
+.outpost-module p {
+  font-size: 0.83rem;
+  color: var(--text-secondary);
+}
+
+.comm-delay-bar {
+  background: var(--bg-panel-elevated);
+  border-radius: var(--radius-md);
+  padding: 0.95rem 1.15rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.86rem;
+}
+
+.comm-delay-bar p {
+  color: var(--text-secondary);
+  margin-top: 0.2rem;
+}
+
+/* Dilemma Decision Card */
+.dilemma-card {
+  background: var(--bg-panel-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dilemma-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--accent-amber);
+}
+
+.dilemma-situation {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.choices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-top: 0.35rem;
+}
+
+.choice-box {
+  background: var(--bg-panel-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.choice-box h4 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.tradeoff-callout {
+  background: var(--bg-space-deep);
+  padding: 0.65rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: var(--accent-amber);
+}
+
+/* Logs */
+.logs-card {
+  background: var(--bg-panel-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.log-item {
+  background: var(--bg-panel-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+}
+
+.log-item-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.nasa-tag {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--accent-amber);
+}
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 10, 18, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  z-index: 100;
+}
+
+.modal-card {
+  background: var(--bg-panel-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  max-width: 820px;
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.nasa-badge {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--accent-amber);
+}
+
+.science-weather-box {
+  background: var(--bg-panel-subtle);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.mono-tag {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--accent-amber);
+}
+
+.glossary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.9rem;
+}
+
+.glossary-item {
+  background: var(--bg-panel-subtle);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.glossary-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.source-tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--accent-amber);
+}
+
+.glossary-analogy {
+  font-size: 0.83rem;
+  color: var(--text-secondary);
+}
