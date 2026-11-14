@@ -16,6 +16,7 @@ import {
   NasaOsdrStudy,
   VERIFIED_NASA_GALLERY_IMAGES,
   VERIFIED_NASA_WEATHER_EVENTS,
+  getGlossaryTerm,
 } from '../../data/nasa-datasets';
 import {
   fetchLiveOrVerifiedSpaceWeather,
@@ -29,6 +30,8 @@ interface ScienceModalProps {
   onClose: () => void;
   glossary: GlossaryTerm[];
   currentWeather: SpaceWeatherEvent;
+  /** ID opcional del término científico a resaltar al abrir el modal */
+  focusTermId?: string;
 }
 
 type ModalTab = 'donki-glossary' | 'osdr-studies' | 'nasa-photos' | 'mini-quiz';
@@ -39,6 +42,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
   onClose,
   glossary,
   currentWeather,
+  focusTermId,
 }) => {
   const [activeTab, setActiveTab] = useState<ModalTab>('donki-glossary');
 
@@ -87,6 +91,20 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
       })
       .finally(() => setIsLoadingDonki(false));
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !focusTermId) return;
+    setActiveTab('donki-glossary');
+    setGlossarySourceFilter('ALL');
+    setGlossarySearch('');
+    const timer = setTimeout(() => {
+      if (typeof document !== 'undefined') {
+        const el = document.getElementById(`glossary-term-${focusTermId}`);
+        el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      }
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [isOpen, focusTermId]);
 
   useEffect(() => {
     if (!isOpen || activeTab !== 'nasa-photos') return;
@@ -152,18 +170,28 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
     (ev) => weatherTypeFilter === 'ALL' || ev.type === weatherTypeFilter
   );
 
-  const filteredGlossary = glossary.filter((item) => {
-    const matchesSource =
-      glossarySourceFilter === 'ALL' || item.nasaSource === glossarySourceFilter;
-    if (!glossarySearch.trim()) return matchesSource;
-    const q = glossarySearch.toLowerCase();
-    return (
-      matchesSource &&
-      (item.term[lang].toLowerCase().includes(q) ||
-        item.shortDefinition[lang].toLowerCase().includes(q) ||
-        item.kidAnalogy[lang].toLowerCase().includes(q))
-    );
-  });
+  const focusedTerm =
+    getGlossaryTerm(focusTermId) ||
+    glossary.find((item) => item.id === focusTermId);
+
+  const filteredGlossary = glossary
+    .filter((item) => {
+      const matchesSource =
+        glossarySourceFilter === 'ALL' || item.nasaSource === glossarySourceFilter;
+      if (!glossarySearch.trim()) return matchesSource;
+      const q = glossarySearch.toLowerCase();
+      return (
+        matchesSource &&
+        (item.term[lang].toLowerCase().includes(q) ||
+          item.shortDefinition[lang].toLowerCase().includes(q) ||
+          item.kidAnalogy[lang].toLowerCase().includes(q))
+      );
+    })
+    .sort((a, b) => {
+      if (focusTermId && a.id === focusTermId) return -1;
+      if (focusTermId && b.id === focusTermId) return 1;
+      return 0;
+    });
 
   const filteredStudies = NASA_OSDR_STUDIES.filter(
     (st) => osdrCategory === 'all' || st.category === osdrCategory
@@ -543,34 +571,93 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                 )}
               </div>
 
-              <div className="glossary-grid">
-                {filteredGlossary.map((item) => (
-                  <article key={item.id} className="glossary-item">
-                    <div className="glossary-item-header">
-                      <h4>{item.term[lang]}</h4>
-                      <span className="source-tag">NASA {item.nasaSource}</span>
-                    </div>
-                    <p className="glossary-def" style={{ fontSize: '0.86rem' }}>
-                      {item.shortDefinition[lang]}
-                    </p>
-                    <p className="glossary-analogy">💡 {item.kidAnalogy[lang]}</p>
-                    <a
-                      href={item.nasaStudyOrUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mono-tag"
-                      style={{
-                        fontSize: '0.73rem',
-                        textDecoration: 'underline',
-                        marginTop: 'auto',
-                      }}
-                    >
+              {focusedTerm && (
+                <div
+                  id="focused-glossary-banner"
+                  className="tradeoff-callout"
+                  style={{
+                    border: '2px solid var(--accent-amber)',
+                    background: 'var(--bg-space-deep)',
+                    padding: '0.85rem 1rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.35rem',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '0.5rem',
+                    }}
+                  >
+                    <span className="nasa-badge">
+                      🎯{' '}
                       {lang === 'es'
-                        ? 'Fuente Oficial de la NASA ↗'
-                        : 'Official NASA Source ↗'}
-                    </a>
-                  </article>
-                ))}
+                        ? 'TÉRMINO CIENTÍFICO DESTACADO DEL DILEMA'
+                        : 'HIGHLIGHTED DILEMMA SCIENCE TERM'}
+                    </span>
+                    <span className="source-tag">NASA {focusedTerm.nasaSource}</span>
+                  </div>
+                  <strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>
+                    {focusedTerm.term[lang]}
+                  </strong>
+                  <p style={{ fontSize: '0.86rem', color: 'var(--text-primary)' }}>
+                    {focusedTerm.shortDefinition[lang]}
+                  </p>
+                  <p className="glossary-analogy">💡 {focusedTerm.kidAnalogy[lang]}</p>
+                </div>
+              )}
+
+              <div className="glossary-grid">
+                {filteredGlossary.map((item) => {
+                  const isFocused = Boolean(focusTermId && item.id === focusTermId);
+                  return (
+                    <article
+                      key={item.id}
+                      id={`glossary-term-${item.id}`}
+                      data-highlighted={isFocused ? 'true' : 'false'}
+                      className="glossary-item"
+                      style={
+                        isFocused
+                          ? {
+                              border: '2px solid var(--accent-amber)',
+                              boxShadow: '0 0 0 3px hsla(38, 95%, 56%, 0.22)',
+                            }
+                          : undefined
+                      }
+                    >
+                      <div className="glossary-item-header">
+                        <h4>
+                          {isFocused ? '🎯 ' : ''}
+                          {item.term[lang]}
+                        </h4>
+                        <span className="source-tag">NASA {item.nasaSource}</span>
+                      </div>
+                      <p className="glossary-def" style={{ fontSize: '0.86rem' }}>
+                        {item.shortDefinition[lang]}
+                      </p>
+                      <p className="glossary-analogy">💡 {item.kidAnalogy[lang]}</p>
+                      <a
+                        href={item.nasaStudyOrUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mono-tag"
+                        style={{
+                          fontSize: '0.73rem',
+                          textDecoration: 'underline',
+                          marginTop: 'auto',
+                        }}
+                      >
+                        {lang === 'es'
+                          ? 'Fuente Oficial de la NASA ↗'
+                          : 'Official NASA Source ↗'}
+                      </a>
+                    </article>
+                  );
+                })}
               </div>
             </div>
           </div>

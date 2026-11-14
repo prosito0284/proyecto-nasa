@@ -796,6 +796,14 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTerm[] = [
   },
 ];
 
+/**
+ * Helper para buscar un término del glosario científico por su ID.
+ */
+export function getGlossaryTerm(id?: string | null): GlossaryTerm | undefined {
+  if (!id) return undefined;
+  return KID_SCIENCE_GLOSSARY.find((term) => term.id === id);
+}
+
 export const JUNIOR_ASTRONAUT_QUIZ: ScienceQuizQuestion[] = [
   {
     id: 'quiz-water-shield',
