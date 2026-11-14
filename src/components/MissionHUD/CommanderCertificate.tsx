@@ -1,14 +1,32 @@
 /**
  * BLOQUE C (Asignado a: Antigravity Principal - Rama: feat/outpost-ui)
  * Modal y Certificado de Evaluación de Comandante Junior e Insignias de Ingeniería NASA
- * Conectado con `evaluateCommanderPerformance` del Bloque A (Claude Code).
+ * C9: Cero emoji; usa exclusivamente iconos SVG de trazo de `src/components/icons`.
  */
 
 import React, { useEffect, useState } from 'react';
-import { DecisionRecord, Language, OutpostSiteConfig, SpaceWeatherEvent } from '../../types/mission';
+import {
+  DecisionRecord,
+  Language,
+  OutpostSiteConfig,
+  SpaceWeatherEvent,
+} from '../../types/mission';
 import type { CommanderEvaluation } from '../../engine/simulationEngine';
-import { INITIAL_DILEMMA_CARDS } from '../../data/scenarios';
 import { missionAudio } from '../../utils/sound';
+import {
+  AlertIcon,
+  ArrowIcon,
+  CheckIcon,
+  ClockIcon,
+  CloseIcon,
+  DustIcon,
+  HelmetIcon,
+  LanguageIcon,
+  PatchIcon,
+  PrintIcon,
+  RadiationIcon,
+  SunIcon,
+} from '../icons';
 
 export interface CommanderCertificateProps {
   lang: Language;
@@ -93,27 +111,27 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
     switch (weatherType) {
       case 'FLR':
         return {
-          icon: '⚡',
+          icon: <SunIcon size={13} />,
           label: lang === 'es' ? 'Llamarada Solar (FLR)' : 'Solar Flare (FLR)',
         };
       case 'SEP':
         return {
-          icon: '☢️',
+          icon: <RadiationIcon size={13} />,
           label: lang === 'es' ? 'Partículas SEP' : 'SEP Radiation',
         };
       case 'CME':
         return {
-          icon: '🌩️',
+          icon: <AlertIcon size={13} />,
           label: lang === 'es' ? 'Tormenta Solar (CME)' : 'CME Storm',
         };
       case 'DUST_STORM':
         return {
-          icon: '🌪️',
+          icon: <DustIcon size={13} />,
           label: lang === 'es' ? 'Tormenta de Polvo' : 'Dust Storm',
         };
       default:
         return {
-          icon: '☀️',
+          icon: <SunIcon size={13} />,
           label: lang === 'es' ? 'Sol en Calma' : 'Quiet Sun',
         };
     }
@@ -142,7 +160,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
           <div>
             <span className="nasa-badge">NASA JUNIOR ASTRONAUT MISSION EVALUATION</span>
             <h2 id="certificate-modal-title">
-              {evaluation.rank.emoji} {evaluation.rank.title[lang]} — {evaluation.score}/100 pts
+              <PatchIcon size={22} /> {evaluation.rank.title[lang]} — {evaluation.score}/100 pts
             </h2>
             <p className="brand-subtitle">{evaluation.rank.message[lang]}</p>
           </div>
@@ -156,7 +174,8 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
               }}
               id="print-certificate-btn"
             >
-              🖨️ {lang === 'es' ? 'Imprimir Certificado' : 'Print Certificate'}
+              <PrintIcon size={16} />{' '}
+              {lang === 'es' ? 'Imprimir Certificado' : 'Print Certificate'}
             </button>
             <button
               type="button"
@@ -167,7 +186,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
               }}
               id="close-certificate-modal-btn"
             >
-              {lang === 'es' ? 'Cerrar ✕' : 'Close ✕'}
+              <CloseIcon size={16} /> {lang === 'es' ? 'Cerrar' : 'Close'}
             </button>
           </div>
         </div>
@@ -176,7 +195,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
         <div className="cert-astronaut-name-box">
           <div className="cert-name-input-group no-print">
             <label htmlFor="astronaut-name-input" className="cert-name-label">
-              🧑‍🚀{' '}
+              <HelmetIcon size={16} />{' '}
               {lang === 'es'
                 ? 'Nombre del Astronauta / Comandante:'
                 : 'Astronaut / Commander Name:'}
@@ -196,26 +215,38 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
             />
           </div>
           <div className="cert-diploma-banner">
-            <span className="cert-diploma-overline">
-              {lang === 'es'
-                ? 'CERTIFICADO OFICIAL DE ENTRENAMIENTO DE MISIÓN'
-                : 'OFFICIAL MISSION TRAINING CERTIFICATE'}
+            <div>
+              <span className="cert-diploma-overline">
+                {lang === 'es'
+                  ? 'CERTIFICADO OFICIAL DE ENTRENAMIENTO DE MISIÓN'
+                  : 'OFFICIAL MISSION TRAINING CERTIFICATE'}
+              </span>
+              <strong className="cert-diploma-recipient">{displayCommanderName}</strong>
+            </div>
+            <span className="cert-official-stamp">
+              {missionStatus === 'won'
+                ? lang === 'es'
+                  ? 'MISIÓN CERTIFICADA'
+                  : 'MISSION CERTIFIED'
+                : lang === 'es'
+                  ? 'REGISTRO DE VUELO'
+                  : 'FLIGHT RECORD'}
             </span>
-            <strong className="cert-diploma-recipient">{displayCommanderName}</strong>
           </div>
         </div>
 
         {/* Desglose de Puntuación de Ingeniería */}
         <div className="cert-breakdown-box">
           <div className="cert-meta-row">
-            <span>
-              📍 <strong>{site.name[lang]}</strong>
+            <span className="cert-meta-item">
+              <LanguageIcon size={15} /> <strong>{site.name[lang]}</strong>
             </span>
-            <span>
-              🗓️ {site.dayName[lang]} {currentDay} / {totalDays}
+            <span className="cert-meta-item">
+              <ClockIcon size={15} /> {site.dayName[lang]} {currentDay} / {totalDays}
             </span>
-            <span>
-              ☢️ {lang === 'es' ? 'Dosis de misión:' : 'Mission dose:'}{' '}
+            <span className="cert-meta-item">
+              <RadiationIcon size={15} />{' '}
+              {lang === 'es' ? 'Dosis de misión:' : 'Mission dose:'}{' '}
               <strong>{evaluation.missionDoseMsv} mSv</strong>
             </span>
           </div>
@@ -243,7 +274,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
         {/* C6: Repaso Día por Día de la Misión (history?: DecisionRecord[]) */}
         <div className="cert-history-section">
           <h3 className="badges-heading">
-            🗓️{' '}
+            <ClockIcon size={18} />{' '}
             {lang === 'es'
               ? `Repaso Día por Día (${site.dayName[lang]} a ${site.dayName[lang]})`
               : `Day-by-Day Mission Review (${site.dayName[lang]} by ${site.dayName[lang]})`}
@@ -264,16 +295,11 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                     </div>
                     <div className="cert-history-detail">
                       <span className="cert-history-card-id">
-                        {INITIAL_DILEMMA_CARDS.find((c) => c.id === record.cardId)?.title[lang] ??
-                          formatCodeLabel(record.cardId)}
+                        ORD: {formatCodeLabel(record.cardId)}
                       </span>
                       <span className="cert-history-choice-id">
-                        ✅ {lang === 'es' ? 'Opción:' : 'Choice:'}{' '}
-                        <strong>
-                          {INITIAL_DILEMMA_CARDS.flatMap((c) => c.choices).find(
-                            (ch) => ch.id === record.choiceId
-                          )?.label[lang] ?? formatCodeLabel(record.choiceId)}
-                        </strong>
+                        <CheckIcon size={12} /> {lang === 'es' ? 'Opción:' : 'Choice:'}{' '}
+                        <strong>{formatCodeLabel(record.choiceId)}</strong>
                       </span>
                     </div>
                   </div>
@@ -292,10 +318,10 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
         {/* Insignias Desbloqueables */}
         <div>
           <h3 className="badges-heading">
-            🏅{' '}
+            <PatchIcon size={18} />{' '}
             {lang === 'es'
-              ? 'Insignias de Ingeniería Espacial NASA'
-              : 'NASA Space Engineering Badges'}
+              ? 'Parches de Ingeniería Espacial NASA'
+              : 'NASA Space Engineering Patches'}
           </h3>
           <div className="badges-grid">
             {evaluation.badges.map((badge) => (
@@ -304,15 +330,15 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                 className={`badge-card ${badge.earned ? 'badge-earned' : 'badge-locked'}`}
               >
                 <div className="badge-card-top">
-                  <span className="badge-emoji">{badge.emoji}</span>
+                  <PatchIcon size={22} />
                   <span className="badge-status-tag">
                     {badge.earned
                       ? lang === 'es'
-                        ? '✅ GANADA'
-                        : '✅ EARNED'
+                        ? 'GANADA'
+                        : 'EARNED'
                       : lang === 'es'
-                        ? '🔒 POR DESBLOQUEAR'
-                        : '🔒 LOCKED'}
+                        ? 'POR DESBLOQUEAR'
+                        : 'LOCKED'}
                   </span>
                 </div>
                 <h4>{badge.title[lang]}</h4>
@@ -333,7 +359,8 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                 onRestartMission();
               }}
             >
-              🔄 {lang === 'es' ? 'Jugar Nueva Misión' : 'Play Another Mission'}
+              {lang === 'es' ? 'Jugar Nueva Misión' : 'Play Another Mission'}
+              <ArrowIcon size={16} direction="right" />
             </button>
           )}
         </div>

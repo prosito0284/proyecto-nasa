@@ -1,7 +1,7 @@
 /**
  * BLOQUE C (Asignado a: Antigravity Principal - Rama: feat/outpost-ui)
- * C3 — Mapa visual interactivo del Hábitat Espacial con detalles de módulos
- * y simulador de retraso de señal plegados por defecto para reducir carga cognitiva (7–12 años).
+ * C3, C5 & C9 — Mapa visual interactivo del Hábitat Espacial con detalles de módulos
+ * y simulador de retraso de señal plegados por defecto, usando iconos SVG de trazo (cero emoji).
  */
 
 import React, { useEffect, useState } from 'react';
@@ -14,6 +14,21 @@ import {
 } from '../../types/mission';
 import type { TurnProjection } from '../../engine/simulationEngine';
 import { missionAudio } from '../../utils/sound';
+import {
+  AlertIcon,
+  AntennaIcon,
+  ArrowIcon,
+  BatteryIcon,
+  DropletIcon,
+  DustIcon,
+  HelmetIcon,
+  LanguageIcon,
+  LeafIcon,
+  ScienceIcon,
+  ShieldIcon,
+  SlidersIcon,
+  SunIcon,
+} from '../icons';
 
 export interface OutpostMapProps {
   lang: Language;
@@ -41,46 +56,46 @@ const RADIO_PRESETS: RadioMessagePreset[] = [
   {
     id: 'weather-check',
     label: {
-      es: '📡 Solicitar reporte solar DONKI a Houston',
-      en: '📡 Request DONKI solar forecast from Houston',
+      es: 'Solicitar reporte solar DONKI a Houston',
+      en: 'Request DONKI solar forecast from Houston',
     },
     houstonReplyLunar: {
-      es: '✅ Houston (1.3s): "¡Copiado, Base Artemis! Telemetría DONKI recibida casi al instante. Mantengan el escudo de agua listo si sube el flujo de protones."',
-      en: '✅ Houston (1.3s): "Copy that, Artemis Base! DONKI telemetry received almost instantly. Keep water walls ready if proton flux rises."',
+      es: 'HOUSTON (1.3s): "Copiado, Base Artemis. Telemetría DONKI recibida casi al instante. Mantengan el escudo de agua listo si sube el flujo de protones."',
+      en: 'HOUSTON (1.3s): "Copy that, Artemis Base. DONKI telemetry received almost instantly. Keep water walls ready if proton flux rises."',
     },
     houstonReplyMars: {
-      es: '✅ Houston (tras ~12 min reales): "¡Recibido, Jezero! Recuerden que nuestra voz tardó minutos en llegar a la velocidad de la luz. Si ocurre una llamarada solar, deben activar el refugio ustedes mismos sin esperar nuestra orden."',
-      en: '✅ Houston (after ~12 real min): "Copy, Jezero! Remember our voice took minutes to arrive at light speed. If a solar flare hits, you must trigger the shelter yourselves without waiting for us."',
+      es: 'HOUSTON (tras ~12 min reales): "Recibido, Jezero. Recuerden que nuestra voz tardó minutos en llegar a la velocidad de la luz. Si ocurre una llamarada solar, activen el refugio sin esperar nuestra orden."',
+      en: 'HOUSTON (after ~12 real min): "Copy, Jezero. Remember our voice took minutes to arrive at light speed. If a solar flare hits, trigger the shelter without waiting for us."',
     },
   },
   {
     id: 'medical-dosimetry',
     label: {
-      es: '🩺 Enviar lectura de dosímetros RAD / OSDR',
-      en: '🩺 Transmit RAD / OSDR dosimeter readings',
+      es: 'Enviar lectura de dosímetros RAD / OSDR',
+      en: 'Transmit RAD / OSDR dosimeter readings',
     },
     houstonReplyLunar: {
-      es: '✅ Cirujano de Vuelo NASA (1.3s): "Datos biomédicos OSDR en rango seguro. Con solo 1.3 segundos de retraso podemos guiarlos en vivo desde la Tierra."',
-      en: '✅ NASA Flight Surgeon (1.3s): "OSDR biomedical data within safe limits. With only a 1.3-second delay we can guide you live from Earth."',
+      es: 'CIRUJANO DE VUELO NASA (1.3s): "Datos biomédicos OSDR en rango seguro. Con solo 1.3 segundos de retraso podemos guiarlos en vivo desde la Tierra."',
+      en: 'NASA FLIGHT SURGEON (1.3s): "OSDR biomedical data within safe limits. With only a 1.3-second delay we can guide you live from Earth."',
     },
     houstonReplyMars: {
-      es: '✅ Cirujano de Vuelo NASA (tras ~12 min reales): "Lectura RAD recibida. En Marte una pregunta y su respuesta tardan hasta 24 minutos en ir y volver (ida y vuelta). ¡Su computadora médica a bordo es vital!"',
-      en: '✅ NASA Flight Surgeon (after ~12 real min): "RAD reading received. On Mars a question and answer take up to 24 minutes round-trip. Your onboard medical autonomy is vital!"',
+      es: 'CIRUJANO DE VUELO NASA (tras ~12 min reales): "Lectura RAD recibida. En Marte una consulta tarda hasta 24 minutos en ir y volver. Su autonomía médica a bordo es clave."',
+      en: 'NASA FLIGHT SURGEON (after ~12 real min): "RAD reading received. On Mars a query takes up to 24 minutes round-trip. Onboard medical autonomy is essential."',
     },
   },
   {
     id: 'greenhouse-status',
     label: {
-      es: '🌱 Reportar humedad del invernadero Veggie',
-      en: '🌱 Report Veggie greenhouse humidity',
+      es: 'Reportar humedad del invernadero Veggie',
+      en: 'Report Veggie greenhouse humidity',
     },
     houstonReplyLunar: {
-      es: '✅ Botánica NASA Kennedy (1.3s): "¡Excelente trabajo con las hojas verdes! Reciclar el agua en el ECLSS mantiene vivo el cultivo sin gastar reservas."',
-      en: '✅ NASA Kennedy Botany (1.3s): "Great job with the leafy greens! Recycling water in the ECLSS keeps crops thriving without draining reserves."',
+      es: 'BOTÁNICA NASA KENNEDY (1.3s): "Humedad nominal en las cámaras Veggie. Reciclar el agua en el ECLSS mantiene vivo el cultivo sin gastar reservas."',
+      en: 'NASA KENNEDY BOTANY (1.3s): "Nominal humidity in Veggie chambers. Recycling water in the ECLSS keeps crops thriving without draining reserves."',
     },
     houstonReplyMars: {
-      es: '✅ Botánica NASA Kennedy (tras ~12 min reales): "Telemetría Veggie confirmada. Si una tormenta de polvo oscurece el Cráter Jezero, equilibren las lámparas LED con el generador MOXIE."',
-      en: '✅ NASA Kennedy Botany (after ~12 real min): "Veggie telemetry confirmed. If a dust storm darkens Jezero Crater, balance LED grow lamps with the MOXIE generator."',
+      es: 'BOTÁNICA NASA KENNEDY (tras ~12 min reales): "Telemetría Veggie confirmada. Si una tormenta de polvo oscurece el Cráter Jezero, equilibren las lámparas LED con el generador MOXIE."',
+      en: 'NASA KENNEDY BOTANY (after ~12 real min): "Veggie telemetry confirmed. If a dust storm darkens Jezero Crater, balance LED grow lamps with the MOXIE generator."',
     },
   },
 ];
@@ -166,7 +181,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   const moduleDetails: Record<
     ModuleKey,
     {
-      icon: string;
+      icon: React.ReactNode;
       title: { es: string; en: string };
       allocLabel: string;
       statusText: { es: string; en: string };
@@ -176,7 +191,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
     }
   > = {
     solar: {
-      icon: '☀️',
+      icon: <SunIcon size={18} />,
       title: {
         es: 'Granja Solar y Banco de Baterías',
         en: 'Solar Array & Battery Bank',
@@ -198,7 +213,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
       isPositive: projection.delta.power >= 0,
     },
     eclss: {
-      icon: '🫧',
+      icon: <DropletIcon size={18} />,
       title: {
         es: isLunar ? 'Domo ECLSS (Oxígeno y Agua)' : 'Domo ECLSS + Reactor MOXIE (O₂)',
         en: isLunar ? 'ECLSS Dome (Oxygen & Water)' : 'ECLSS Dome + MOXIE Reactor (O₂)',
@@ -211,16 +226,16 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
       nasaEngineeringNote: {
         es: isLunar
           ? 'El sistema ECLSS de la NASA recicla el 98% del agua de los astronautas y divide moléculas de H₂O con electricidad (electrólisis) para crear oxígeno respirable.'
-          : 'El experimento MOXIE de la NASA en el rover Perseverance demostró que se puede extraer oxígeno directamente del aire de CO₂ de Marte, ¡pero exige mucha energía!',
+          : 'El experimento MOXIE de la NASA en el rover Perseverance demostró que se puede extraer oxígeno directamente del aire de CO₂ de Marte, exigiendo alta potencia.',
         en: isLunar
           ? 'NASA’s ECLSS recycles 98% of astronaut water and splits H₂O molecules with electricity (electrolysis) into breathable oxygen.'
-          : 'NASA’s MOXIE experiment on Perseverance proved we can extract breathable oxygen right out of Mars’s CO₂ atmosphere—at a high power cost!',
+          : 'NASA’s MOXIE experiment on Perseverance proved we can extract breathable oxygen right out of Mars’s CO₂ atmosphere at a high power cost.',
       },
       deltaLabel: `${formatDelta(projection.delta.lifeSupport)} / ${site.dayName[lang]}`,
       isPositive: projection.delta.lifeSupport >= 0,
     },
     shielding: {
-      icon: '🛡️',
+      icon: <ShieldIcon size={18} />,
       title: {
         es: 'Refugio de Agua y Blindaje Anti-Radiación',
         en: 'Water-Wall Shelter & Radiation Shielding',
@@ -238,7 +253,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
       isPositive: projection.effectiveShielding >= 60,
     },
     greenhouse: {
-      icon: '🌱',
+      icon: <LeafIcon size={18} />,
       title: {
         es: 'Invernadero Hidropónico Veggie y Rover',
         en: 'Veggie Hydroponic Greenhouse & Rover',
@@ -252,7 +267,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
         es: 'Basado en los experimentos Veggie y APH del repositorio NASA OSDR: las luces LED rojas y azules permiten cultivar lechugas, rábanos y chiles en el espacio.',
         en: 'Grounded in NASA OSDR Veggie and APH studies: red and blue LED arrays grow fresh lettuce, radishes, and peppers in space.',
       },
-      deltaLabel: `${formatDelta(projection.delta.food)} / +${projection.delta.sciencePoints} 🔬`,
+      deltaLabel: `${formatDelta(projection.delta.food)} / +${projection.delta.sciencePoints} PTS`,
       isPositive: projection.delta.food >= 0,
     },
   };
@@ -269,7 +284,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
             <div className="coord-row">
               <span className="coord-pill">{site.coordinates}</span>
               <span className="gravity-pill">
-                🌍 {site.gravityG}g | 🌡️ {site.avgTempCelsius}
+                <LanguageIcon size={13} /> {site.gravityG}g | {site.avgTempCelsius}
               </span>
             </div>
             <h3>{site.name[lang]}</h3>
@@ -291,18 +306,24 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
             }
           >
             <span className="weather-icon" aria-hidden="true">
-              {isSolarStorm ? '⚡' : isDustStorm ? '🌪️' : isRimShadowPass ? '🌑' : '☀️'}
+              {isSolarStorm ? (
+                <AlertIcon size={20} />
+              ) : isDustStorm ? (
+                <DustIcon size={20} />
+              ) : (
+                <SunIcon size={20} />
+              )}
             </span>
             <div>
               <strong>{weather.classOrIntensity}</strong>
               <small>
                 {weather.isLiveNasaData
                   ? lang === 'es'
-                    ? '🟢 NASA DONKI En Vivo (Ver datos ↗)'
-                    : '🟢 NASA DONKI Live (Inspect ↗)'
+                    ? 'NASA DONKI EN VIVO (VER DATOS)'
+                    : 'NASA DONKI LIVE (INSPECT)'
                   : lang === 'es'
-                    ? '📘 Registro Real NASA DONKI (Ver ↗)'
-                    : '📘 Real NASA DONKI Record (Inspect ↗)'}
+                    ? 'REGISTRO REAL NASA DONKI (VER)'
+                    : 'REAL NASA DONKI RECORD (INSPECT)'}
               </small>
             </div>
           </button>
@@ -313,12 +334,13 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
           <div className="outpost-state-badges" role="status" aria-live="polite">
             {isDustStorm && (
               <span className="state-alert-chip state-chip-dust">
-                🌪️ {lang === 'es' ? 'Velo de Polvo Marciano Activo' : 'Martian Dust Veil Active'}
+                <DustIcon size={14} />{' '}
+                {lang === 'es' ? 'Velo de Polvo Marciano Activo' : 'Martian Dust Veil Active'}
               </span>
             )}
             {isRimShadowPass && (
               <span className="state-alert-chip state-chip-shadow">
-                🌑{' '}
+                <SunIcon size={14} />{' '}
                 {lang === 'es'
                   ? 'Sombra del Cráter Cubriendo Paneles'
                   : 'Crater Rim Shadow Over Solar Panels'}
@@ -326,7 +348,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
             )}
             {isLowPowerBlackout && (
               <span className="state-alert-chip state-chip-blackout">
-                🔌{' '}
+                <BatteryIcon size={14} />{' '}
                 {lang === 'es'
                   ? 'Luces del Hábitat Apagadas (Energía < 15%)'
                   : 'Habitat Lights Off (Power < 15%)'}
@@ -334,7 +356,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
             )}
             {isGreenhouseWilted && (
               <span className="state-alert-chip state-chip-wilted">
-                🥀{' '}
+                <LeafIcon size={14} />{' '}
                 {lang === 'es'
                   ? 'Invernadero Marchito (Comida < 25%)'
                   : 'Greenhouse Wilted (Food < 25%)'}
@@ -359,51 +381,16 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 : 'Interactive diagram of Martian Jezero Crater Outpost'
             }
           >
-            <defs>
-              {/* C5: Cielo lunar negro profundo sin atmósfera vs Cielo marciano ocre/cobrizo */}
-              <linearGradient id="skyGradLunar" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#02040a" />
-                <stop offset="65%" stopColor="#090f1d" />
-                <stop offset="100%" stopColor="#162033" />
-              </linearGradient>
-              <linearGradient id="skyGradMars" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#2b110c" />
-                <stop offset="55%" stopColor="#692d1b" />
-                <stop offset="100%" stopColor="#a34928" />
-              </linearGradient>
-              {/* Suelo lunar gris basáltico vs Suelo marciano óxido de hierro */}
-              <linearGradient id="groundLunar" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#475569" />
-                <stop offset="55%" stopColor="#334155" />
-                <stop offset="100%" stopColor="#1e293b" />
-              </linearGradient>
-              <linearGradient id="groundMars" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#9a3412" />
-                <stop offset="55%" stopColor="#7c2d12" />
-                <stop offset="100%" stopColor="#431407" />
-              </linearGradient>
-              <radialGradient id="shieldAura" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="rgba(56, 189, 248, 0.05)" />
-                <stop offset="75%" stopColor="rgba(56, 189, 248, 0.18)" />
-                <stop offset="100%" stopColor="rgba(245, 158, 11, 0.55)" />
-              </radialGradient>
-              <linearGradient id="dustVeilGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="rgba(234, 88, 12, 0.48)" />
-                <stop offset="50%" stopColor="rgba(180, 83, 9, 0.38)" />
-                <stop offset="100%" stopColor="rgba(217, 119, 6, 0.52)" />
-              </linearGradient>
-            </defs>
-
-            {/* Fondo de cielo planetario */}
+            {/* Fondo de cielo planetario plano */}
             <rect
               x="0"
               y="0"
               width="860"
               height="270"
-              fill={isLunar ? 'url(#skyGradLunar)' : 'url(#skyGradMars)'}
+              fill={isLunar ? '#0B1322' : '#2C150F'}
             />
 
-            {/* Estrellas: nítidas en el vacío lunar, tenues en la atmósfera marciana */}
+            {/* Estrellas */}
             <g fill="#f1f5f9" opacity={isDustStorm ? 0.12 : isLunar ? 0.92 : 0.45}>
               <circle cx="65" cy="34" r="1.5" />
               <circle cx="115" cy="18" r="1.0" />
@@ -425,13 +412,6 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   d="M-12,-8 Q-2,-14 8,-6 Q14,2 4,12 Q-6,16 -14,6 Z"
                   fill="#22c55e"
                   opacity="0.85"
-                />
-                <path
-                  d="M-6,-18 Q6,-12 15,-4"
-                  stroke="#ffffff"
-                  strokeWidth="2"
-                  fill="none"
-                  opacity="0.65"
                 />
                 <circle
                   cx="0"
@@ -472,7 +452,10 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
             )}
 
             {/* Sol / Fuente de Clima Espacial DONKI */}
-            <g transform="translate(62, 50)" opacity={isRimShadowPass ? 0.45 : isDustStorm ? 0.55 : 1}>
+            <g
+              transform="translate(62, 50)"
+              opacity={isRimShadowPass ? 0.45 : isDustStorm ? 0.55 : 1}
+            >
               <circle
                 cx="0"
                 cy="0"
@@ -531,25 +514,11 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
               />
             )}
 
-            {/* Superficie planetaria con detalles de terreno distintos */}
+            {/* Superficie planetaria */}
             <path
               d="M0,192 Q240,176 460,190 T860,184 L860,270 L0,270 Z"
-              fill={isLunar ? 'url(#groundLunar)' : 'url(#groundMars)'}
+              fill={isLunar ? '#334155' : '#7c2d12'}
             />
-
-            {/* Detalles geológicos: Cráteres de impacto lunares vs Rocas rojizas y dunas marcianas */}
-            {isLunar ? (
-              <g opacity="0.65">
-                <ellipse cx="245" cy="232" rx="34" ry="8" fill="#0f172a" stroke="#64748b" strokeWidth="1" />
-                <ellipse cx="525" cy="242" rx="26" ry="6" fill="#0f172a" stroke="#64748b" strokeWidth="1" />
-              </g>
-            ) : (
-              <g opacity="0.75">
-                <polygon points="225,235 238,222 252,236" fill="#451a03" />
-                <polygon points="518,242 529,230 544,242" fill="#451a03" />
-                <path d="M270,226 Q320,218 370,228" stroke="#c2410c" strokeWidth="2" fill="none" />
-              </g>
-            )}
 
             {/* Depósito de Hielo Polar (Luna) o Sedimentos del Delta (Marte) */}
             {isLunar ? (
@@ -572,7 +541,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   fontSize="10"
                   fontFamily="monospace"
                 >
-                  HIELO CRÁTER SHACKLETON
+                  SHACKLETON ICE TRAP
                 </text>
               </g>
             ) : (
@@ -595,7 +564,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   fontSize="10"
                   fontFamily="monospace"
                 >
-                  DELTA RÍO JEZERO (CO₂/H₂O)
+                  JEZERO DELTA (CO2/H2O)
                 </text>
               </g>
             )}
@@ -619,7 +588,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 y="0"
                 width="42"
                 height="52"
-                rx="3"
+                rx="2"
                 fill={isRimShadowPass ? '#0f172a' : isDustStorm ? '#78350f' : '#1e3a8a'}
                 stroke={isRimShadowPass ? '#475569' : '#60a5fa'}
                 strokeWidth="2"
@@ -633,7 +602,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 y="0"
                 width="42"
                 height="52"
-                rx="3"
+                rx="2"
                 fill={isRimShadowPass ? '#0f172a' : isDustStorm ? '#78350f' : '#1e3a8a'}
                 stroke={isRimShadowPass ? '#475569' : '#60a5fa'}
                 strokeWidth="2"
@@ -661,7 +630,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                     fontFamily="monospace"
                     fontWeight="bold"
                   >
-                    {lang === 'es' ? '🌑 SOMBRA DEL CRÁTER' : '🌑 CRATER RIM SHADOW'}
+                    {lang === 'es' ? 'SOMBRA DEL CRÁTER' : 'CRATER RIM SHADOW'}
                   </text>
                 </g>
               )}
@@ -671,7 +640,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 y="54"
                 width="64"
                 height="20"
-                rx="4"
+                rx="2"
                 fill="#1e293b"
                 stroke="#f59e0b"
                 strokeWidth="1.8"
@@ -681,11 +650,11 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 y="58"
                 width={Math.max(4, Math.round((resources.power / 100) * 56))}
                 height="12"
-                rx="2"
+                rx="1"
                 fill={resources.power >= 30 ? '#22c55e' : resources.power >= 15 ? '#f59e0b' : '#ef4444'}
               />
               <text x="0" y="90" textAnchor="middle" fill="#f8fafc" fontSize="11" fontWeight="bold">
-                ⚡ {resources.power}% kWh
+                PWR {resources.power}% kWh
               </text>
             </g>
 
@@ -693,7 +662,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
             <g transform="translate(415, 165)">
               <path
                 d="M-105,40 A110,95 0 0,1 105,40"
-                fill="url(#shieldAura)"
+                fill="rgba(56, 189, 248, 0.12)"
                 stroke={projection.effectiveShielding >= 60 ? '#38bdf8' : '#f59e0b'}
                 strokeWidth={projection.effectiveShielding >= 60 ? '3.5' : '1.8'}
                 strokeDasharray={projection.effectiveShielding >= 60 ? 'none' : '6 4'}
@@ -723,7 +692,6 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                     : `Habitat Dome and Life Support: ${resources.lifeSupport}%`
                 }
               >
-                {/* C5: Si power < 15 (isLowPowerBlackout), el domo se oscurece y las ventanas se apagan */}
                 <path
                   d="M-72,40 A72,62 0 0,1 72,40 Z"
                   fill={isLowPowerBlackout ? '#334155' : '#cbd5e1'}
@@ -737,18 +705,16 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   strokeWidth={Math.max(2, Math.round((projection.effectiveShielding / 100) * 8))}
                   opacity={isLowPowerBlackout ? 0.35 : 0.75}
                 />
-                {/* Esclusa / Puerta central */}
                 <rect
                   x="-16"
                   y="12"
                   width="32"
                   height="28"
-                  rx="5"
+                  rx="2"
                   fill="#0f172a"
                   stroke="#94a3b8"
                   strokeWidth="2"
                 />
-                {/* Ventanas del hábitat: encendidas (cálidas) o apagadas si power < 15 */}
                 <circle
                   cx="-38"
                   cy="16"
@@ -785,7 +751,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                       fontFamily="monospace"
                       fontWeight="bold"
                     >
-                      {lang === 'es' ? '🔌 LUCES APAGADAS (<15% ⚡)' : '🔌 LIGHTS OFF (<15% ⚡)'}
+                      {lang === 'es' ? 'LUCES APAGADAS (<15% PWR)' : 'LIGHTS OFF (<15% PWR)'}
                     </text>
                   </g>
                 )}
@@ -797,7 +763,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   fontSize="11"
                   fontWeight="bold"
                 >
-                  🫧 O₂ {resources.lifeSupport}% | 🛡️ {projection.effectiveShielding}%
+                  O2 {resources.lifeSupport}% | SHD {projection.effectiveShielding}%
                 </text>
               </g>
             </g>
@@ -818,20 +784,18 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   : `Veggie Hydroponic Greenhouse: ${resources.food}% food`
               }
             >
-              {/* C5: Si food < 25 (isGreenhouseWilted), el invernadero pierde su brillo y las plantas se marchitan */}
               <rect
                 x="-58"
                 y="0"
                 width="116"
                 height="36"
-                rx="16"
+                rx="14"
                 fill={isGreenhouseWilted ? '#292524' : isLowPowerBlackout ? '#0f172a' : '#064e3b'}
                 stroke={isGreenhouseWilted ? '#a16207' : '#34d399'}
                 strokeWidth="2.2"
               />
               {isGreenhouseWilted ? (
                 <g>
-                  {/* Plantas marchitas e inclinadas en tonos ocres/secos */}
                   <ellipse cx="-32" cy="24" rx="7" ry="4" fill="#a16207" />
                   <path d="M-32,28 Q-36,18 -41,22" stroke="#ca8a04" strokeWidth="2" fill="none" />
                   <ellipse cx="-10" cy="25" rx="8" ry="4" fill="#854d0e" />
@@ -848,7 +812,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                     fontFamily="monospace"
                     fontWeight="bold"
                   >
-                    {lang === 'es' ? '🥀 CULTIVO MARCHITO' : '🥀 WILTED CROPS'}
+                    {lang === 'es' ? 'CULTIVO MARCHITO' : 'WILTED CROPS'}
                   </text>
                 </g>
               ) : (
@@ -860,7 +824,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 </g>
               )}
               <text x="0" y="53" textAnchor="middle" fill="#f8fafc" fontSize="11" fontWeight="bold">
-                {isGreenhouseWilted ? '🥀' : '🌱'} Veggie {resources.food}%
+                VEGGIE {resources.food}%
               </text>
             </g>
 
@@ -884,7 +848,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   y="0"
                   width="860"
                   height="270"
-                  fill="url(#dustVeilGrad)"
+                  fill="rgba(217, 119, 6, 0.42)"
                 />
                 <g stroke="rgba(253, 186, 116, 0.55)" strokeWidth="2" strokeDasharray="18 10">
                   <line x1="40" y1="85" x2="820" y2="65" />
@@ -908,41 +872,47 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
           <button
             type="button"
             id="toggle-system-details-btn"
-            className="btn-secondary map-drawer-toggle"
+            className={`btn-secondary map-drawer-toggle ${
+              showSystemDetails ? 'map-drawer-active' : ''
+            }`}
             aria-expanded={showSystemDetails}
             onClick={() => {
               missionAudio.playClick();
               setShowSystemDetails((prev) => !prev);
             }}
           >
-            🔍{' '}
+            <SlidersIcon size={16} />{' '}
             {showSystemDetails
               ? lang === 'es'
-                ? 'Ocultar Detalles de Sistemas ▲'
-                : 'Hide System Details ▲'
+                ? 'Ocultar Detalles de Sistemas'
+                : 'Hide System Details'
               : lang === 'es'
-                ? 'Ver Detalles de los 4 Módulos ▼'
-                : 'Inspect 4 Outpost Modules ▼'}
+                ? 'Ver Detalles de los 4 Módulos'
+                : 'Inspect 4 Outpost Modules'}
+            <ArrowIcon size={14} direction={showSystemDetails ? 'up' : 'down'} />
           </button>
 
           <button
             type="button"
             id="toggle-comm-simulator-btn"
-            className="btn-secondary map-drawer-toggle"
+            className={`btn-secondary map-drawer-toggle ${
+              showCommSimulator ? 'map-drawer-active' : ''
+            }`}
             aria-expanded={showCommSimulator}
             onClick={() => {
               missionAudio.playClick();
               setShowCommSimulator((prev) => !prev);
             }}
           >
-            📡{' '}
+            <AntennaIcon size={16} />{' '}
             {showCommSimulator
               ? lang === 'es'
-                ? 'Ocultar Radio con Houston ▲'
-                : 'Hide Houston Radio ▲'
+                ? 'Ocultar Radio con Houston'
+                : 'Hide Houston Radio'
               : lang === 'es'
-                ? `Retraso de Señal (${isLunar ? '1.3 s' : realDelayMin + ' min'}) ▼`
-                : `Signal Delay (${isLunar ? '1.3 s' : realDelayMin + ' min'}) ▼`}
+                ? `Retraso de Señal (${isLunar ? '1.3 s' : realDelayMin + ' min'})`
+                : `Signal Delay (${isLunar ? '1.3 s' : realDelayMin + ' min'})`}
+            <ArrowIcon size={14} direction={showCommSimulator ? 'up' : 'down'} />
           </button>
         </div>
 
@@ -981,12 +951,14 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
 
             <div className="module-inspector" role="region" aria-live="polite">
               <div className="inspector-header">
-                <strong>
+                <strong className="resource-label-inline">
                   {activeDetail.icon} {activeDetail.title[lang]}
                 </strong>
                 <span className="inspector-telemetry">{activeDetail.statusText[lang]}</span>
               </div>
-              <p className="inspector-note">🔬 {activeDetail.nasaEngineeringNote[lang]}</p>
+              <p className="inspector-note">
+                <ScienceIcon size={14} /> {activeDetail.nasaEngineeringNote[lang]}
+              </p>
             </div>
           </div>
         )}
@@ -996,11 +968,11 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
           <div className="comm-delay-bar">
             <div className="comm-info-col">
               <div className="comm-header-line">
-                <strong>
-                  📡{' '}
+                <strong className="resource-label-inline">
+                  <AntennaIcon size={16} />{' '}
                   {lang === 'es'
-                    ? 'Simulador de Retraso de Luz Tierra ↔ Base:'
-                    : 'Earth ↔ Outpost Light-Time Delay Simulator:'}{' '}
+                    ? 'Simulador de Retraso de Luz Tierra - Base:'
+                    : 'Earth - Outpost Light-Time Delay Simulator:'}{' '}
                   <span className="comm-highlight">
                     {isLunar
                       ? `${realDelaySec} s (${lang === 'es' ? 'Luna' : 'Moon'})`
@@ -1050,11 +1022,15 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
 
               {commState === 'transmitting' && (
                 <div className="comm-wave-track" aria-label="Radio signal progress">
-                  <span>👨‍🚀 {isLunar ? 'Artemis' : 'Jezero'}</span>
+                  <span className="resource-label-inline">
+                    <HelmetIcon size={14} /> {isLunar ? 'Artemis' : 'Jezero'}
+                  </span>
                   <div className="comm-track-bar">
                     <div className="comm-track-fill" style={{ width: `${commProgress}%` }} />
                   </div>
-                  <span>🌎 Houston</span>
+                  <span className="resource-label-inline">
+                    <LanguageIcon size={14} /> Houston
+                  </span>
                 </div>
               )}
 
