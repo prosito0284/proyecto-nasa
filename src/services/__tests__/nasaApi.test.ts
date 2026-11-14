@@ -8,6 +8,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   JUNIOR_ASTRONAUT_QUIZ,
+  KID_SCIENCE_GLOSSARY,
   VERIFIED_NASA_WEATHER_EVENTS,
   getGlossaryTerm,
   getQuizQuestionsForSite,
@@ -19,6 +20,7 @@ import {
   buildWeatherPoolFromDonki,
   fetchLiveOrVerifiedSpaceWeather,
   getNasaApiKey,
+  getWeatherPoolStatus,
   mapDonkiCmeToEvent,
   mapDonkiFlareToEvent,
   mapDonkiSepToEvent,
@@ -86,7 +88,7 @@ const REAL_DONKI_CME_FIXTURES: DonkiCmeItem[] = [
   },
 ];
 
-describe('nasaApi — funciones puras de mapeo DONKI y calidad del pool (B3 y B4)', () => {
+describe('nasaApi — funciones puras de mapeo DONKI y calidad del pool (B3, B4, B9 y B10)', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -97,10 +99,18 @@ describe('nasaApi — funciones puras de mapeo DONKI y calidad del pool (B3 y B4
     expect(getNasaApiKey('MI_CLAVE_NASA_123')).toBe('MI_CLAVE_NASA_123');
   });
 
-  it('getGlossaryTerm devuelve el término correcto o undefined si no existe', () => {
+  it('getGlossaryTerm devuelve el término correcto con howWeKnow en los 17 términos (B2 y B9)', () => {
+    expect(KID_SCIENCE_GLOSSARY.length).toBe(17);
+    for (const term of KID_SCIENCE_GLOSSARY) {
+      expect(term.howWeKnow).toBeDefined();
+      expect(term.howWeKnow?.es.trim().length).toBeGreaterThan(20);
+      expect(term.howWeKnow?.en.trim().length).toBeGreaterThan(20);
+    }
+
     const moxie = getGlossaryTerm('moxie');
     expect(moxie).toBeDefined();
     expect(moxie?.id).toBe('moxie');
+    expect(moxie?.howWeKnow?.es).toContain('MOXIE');
     expect(getGlossaryTerm('shackleton')?.nasaSource).toBe('ARTEMIS');
     expect(getGlossaryTerm('no-existe')).toBeUndefined();
     expect(getGlossaryTerm(undefined)).toBeUndefined();
@@ -198,6 +208,34 @@ describe('nasaApi — funciones puras de mapeo DONKI y calidad del pool (B3 y B4
     const onOffline = await fetchLiveOrVerifiedSpaceWeather(true);
     expect(onOffline.length).toBeGreaterThan(0);
     expect(onOffline.every((e) => e.isLiveNasaData === false)).toBe(true);
+  });
+
+  it('getWeatherPoolStatus describe si el último pool fue en vivo o de archivo, su fecha ISO y cantidad (B10)', async () => {
+    // Simulamos respuesta en vivo de DONKI
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes('/FLR')) {
+        return new Response(JSON.stringify(REAL_DONKI_FLR_FIXTURES), { status: 200 });
+      }
+      if (url.includes('/SEP')) {
+        return new Response(JSON.stringify(REAL_DONKI_SEP_FIXTURES), { status: 200 });
+      }
+      return new Response(JSON.stringify(REAL_DONKI_CME_FIXTURES), { status: 200 });
+    });
+
+    const livePool = await fetchLiveOrVerifiedSpaceWeather(true);
+    const liveStatus = getWeatherPoolStatus();
+    expect(liveStatus.live).toBe(true);
+    expect(liveStatus.count).toBe(livePool.length);
+    expect(Number.isNaN(Date.parse(liveStatus.fetchedAt))).toBe(false);
+
+    // Ahora simulamos corte de red -> pasa a archivo verificado
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Offline test'));
+    const archivePool = await fetchLiveOrVerifiedSpaceWeather(true);
+    const archiveStatus = getWeatherPoolStatus();
+    expect(archiveStatus.live).toBe(false);
+    expect(archiveStatus.count).toBe(archivePool.length);
+    expect(Number.isNaN(Date.parse(archiveStatus.fetchedAt))).toBe(false);
   });
 
   it('JUNIOR_ASTRONAUT_QUIZ tiene 12+ preguntas bilingües con fuente NASA y filtro por sitio (B5)', () => {
