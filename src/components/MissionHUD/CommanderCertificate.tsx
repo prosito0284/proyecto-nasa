@@ -27,6 +27,7 @@ import {
   RadiationIcon,
   SunIcon,
 } from '../icons';
+import { MissionPatch } from './MissionPatch';
 
 export interface CommanderCertificateProps {
   lang: Language;
@@ -330,7 +331,12 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                 className={`badge-card ${badge.earned ? 'badge-earned' : 'badge-locked'}`}
               >
                 <div className="badge-card-top">
-                  <PatchIcon size={22} />
+                  <MissionPatch
+                    badgeId={badge.id}
+                    earned={badge.earned}
+                    size={48}
+                    title={badge.title[lang]}
+                  />
                   <span className="badge-status-tag">
                     {badge.earned
                       ? lang === 'es'

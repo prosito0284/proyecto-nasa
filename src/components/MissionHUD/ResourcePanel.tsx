@@ -29,6 +29,7 @@ import {
   ShieldIcon,
   SlidersIcon,
 } from '../icons';
+import { MissionPatch } from './MissionPatch';
 
 interface ResourcePanelProps {
   lang: Language;
@@ -258,28 +259,61 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
       <div className="hud-details-panel">
         {/* Tarjeta de Rango Actual e Insignias */}
         <div className="commander-mini-card">
-          <div>
-            <span className="rank-eyebrow">
-              {lang === 'es' ? 'Rango de Comandante' : 'Commander Rank'}
-            </span>
-            <div className="rank-title-row">
-              <HelmetIcon size={18} />
-              <strong>{evaluation.rank.title[lang]}</strong>
-              <span className="rank-score-pill">{evaluation.score}/100</span>
+          <div className="commander-mini-top">
+            <div>
+              <span className="rank-eyebrow">
+                {lang === 'es' ? 'Rango de Comandante' : 'Commander Rank'}
+              </span>
+              <div className="rank-title-row">
+                <HelmetIcon size={18} />
+                <strong>{evaluation.rank.title[lang]}</strong>
+                <span className="rank-score-pill">{evaluation.score}/100</span>
+              </div>
             </div>
+            <button
+              type="button"
+              id="open-badges-modal-btn"
+              className="btn-secondary btn-compact"
+              onClick={() => {
+                missionAudio.playClick();
+                onOpenBadgesModal();
+              }}
+            >
+              <PatchIcon size={16} /> {earnedBadgesCount}/{evaluation.badges.length}{' '}
+              {lang === 'es' ? 'Parches' : 'Patches'}
+            </button>
           </div>
-          <button
-            type="button"
-            id="open-badges-modal-btn"
-            className="btn-secondary btn-compact"
-            onClick={() => {
-              missionAudio.playClick();
-              onOpenBadgesModal();
-            }}
+          <div
+            className="commander-mini-patches"
+            role="group"
+            aria-label={
+              lang === 'es' ? 'Colección de parches de misión' : 'Mission patch collection'
+            }
           >
-            <PatchIcon size={16} /> {earnedBadgesCount}/{evaluation.badges.length}{' '}
-            {lang === 'es' ? 'Parches' : 'Patches'}
-          </button>
+            {evaluation.badges.map((badge) => (
+              <button
+                key={badge.id}
+                type="button"
+                className="commander-mini-patch-btn"
+                onClick={() => {
+                  missionAudio.playClick();
+                  onOpenBadgesModal();
+                }}
+                title={`${badge.title[lang]} — ${
+                  badge.earned
+                    ? lang === 'es'
+                      ? 'Ganado'
+                      : 'Earned'
+                    : lang === 'es'
+                      ? 'Por desbloquear'
+                      : 'Locked'
+                }`}
+                aria-label={badge.title[lang]}
+              >
+                <MissionPatch badgeId={badge.id} earned={badge.earned} size={26} />
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Vitales con Proyección en Tiempo Real */}
