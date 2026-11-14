@@ -227,7 +227,7 @@ export function mapDonkiSepToEvent(sep: DonkiSepItem, idx = 0): SpaceWeatherEven
     },
     scienceFact: {
       es: `Evento oficial NASA DONKI SEP (${id}). Los protones energéticos pueden atravesar trajes espaciales durante una caminata EVA.`,
-      en: `Official NASA DONKI SEP (${id}). Energetic protons can penetrate spacesuits during an outdoor EVA spacewalk.`,
+      en: `Official NASA DONKI SEP (${id}). Energetic protons can penetrate spacesuits during a spacewalk (EVA).`,
     },
     radiationMultiplier: clampNumber(2.35, 1.0, 3.5),
     solarEfficiencyMultiplier: clampNumber(0.92, 0.4, 1.1),

@@ -66,8 +66,8 @@ export const VERIFIED_NASA_WEATHER_EVENTS: SpaceWeatherEvent[] = [
       en: 'The Sun unleashed a giant flash of energy! It travels at the speed of light and spikes radiation levels across the outpost.',
     },
     scienceFact: {
-      es: 'En mayo de 2024, la región solar AR3664 produjo una llamarada X8.7 registrada por NASA DONKI (2024-05-14T16:46:00-FLR-001), la más potente del Ciclo Solar 25.',
-      en: 'In May 2024, sunspot region AR3664 produced an X8.7 flare logged in NASA DONKI (2024-05-14T16:46:00-FLR-001)—the strongest of Solar Cycle 25.',
+      es: 'En mayo de 2024, la región solar AR3664 produjo una llamarada X8.7 registrada por NASA DONKI (2024-05-14T16:46:00-FLR-001), la más potente de la supertormenta de mayo de 2024.',
+      en: 'In May 2024, sunspot region AR3664 produced an X8.7 flare logged in NASA DONKI (2024-05-14T16:46:00-FLR-001)—the strongest flare of the historic May 2024 superstorm.',
     },
     radiationMultiplier: 2.8,
     solarEfficiencyMultiplier: 1.0,
@@ -123,7 +123,7 @@ export const VERIFIED_NASA_WEATHER_EVENTS: SpaceWeatherEvent[] = [
     type: 'SEP',
     classOrIntensity: 'X12 Far-Side Flare + Mars RAD SEP Spike',
     startTime: '2024-05-20T05:17Z',
-    sourceUrl: 'https://kauai.ccmc.gsfc.nasa.gov/DONKI/',
+    sourceUrl: 'https://www.jpl.nasa.gov/news/nasa-watches-mars-light-up-during-epic-solar-storm/',
     isLiveNasaData: false,
     severity: 'critical',
     title: {
@@ -132,11 +132,11 @@ export const VERIFIED_NASA_WEATHER_EVENTS: SpaceWeatherEvent[] = [
     },
     kidFriendlyExplanation: {
       es: 'Las partículas cargadas llegaron hasta Marte e hicieron brillar el cielo marciano. ¡Incluso las cámaras de los rovers se llenaron de "nieve" estática!',
-      en: 'Charged particles reached Mars and lit up the Martian sky. Even the rover cameras were filled with white "snow" streaks from hitting protons!',
+      en: 'Charged particles reached Mars and lit up the Martian sky. Incoming protons even filled the rover cameras with white "snow" streaks!',
     },
     scienceFact: {
-      es: 'El 20 de mayo de 2024, el instrumento RAD en Marte midió 8.1 mSv en un solo día (equivalente a 30 radiografías de tórax), la mayor dosis en 12 años.',
-      en: 'On May 20, 2024, the RAD instrument on Mars measured 8.1 mSv in a single day (equal to 30 chest X-rays)—the highest surge in 12 years.',
+      es: 'El 20 de mayo de 2024, el instrumento RAD de Curiosity en Marte midió una dosis absorbida de 8,100 micrograys (8.1 mGy, equivalente a 30 radiografías de tórax), el mayor pico en 12 años.',
+      en: 'On May 20, 2024, Curiosity’s RAD instrument on Mars measured an absorbed dose of 8,100 micrograys (8.1 mGy, equal to 30 chest X-rays)—its highest surge in 12 years.',
     },
     radiationMultiplier: 3.0,
     solarEfficiencyMultiplier: 0.88,
@@ -236,25 +236,25 @@ export const NASA_OSDR_STUDIES: NasaOsdrStudy[] = [
       en: 'Scientists planted seeds in real Moon dirt for the first time! They grew, but lunar dirt is sharp and salty, so plants need purified water, special LED grow lights, and extra nutrients to stay healthy.',
     },
     outpostTradeoffConnection: {
-      es: 'TRADE-OFF EN TU BASE: Si bajas la energía del invernadero o pausas el riego durante una tormenta solar, tus cultivos sufren estrés rápido y pierdes comida al día siguiente.',
-      en: 'OUTPOST TRADE-OFF: If you cut greenhouse power or pause irrigation during a solar storm, your crops experience rapid stress and food yield drops the next day.',
+      es: 'Compensación en tu base: Si bajas la energía del invernadero o pausas el riego durante una tormenta solar, tus cultivos sufren estrés rápido y pierdes comida al día siguiente.',
+      en: 'Outpost trade-off: Cutting greenhouse power or pausing water during a solar storm stresses your crops and lowers tomorrow’s food yield.',
     },
     telemetryMetric: {
-      es: '1,093 genes de estrés oxidativo analizados en NASA OSDR',
-      en: '1,093 oxidative stress genes sequenced in NASA OSDR',
+      es: '>1,000 genes de respuesta al estrés analizados en NASA OSDR (OSD-379)',
+      en: '>1,000 stress-response genes sequenced in NASA OSDR (OSD-379)',
     },
     officialUrl: 'https://osdr.nasa.gov/bio/repo/data/studies/OSD-379',
   },
   {
     id: 'biosentinel-artemis-1',
-    osdrAccession: 'OSDR BioSentinel (Artemis I Deep Space CubeSat)',
+    osdrAccession: 'OSD-964 / BioSentinel (Artemis I Deep Space CubeSat)',
     category: 'radiation',
     siteRelevance: 'both',
     title: {
       es: 'BioSentinel: Levadura Viva como Biosensor de Radiación en Espacio Profundo',
       en: 'BioSentinel: Living Yeast as a Deep-Space Radiation Biosensor',
     },
-    missionOrFacility: 'NASA Artemis I — NASA Ames Research Center & OSDR',
+    missionOrFacility: 'NASA Artemis I — NASA Ames Research Center & OSDR (OSD-964)',
     organismOrInstrument: {
       es: 'Levadura en gemación (Saccharomyces cerevisiae) + Espectrómetro LET',
       en: 'Budding Yeast (Saccharomyces cerevisiae) + LET Radiation Spectrometer',
@@ -268,14 +268,14 @@ export const NASA_OSDR_STUDIES: NasaOsdrStudy[] = [
       en: 'NASA launched yeast cells (just like bread yeast!) into deep space! Yeast cells repair their DNA very much like human cells do when struck by a solar particle.',
     },
     outpostTradeoffConnection: {
-      es: 'TRADE-OFF EN TU BASE: Cada milisievert (mSv) acumulado daña las células. Debes invertir energía en el Blindaje antes de que la salud de tu tripulación caiga.',
-      en: 'OUTPOST TRADE-OFF: Every accumulated millisievert (mSv) stresses living cells. You must invest power in Shielding before crew health drops.',
+      es: 'Compensación en tu base: Cada milisievert (mSv) acumulado daña las células. Debes invertir energía en el blindaje antes de que la salud de tu tripulación caiga.',
+      en: 'Outpost trade-off: Every millisievert (mSv) stresses living cells. Invest power in shielding before crew health drops.',
     },
     telemetryMetric: {
-      es: 'Órbita heliocéntrica a >1 millón de km con dosimetría óptica en vivo',
-      en: 'Heliocentric orbit >1 million km with live optical dosimetry',
+      es: 'Órbita heliocéntrica a >1 millón de km con dosimetría óptica (OSD-964)',
+      en: 'Heliocentric orbit >1 million km with live optical dosimetry (OSD-964)',
     },
-    officialUrl: 'https://www.nasa.gov/mission/biosentinel/',
+    officialUrl: 'https://osdr.nasa.gov/bio/repo/data/studies/OSD-964',
   },
   {
     id: 'curiosity-rad-artemis-dosimetry',
@@ -292,54 +292,54 @@ export const NASA_OSDR_STUDIES: NasaOsdrStudy[] = [
       en: 'Radiation Assessment Detector (RAD) + Helga & Zohar Dosimetry Phantoms',
     },
     keyFinding: {
-      es: 'En Marte se reciben ~0.64 mSv/día en clima tranquilo, pero hasta >8 mSv/día en tormentas SEP. En Artemis I, el refugio rodeado de bolsas de agua redujo la dosis hasta un 50%.',
-      en: 'Mars surface receives ~0.64 mSv/day in calm weather, spiking >8 mSv/day during SEP storms. On Artemis I, the water-bag storm shelter cut radiation dose by up to 50%.',
+      es: 'En Marte se reciben ~0.64 mSv/día (~0.67 mSv/Sol) en calma, y hasta 8,100 µGy (8.1 mGy) en la supertormenta del 20 de mayo de 2024. En Artemis I, el refugio con agua y chalecos redujo la dosis solar un 40–60%.',
+      en: 'Mars surface receives ~0.64 mSv/day (~0.67 mSv/Sol) in calm weather, spiking to 8,100 µGy (8.1 mGy) during the May 20, 2024 storm. On Artemis I, water-rich shielding cut solar storm doses by 40–60%.',
     },
     kidExplanation: {
       es: 'El agua está llena de átomos de hidrógeno, que funcionan como "colchones" microscópicos para frenar los protones veloces del Sol sin producir metralla secundaria.',
       en: 'Water is packed with hydrogen atoms, which act like microscopic pillows that slow down fast solar protons without creating secondary radiation shrapnel.',
     },
     outpostTradeoffConnection: {
-      es: 'TRADE-OFF EN TU BASE: Bombear agua a las paredes del refugio salva a los astronautas en alertas DONKI, pero deja menos agua y energía para el invernadero.',
-      en: 'OUTPOST TRADE-OFF: Pumping water into shelter walls saves astronauts during DONKI alerts, but leaves less water and power for the greenhouse.',
+      es: 'Compensación en tu base: Bombear agua a las paredes del refugio salva a los astronautas en alertas DONKI, pero deja menos agua y energía para el invernadero.',
+      en: 'Outpost trade-off: Pumping water into shelter walls protects the crew during DONKI alerts, but leaves less water and power for the greenhouse.',
     },
     telemetryMetric: {
-      es: '0.64 mSv/día base GCR | -50% dosis con escudo de hidrógeno/agua',
-      en: '0.64 mSv/day baseline GCR | -50% dose with hydrogen/water shield',
+      es: '0.64 mSv/día (~0.67 mSv/Sol) base GCR | -40 a -60% dosis con escudo de agua',
+      en: '0.64 mSv/day (~0.67 mSv/Sol) baseline GCR | -40 to -60% dose with water shield',
     },
-    officialUrl: 'https://osdr.nasa.gov/bio/repo/search?q=radiation+dosimetry',
+    officialUrl: 'https://www.jpl.nasa.gov/news/nasa-watches-mars-light-up-during-epic-solar-storm/',
   },
   {
     id: 'osd-321-aph-space-crops',
-    osdrAccession: 'OSD-321 / APH-01 & VEG-03 (Advanced Plant Habitat)',
+    osdrAccession: 'OS-918 (PH-01) & OSD-780 (Veg-04A) — ISS APH & Veggie',
     category: 'plants',
     siteRelevance: 'both',
     title: {
-      es: 'Hábitat Avanzado de Plantas (APH): Fotosíntesis, Agua y Consumo Eléctrico LED',
-      en: 'Advanced Plant Habitat (APH): Photosynthesis, Water & LED Power Trade-Offs',
+      es: 'Hábitat Avanzado de Plantas (APH) y Veggie: Fotosíntesis, Agua y Luz LED',
+      en: 'Advanced Plant Habitat (APH) & Veggie: Photosynthesis, Water & LED Power',
     },
     missionOrFacility: 'International Space Station (ISS) & Kennedy Space Center',
     organismOrInstrument: {
-      es: 'Rábanos, Trigo Enano y Hojas Verdes con 180+ sensores ambientales',
-      en: 'Radishes, Dwarf Wheat & Leafy Greens with 180+ environmental sensors',
+      es: 'Mostaza Mizuna (Veg-04A), Rábanos y Trigo con >180 sensores ambientales',
+      en: 'Mizuna Mustard (Veg-04A), Radishes & Wheat with >180 environmental sensors',
     },
     keyFinding: {
-      es: 'Las plantas espaciales absorben CO₂, liberan oxígeno y transpiran agua limpia que el sistema ECLSS recupera, pero requieren iluminación LED roja/azul constante.',
-      en: 'Space plants absorb CO₂, release oxygen, and transpire clean water recovered by ECLSS, but demand continuous high-intensity red/blue LED lighting.',
+      es: 'Las plantas espaciales absorben CO₂, liberan oxígeno y transpiran agua limpia que el sistema ECLSS recupera, pero requieren iluminación LED roja y azul constante.',
+      en: 'Space plants absorb CO₂, release oxygen, and transpire clean water recovered by ECLSS, but demand continuous red and blue LED lighting.',
     },
     kidExplanation: {
       es: 'Como las plantas no tienen luz del Sol dentro del domo blindado, usamos lámparas LED moradas (rojo + azul). ¡Las plantas comen luz y nos devuelven ensalada fresca y oxígeno!',
       en: 'Since plants inside a shielded dome don’t get direct sunlight, we use purple (red + blue) LED lamps. Plants eat light and give us back fresh salad and oxygen!',
     },
     outpostTradeoffConnection: {
-      es: 'TRADE-OFF EN TU BASE: Asignar más % de energía al Invernadero sube Comida y ayuda al Soporte Vital, pero reduce la reserva de batería para emergencias.',
-      en: 'OUTPOST TRADE-OFF: Allocating more % power to the Greenhouse boosts Food and aids Life Support, but lowers battery reserves for emergencies.',
+      es: 'Compensación en tu base: Asignar más energía al invernadero sube la comida y ayuda al soporte vital, pero reduce la reserva de batería para emergencias.',
+      en: 'Outpost trade-off: Sending more power to the greenhouse boosts food and supports oxygen, but drains emergency battery reserves.',
     },
     telemetryMetric: {
-      es: 'Control fotoperiódico LED de 16h luz / 8h oscuridad y reciclaje de humedad',
-      en: '16h light / 8h dark LED photoperiod & transpired moisture recovery',
+      es: 'Control fotoperiódico LED rojo/azul (OSD-780) y reciclaje de humedad (APH)',
+      en: 'Red/blue LED photoperiod control (OSD-780) & transpired moisture recovery (APH)',
     },
-    officialUrl: 'https://osdr.nasa.gov/bio/repo/data/studies/OSD-321',
+    officialUrl: 'https://osdr.nasa.gov/bio/repo/data/studies/OSD-780',
   },
   {
     id: 'eclss-moxie-life-support',
@@ -364,8 +364,8 @@ export const NASA_OSDR_STUDIES: NasaOsdrStudy[] = [
       en: 'Martian air is 96% carbon dioxide (unbreathable). MOXIE is a golden "toaster" that rips oxygen atoms out of Martian air—but it uses a massive amount of electricity!',
     },
     outpostTradeoffConnection: {
-      es: 'TRADE-OFF EN TU BASE: El deslizador de Soporte Vital es el que más protege la vida hoy, pero su alto consumo de kWh compite directamente con Ciencia y Cultivos.',
-      en: 'OUTPOST TRADE-OFF: The Life Support slider keeps your crew breathing today, but its heavy kWh draw competes directly with Science and Crops.',
+      es: 'Compensación en tu base: El soporte vital mantiene a tu tripulación respirando hoy, pero su alto consumo eléctrico compite directamente con ciencia y cultivos.',
+      en: 'Outpost trade-off: Life support keeps your crew breathing today, but its heavy power draw competes directly with science and crops.',
     },
     telemetryMetric: {
       es: '98% agua reciclada (ECLSS) | 800°C electrólisis de CO₂ (MOXIE)',
@@ -495,7 +495,7 @@ export const VERIFIED_NASA_GALLERY_IMAGES: NasaGalleryImage[] = [
     sourcePageUrl: 'https://images.nasa.gov/details/PIA16938',
     kidCaption: {
       es: 'Este instrumento del tamaño de una lata de café mide todos los días cuántos milisieverts (mSv) de radiación golpean el suelo marciano.',
-      en: 'This coffee-can-sized instrument measures every single day how many millisieverts (mSv) of radiation strike the Martian ground.',
+      en: 'Every single day, this coffee-can-sized instrument measures how many millisieverts (mSv) of radiation hit the Martian surface.',
     },
     scienceConnection: {
       es: 'Conecta con: Dosis acumulada en mSv y protección de la salud de los astronautas.',
@@ -539,7 +539,7 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTermWithEvidence[] = [
     },
     shortDefinition: {
       es: 'Una explosión repentina de luz y rayos X en la superficie del Sol. Las clase X son las más gigantes.',
-      en: 'A sudden explosion of light and X-rays on the Sun’s surface. X-class flares are the biggest giants.',
+      en: 'A sudden burst of light and X-rays on the Sun’s surface. X-class flares are the most powerful.',
     },
     kidAnalogy: {
       es: 'Es como el flash de una cámara colosal en el Sol: su luz llega en minutos y avisa a los astronautas que una tormenta de partículas puede venir detrás.',
@@ -588,8 +588,8 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTermWithEvidence[] = [
       en: 'A dental X-ray is tiny (0.01 mSv). On Earth we get ~3 mSv per year, but on the Moon or Mars a single unshielded solar storm can deliver much more!',
     },
     howWeKnow: {
-      es: 'Medido en Marte por el instrumento RAD de Curiosity (~0.64 mSv/día en calma; 8.1 mSv el 20 de mayo de 2024) y en la órbita lunar por los sensores HERA y los maniquíes Helga y Zohar en Artemis I (NASA OSDR).',
-      en: 'Measured on Mars by Curiosity’s RAD instrument (~0.64 mSv/day calm baseline; 8.1 mSv on May 20, 2024) and in lunar orbit by HERA sensors and mannequins Helga and Zohar on Artemis I (NASA OSDR).',
+      es: 'Medido en Marte por el instrumento RAD de Curiosity (~0.64 mSv/día o ~0.67 mSv/Sol en calma; pico de 8,100 µGy / 8.1 mGy el 20 de mayo de 2024) y en órbita lunar por los sensores HERA y los maniquíes Helga y Zohar en Artemis I (NASA OSDR).',
+      en: 'Measured on Mars by Curiosity’s RAD instrument (~0.64 mSv/day or ~0.67 mSv/Sol calm baseline; 8,100 µGy / 8.1 mGy surge on May 20, 2024) and in lunar orbit by HERA sensors and mannequins Helga and Zohar on Artemis I (NASA OSDR).',
     },
     nasaSource: 'OSDR',
     nasaStudyOrUrl: 'https://osdr.nasa.gov/bio/repo/search?q=radiation+dosimetry',
@@ -609,11 +609,11 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTermWithEvidence[] = [
       en: 'Like canaries that helped miners detect gases, these tiny yeast cells travel through deep space teaching us how to protect human cells.',
     },
     howWeKnow: {
-      es: 'Medido a más de 1 millón de km de la Tierra por el CubeSat BioSentinel (Artemis I) mediante tarjetas microfluídicas ópticas con levadura Saccharomyces cerevisiae y un espectrómetro LET (NASA Ames / OSDR).',
-      en: 'Measured over 1 million km from Earth by the BioSentinel CubeSat (Artemis I) using optical microfluidic cards with Saccharomyces cerevisiae yeast paired with a LET spectrometer (NASA Ames / OSDR).',
+      es: 'Medido a más de 1 millón de km de la Tierra por el CubeSat BioSentinel (Artemis I) mediante tarjetas microfluídicas ópticas con levadura Saccharomyces cerevisiae y un espectrómetro LET (NASA Ames / OSDR OSD-964).',
+      en: 'Measured over 1 million km from Earth by the BioSentinel CubeSat (Artemis I) using optical microfluidic cards with Saccharomyces cerevisiae yeast paired with a LET spectrometer (NASA Ames / OSDR OSD-964).',
     },
     nasaSource: 'OSDR',
-    nasaStudyOrUrl: 'https://www.nasa.gov/mission/biosentinel/',
+    nasaStudyOrUrl: 'https://osdr.nasa.gov/bio/repo/data/studies/OSD-964',
   },
   {
     id: 'veggie',
@@ -774,7 +774,7 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTermWithEvidence[] = [
     },
     kidAnalogy: {
       es: 'Es como si una cortina de polvo rojizo tapara el cielo durante días: no te golpea fuerte porque el aire marciano es muy delgado, ¡pero deja tus paneles solares a oscuras como le pasó al rover Opportunity en 2018!',
-      en: 'It’s like a curtain of red dust covering the sky for days: the wind won’t knock you over because Martian air is super thin, but it starves your solar panels of light just like what happened to the Opportunity rover in 2018!',
+      en: 'A curtain of red dust covers the sky for days. The thin wind won’t knock you over, but it blocks sunlight from your solar panels—just like the 2018 storm that ended the Opportunity rover!',
     },
     howWeKnow: {
       es: 'Medido en la superficie marciana por los fotodiodos RDS de la estación meteorológica MEDA en Perseverance y por la caída de corriente en los paneles solares del módulo InSight en 2022 (NASA JPL / CAB).',
@@ -816,7 +816,7 @@ export const KID_SCIENCE_GLOSSARY: GlossaryTermWithEvidence[] = [
     },
     kidAnalogy: {
       es: 'Es el campamento perfecto para Artemis: arriba en la montaña tienes enchufe solar casi todo el año, y abajo en la cueva oscura tienes un congelador gigante con agua lista para extraer.',
-      en: 'It’s the ultimate campsite for Artemis: up on the rim you get a solar power plug almost all year, and down in the dark crater floor you have a giant freezer full of water ice.',
+      en: 'It’s the ultimate Artemis campsite: the sunny rim powers your solar panels nearly all year, while the dark crater floor is a giant freezer full of water ice.',
     },
     howWeKnow: {
       es: 'Cartografiado en 3D por el altímetro láser LOLA, el radiómetro térmico Diviner y la cámara ShadowCam a bordo de las sondas LRO y Danuri (NASA GSFC / KARI).',
@@ -923,14 +923,14 @@ export const JUNIOR_ASTRONAUT_QUIZ: ScienceQuizQuestion[] = [
     siteFilter: 'both',
     question: {
       es: '2. ¿Qué descubrieron los científicos en el estudio real OSD-379 de NASA OSDR al plantar semillas en regolito (suelo) lunar traído por las misiones Apolo?',
-      en: '2. What did scientists discover in real NASA OSDR study OSD-379 when they planted seeds in lunar regolith brought back by Apollo?',
+      en: '2. In NASA OSDR study OSD-379, what happened when scientists planted seeds in real Apollo lunar soil?',
     },
     options: [
       {
         id: 'a',
         text: {
           es: 'Que las semillas se convirtieron en rocas lunares y nunca abrieron.',
-          en: 'That the seeds turned into moon rocks and never sprouted.',
+          en: 'The seeds turned into moon rocks and never sprouted.',
         },
         isCorrect: false,
       },
@@ -938,7 +938,7 @@ export const JUNIOR_ASTRONAUT_QUIZ: ScienceQuizQuestion[] = [
         id: 'b',
         text: {
           es: 'Que sí germinaron, pero sufrieron estrés por el suelo afilado y salado, necesitando cuidado extra de agua y luz LED.',
-          en: 'That they sprouted, but experienced stress from the sharp, salty soil—needing extra water and LED light care.',
+          en: 'They sprouted, but the sharp, salty soil stressed them—so they need extra water and LED lighting.',
         },
         isCorrect: true,
       },
@@ -946,7 +946,7 @@ export const JUNIOR_ASTRONAUT_QUIZ: ScienceQuizQuestion[] = [
         id: 'c',
         text: {
           es: 'Que las plantas crecen 10 veces más rápido sin agua ni electricidad.',
-          en: 'That plants grow 10 times faster without water or electricity.',
+          en: 'Plants grow 10 times faster without water or electricity.',
         },
         isCorrect: false,
       },
@@ -962,7 +962,7 @@ export const JUNIOR_ASTRONAUT_QUIZ: ScienceQuizQuestion[] = [
     siteFilter: 'both',
     question: {
       es: '3. ¿Cuál es la diferencia real de retraso de comunicación por tiempo-luz entre la Luna y Marte cuando hablas con el Control de Misión?',
-      en: '3. What is the real one-way light-time communication delay difference between the Moon and Mars when talking to Mission Control?',
+      en: '3. How long does a radio message take to travel one way from the Moon vs. Mars to Mission Control?',
     },
     options: [
       {
@@ -1001,7 +1001,7 @@ export const JUNIOR_ASTRONAUT_QUIZ: ScienceQuizQuestion[] = [
     siteFilter: 'both',
     question: {
       es: '4. ¿Qué ser vivo diminuto viajó en el satélite BioSentinel de Artemis I para ayudar a la NASA a medir el daño de la radiación en el ADN?',
-      en: '4. What tiny living organism flew aboard Artemis I’s BioSentinel satellite to help NASA measure radiation DNA damage?',
+      en: '4. What tiny organism flew on Artemis I’s BioSentinel satellite to help NASA measure DNA damage from radiation?',
     },
     options: [
       {
@@ -1109,7 +1109,7 @@ export const JUNIOR_ASTRONAUT_QUIZ: ScienceQuizQuestion[] = [
     ],
     explanation: {
       es: '¡Exacto! MOXIE produjo 122 g de O₂ (lo que respira un perrito en 10 horas) mediante electrólisis a 800°C. Por eso encender MOXIE a toda potencia en el juego gasta tanta batería.',
-      en: 'Exact! MOXIE produced 122 g of O₂ (what a small dog breathes in 10 hours) via 800°C solid oxide electrolysis. That’s why running MOXIE at full power drains so much battery.',
+      en: 'Exactly! MOXIE produced 122 g of O₂ (what a small dog breathes in 10 hours) using 800°C electrolysis. That’s why running MOXIE at full power drains so much battery.',
     },
   },
   {
@@ -1343,12 +1343,12 @@ export const JUNIOR_ASTRONAUT_QUIZ: ScienceQuizQuestion[] = [
     ],
     explanation: {
       es: '¡Exacto! El Grupo de Análisis de Radiación Espacial (SRAG) de la NASA aplica ALARA y vigila que ningún astronauta supere el límite de carrera de 600 mSv (NASA-STD-3001).',
-      en: 'Exact! NASA’s Space Radiation Analysis Group (SRAG) enforces ALARA and ensures no astronaut exceeds the 600 mSv career exposure limit (NASA-STD-3001).',
+      en: 'Exactly! NASA’s Space Radiation Analysis Group (SRAG) enforces ALARA so no astronaut exceeds the 600 mSv career limit (NASA-STD-3001).',
     },
   },
   {
     id: 'quiz-veggie-harvest',
-    badgeSource: 'NASA Veggie (VEG-01/03) & APH (OSDR OSD-321)',
+    badgeSource: 'NASA Veggie (VEG-01/03/04A OSD-780) & APH (PH-01)',
     siteFilter: 'both',
     question: {
       es: '13. En el dilema del invernadero con las lechugas rojas "Outredgeous", ¿qué ocurre si inviertes energía LED extra hoy para dejarlas crecer un día más?',
@@ -1382,7 +1382,7 @@ export const JUNIOR_ASTRONAUT_QUIZ: ScienceQuizQuestion[] = [
     ],
     explanation: {
       es: '¡Paciencia de ingeniero! Los estudios Veggie y APH en NASA OSDR demuestran que planificar el fotoperiodo LED hoy asegura vitaminas frescas para los días siguientes.',
-      en: 'Engineer’s patience! Veggie and APH studies in NASA OSDR show that planning LED photoperiods today secures fresh vitamins for the days ahead.',
+      en: 'Smart engineering! Veggie and APH studies in NASA OSDR show that planning LED light cycles today secures fresh vitamins for the days ahead.',
     },
   },
   {
@@ -1437,3 +1437,33 @@ export function getQuizQuestionsForSite(
     (q) => !q.siteFilter || q.siteFilter === 'both' || q.siteFilter === siteFilter
   );
 }
+
+/**
+ * Calcula el progreso y puntaje real del Mini-Quiz (B13).
+ */
+export function computeQuizProgress(
+  questions: ScienceQuizQuestion[],
+  selectedAnswers: Record<string, string>
+): {
+  answeredCount: number;
+  correctCount: number;
+  totalQuestions: number;
+  isComplete: boolean;
+} {
+  const totalQuestions = questions.length;
+  const answeredCount = questions.filter((q) =>
+    Boolean(selectedAnswers[q.id])
+  ).length;
+  const correctCount = questions.reduce((acc, q) => {
+    const chosenId = selectedAnswers[q.id];
+    const chosenOpt = q.options.find((o) => o.id === chosenId);
+    return acc + (chosenOpt?.isCorrect ? 1 : 0);
+  }, 0);
+  return {
+    answeredCount,
+    correctCount,
+    totalQuestions,
+    isComplete: totalQuestions > 0 && answeredCount === totalQuestions,
+  };
+}
+

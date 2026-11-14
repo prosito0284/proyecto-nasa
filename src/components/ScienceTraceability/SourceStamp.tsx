@@ -21,7 +21,7 @@ const SOURCE_LABELS: Record<
   },
   OSDR: {
     code: 'NASA OSDR',
-    agencyEs: 'BIOLOGIA Y RAD.',
+    agencyEs: 'BIOLOGÍA Y RAD.',
     agencyEn: 'BIOLOGY & RAD.',
   },
   ARTEMIS: {
@@ -58,8 +58,8 @@ export const SourceStamp: React.FC<SourceStampProps> = ({
       ? 'EN VIVO'
       : 'LIVE NASA'
     : lang === 'es'
-      ? 'ARCHIVO REAL NASA'
-      : 'NASA REAL ARCHIVE';
+      ? 'ARCHIVO NASA'
+      : 'NASA ARCHIVE';
 
   const subLabel = lang === 'es' ? meta.agencyEs : meta.agencyEn;
 

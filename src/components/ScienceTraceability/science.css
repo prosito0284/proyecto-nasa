@@ -32,6 +32,8 @@
   box-shadow: none;
   background-image: none;
   font-family: var(--font-body, 'Barlow', sans-serif);
+  font-size: 16px;
+  line-height: 1.5;
   padding: 1.25rem 1.5rem 1.5rem;
   box-sizing: border-box;
   display: flex;
@@ -39,7 +41,6 @@
   gap: 1rem;
 }
 
-.science-annex- sheet *,
 .science-annex-sheet * {
   box-sizing: border-box;
   box-shadow: none;
@@ -63,9 +64,8 @@
   gap: 0.5rem;
   margin-bottom: 0.35rem;
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
   color: var(--ink, #1B1F2A);
 }
 
@@ -78,23 +78,25 @@
   color: var(--paper, #F2EBDD);
   border-radius: 2px;
   font-weight: 700;
+  text-transform: uppercase;
 }
 
 .science-annex-title {
   margin: 0;
   font-family: var(--font-display, 'Barlow Condensed', sans-serif);
-  font-size: 1.55rem;
+  font-size: 1.6rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  text-transform: none;
   color: var(--ink, #1B1F2A);
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .science-annex-subtitle {
   margin: 0.25rem 0 0;
   font-family: var(--font-body, 'Barlow', sans-serif);
-  font-size: 0.88rem;
+  font-size: 1rem;
+  line-height: 1.45;
   color: var(--ink, #1B1F2A);
 }
 
@@ -112,10 +114,10 @@
   border: 1.5px solid var(--ink, #1B1F2A);
   border-radius: 2px;
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-transform: none;
   cursor: pointer;
   text-decoration: none;
   transition: background-color 0.12s ease, color 0.12s ease;
@@ -149,6 +151,31 @@
   border-color: var(--nasa-blue, #0B3D91);
 }
 
+.science-read-more-btn {
+  align-self: flex-start;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.35rem 0.7rem;
+  margin-top: 0.25rem;
+  background-color: transparent;
+  color: var(--nasa-blue, #0B3D91);
+  border: 1.5px solid var(--nasa-blue, #0B3D91);
+  border-radius: 2px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.science-read-more-btn:hover {
+  background-color: var(--nasa-blue, #0B3D91);
+  color: var(--paper, #F2EBDD);
+}
+
 .science-annex-sheet button:focus-visible,
 .science-annex-sheet a:focus-visible,
 .science-annex-sheet input:focus-visible {
@@ -178,10 +205,10 @@
   border-bottom: none;
   border-radius: 2px 2px 0 0;
   font-family: var(--font-display, 'Barlow Condensed', sans-serif);
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  text-transform: none;
   cursor: pointer;
   position: relative;
   bottom: -2px;
@@ -199,10 +226,11 @@
 
 .science-folder-tab-code {
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   padding: 0.1rem 0.3rem;
   border: 1px solid currentColor;
   border-radius: 2px;
+  text-transform: uppercase;
 }
 
 /* Bloques de Formulario / Secciones del Cuaderno */
@@ -214,6 +242,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+  font-size: 1rem;
 }
 
 .science-form-box--alert {
@@ -244,18 +273,18 @@
   align-items: center;
   gap: 0.45rem;
   font-family: var(--font-display, 'Barlow Condensed', sans-serif);
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  text-transform: none;
   color: var(--ink, #1B1F2A);
 }
 
 .science-mono-meta {
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   color: var(--ink, #1B1F2A);
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
 }
 
 .science-telemetry-pill {
@@ -266,7 +295,7 @@
   border: 1.5px solid var(--ink, #1B1F2A);
   border-radius: 2px;
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   font-weight: 700;
   background-color: var(--paper, #F2EBDD);
   color: var(--ink, #1B1F2A);
@@ -281,8 +310,8 @@
   color: var(--ink, #1B1F2A);
   border: 1.5px solid var(--ink, #1B1F2A);
   border-radius: 2px;
-  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-  font-size: 0.8rem;
+  font-family: var(--font-body, 'Barlow', sans-serif);
+  font-size: 1rem;
 }
 
 .science-search-input::placeholder {
@@ -305,6 +334,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  font-size: 1rem;
 }
 
 .science-library-card[data-highlighted='true'] {
@@ -320,7 +350,7 @@
   border-bottom: 1.5px solid var(--ink, #1B1F2A);
   background-color: var(--paper, #F2EBDD);
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -337,32 +367,36 @@
   flex-direction: column;
   gap: 0.5rem;
   flex: 1;
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 .science-library-card-title {
   margin: 0;
   font-family: var(--font-display, 'Barlow Condensed', sans-serif);
-  font-size: 1.08rem;
+  font-size: 1.15rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  text-transform: none;
   color: var(--ink, #1B1F2A);
+  line-height: 1.25;
 }
 
 .science-library-rule-row {
   padding-top: 0.45rem;
   border-top: 1px solid var(--rule, rgba(27, 31, 42, 0.25));
-  font-size: 0.84rem;
-  line-height: 1.42;
+  font-size: 1rem;
+  line-height: 1.5;
   color: var(--ink, #1B1F2A);
 }
 
+/* Rótulo corto de hasta 3 palabras (único lugar con mayúsculas junto a sellos/códigos) */
 .science-library-field-label {
   display: block;
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-  font-size: 0.66rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--nasa-blue, #0B3D91);
   margin-bottom: 0.15rem;
@@ -376,13 +410,13 @@
   align-items: center;
   gap: 0.5rem;
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
 }
 
 .science-ref-link {
   color: var(--nasa-blue, #0B3D91);
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-  font-size: 0.73rem;
+  font-size: 0.78rem;
   font-weight: 700;
   text-decoration: underline;
   display: inline-flex;
@@ -403,17 +437,59 @@
   background-color: var(--paper, #F2EBDD);
   display: flex;
   flex-direction: column;
+  font-size: 1rem;
 }
 
 .science-photo-frame {
   position: relative;
-  height: 185px;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  min-height: 185px;
   border-bottom: 1.5px solid var(--ink, #1B1F2A);
-  background-color: var(--ink, #1B1F2A);
+  background-color: var(--paper, #F2EBDD);
   overflow: hidden;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
+}
+
+.science-photo-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background-color: var(--paper, #F2EBDD);
+}
+
+.science-photo-fallback {
+  width: 100%;
+  height: 100%;
+  padding: 2.1rem 0.85rem 0.85rem;
+  background-color: var(--paper, #F2EBDD);
+  color: var(--ink, #1B1F2A);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.35rem;
+  border-top: 3px solid var(--nasa-blue, #0B3D91);
+}
+
+.science-photo-fallback-title {
+  margin: 0;
+  font-family: var(--font-display, 'Barlow Condensed', sans-serif);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink, #1B1F2A);
+}
+
+.science-photo-fallback-credit {
+  margin: 0;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: var(--nasa-blue, #0B3D91);
+  font-weight: 700;
 }
 
 .science-photo-stamp {
@@ -426,8 +502,9 @@
   border-radius: 2px;
   padding: 0.12rem 0.4rem;
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   font-weight: 700;
+  text-transform: uppercase;
 }
 
 /* Opciones del Quiz estilo Checklist de Vuelo */
@@ -441,7 +518,8 @@
   border: 1.5px solid var(--ink, #1B1F2A);
   border-radius: 2px;
   font-family: var(--font-body, 'Barlow', sans-serif);
-  font-size: 0.86rem;
+  font-size: 1rem;
+  line-height: 1.45;
   cursor: pointer;
   display: flex;
   align-items: center;
