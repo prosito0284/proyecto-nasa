@@ -89,12 +89,12 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
       id="mission-briefing-screen"
     >
       <div className="briefing-hero">
-        <span className="nasa-badge">NASA FLIGHT PLAN • JUNIOR ASTRONAUT MISSION TRAINER</span>
+        <span className="nasa-badge">PLAN DE VUELO</span>
         <h2 id="briefing-main-title" className="briefing-title">
           <HelmetIcon size={24} />{' '}
           {lang === 'es'
-            ? 'Manual de Operaciones del Comandante'
-            : 'Commander Flight Operations Manual'}
+            ? 'Manual de operaciones del comandante'
+            : 'Commander flight operations manual'}
         </h2>
         <p className="briefing-lead">
           {lang === 'es'

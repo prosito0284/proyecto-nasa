@@ -162,7 +162,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
         <div className="cert-paper-diploma-frame">
           {/* C12: Cinta Técnica de Serie del Documento Oficial */}
           <div className="cert-serial-bar">
-            <span>FORM JSC-2026-CERT // NASA SPACE APPS CHALLENGE</span>
+            <span>FORM JSC-2026-CERT</span>
             <span>
               SITE: {site.id.toUpperCase()} ({site.coordinates})
             </span>
@@ -173,7 +173,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
 
           <div className="modal-header cert-diploma-header">
             <div>
-              <span className="nasa-badge">NASA JUNIOR ASTRONAUT MISSION EVALUATION</span>
+              <span className="nasa-badge">EVALUACIÓN NASA</span>
               <h2 id="certificate-modal-title">
                 <PatchIcon size={22} /> {evaluation.rank.title[lang]} — {evaluation.score}/100 pts
               </h2>
@@ -190,7 +190,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                 id="print-certificate-btn"
               >
                 <PrintIcon size={16} />{' '}
-                {lang === 'es' ? 'Imprimir Diploma (A4/Carta)' : 'Print Diploma (A4/Letter)'}
+                {lang === 'es' ? 'Imprimir diploma (A4/Carta)' : 'Print diploma (A4/Letter)'}
               </button>
               <button
                 type="button"
@@ -212,8 +212,8 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
               <label htmlFor="astronaut-name-input" className="cert-name-label">
                 <HelmetIcon size={16} />{' '}
                 {lang === 'es'
-                  ? 'Nombre del Astronauta / Comandante:'
-                  : 'Astronaut / Commander Name:'}
+                  ? 'Nombre del astronauta / comandante:'
+                  : 'Astronaut / commander name:'}
               </label>
               <input
                 id="astronaut-name-input"
@@ -233,8 +233,8 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
               <div>
                 <span className="cert-diploma-overline">
                   {lang === 'es'
-                    ? 'DIPLOMA OFICIAL DE ENTRENAMIENTO DE MISIÓN OTORGADO A'
-                    : 'OFFICIAL MISSION TRAINING DIPLOMA AWARDED TO'}
+                    ? 'Diploma oficial de entrenamiento de misión otorgado a'
+                    : 'Official mission training diploma awarded to'}
                 </span>
                 <strong className="cert-diploma-recipient">{displayCommanderName}</strong>
                 <p className="cert-diploma-citation">
@@ -382,8 +382,8 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
               <span className="cert-sig-script">NASA Flight Control — Houston</span>
               <span className="cert-sig-line">
                 {lang === 'es'
-                  ? 'DIRECCIÓN DE ENTRENAMIENTO ARTEMIS / MARTE'
-                  : 'ARTEMIS / MARS TRAINING DIRECTORATE'}
+                  ? 'Dirección de entrenamiento Artemis / Marte'
+                  : 'Artemis / Mars training directorate'}
               </span>
             </div>
             <div className="cert-seal-box">
@@ -394,8 +394,8 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
               <span className="cert-sig-script">{displayCommanderName}</span>
               <span className="cert-sig-line">
                 {lang === 'es'
-                  ? 'FIRMA DEL COMANDANTE ESPACIAL JUNIOR'
-                  : 'JUNIOR SPACE COMMANDER SIGNATURE'}
+                  ? 'Firma del comandante espacial junior'
+                  : 'Junior space commander signature'}
               </span>
             </div>
           </div>

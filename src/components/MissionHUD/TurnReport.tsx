@@ -120,13 +120,13 @@ export const TurnReport: React.FC<TurnReportProps> = ({
         <div>
           <span className="section-tag">
             {lang === 'es'
-              ? `REPORTE DE FIN DE TURNO · ${dayLabel.toUpperCase()} ${reportDay}`
-              : `END-OF-TURN REPORT · ${dayLabel.toUpperCase()} ${reportDay}`}
+              ? `REPORTE · ${dayLabel.toUpperCase()} ${reportDay}`
+              : `REPORT · ${dayLabel.toUpperCase()} ${reportDay}`}
           </span>
           <h3 id="turn-report-heading" className="turn-report-title">
             {lang === 'es'
-              ? 'Cambios en la Base y Consecuencias'
-              : 'Outpost Changes & Mission Consequences'}
+              ? 'Cambios en la base y consecuencias'
+              : 'Outpost changes and mission consequences'}
           </h3>
         </div>
         <div className="turn-secondary-deltas">

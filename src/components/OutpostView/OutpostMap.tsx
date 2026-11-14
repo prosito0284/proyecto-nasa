@@ -75,12 +75,12 @@ const RADIO_PRESETS: RadioMessagePreset[] = [
       en: 'Transmit RAD / OSDR dosimeter readings',
     },
     houstonReplyLunar: {
-      es: 'CIRUJANO DE VUELO NASA (1.3s): "Datos biomédicos OSDR en rango seguro. Con solo 1.3 segundos de retraso podemos guiarlos en vivo desde la Tierra."',
-      en: 'NASA FLIGHT SURGEON (1.3s): "OSDR biomedical data within safe limits. With only a 1.3-second delay we can guide you live from Earth."',
+      es: 'Cirujano de vuelo NASA (1.3s): "Datos biomédicos OSDR en rango seguro. Con solo 1.3 segundos de retraso podemos guiarlos en vivo desde la Tierra."',
+      en: 'NASA flight surgeon (1.3s): "OSDR biomedical data within safe limits. With only a 1.3-second delay we can guide you live from Earth."',
     },
     houstonReplyMars: {
-      es: 'CIRUJANO DE VUELO NASA (tras ~12 min reales): "Lectura RAD recibida. En Marte una consulta tarda hasta 24 minutos en ir y volver. Su autonomía médica a bordo es clave."',
-      en: 'NASA FLIGHT SURGEON (after ~12 real min): "RAD reading received. On Mars a query takes up to 24 minutes round-trip. Onboard medical autonomy is essential."',
+      es: 'Cirujano de vuelo NASA (tras ~12 min reales): "Lectura RAD recibida. En Marte una consulta tarda hasta 24 minutos en ir y volver. Su autonomía médica a bordo es clave."',
+      en: 'NASA flight surgeon (after ~12 real min): "RAD reading received. On Mars a query takes up to 24 minutes round-trip. Onboard medical autonomy is essential."',
     },
   },
   {
@@ -90,12 +90,12 @@ const RADIO_PRESETS: RadioMessagePreset[] = [
       en: 'Report Veggie greenhouse humidity',
     },
     houstonReplyLunar: {
-      es: 'BOTÁNICA NASA KENNEDY (1.3s): "Humedad nominal en las cámaras Veggie. Reciclar el agua en el ECLSS mantiene vivo el cultivo sin gastar reservas."',
-      en: 'NASA KENNEDY BOTANY (1.3s): "Nominal humidity in Veggie chambers. Recycling water in the ECLSS keeps crops thriving without draining reserves."',
+      es: 'Botánica NASA Kennedy (1.3s): "Humedad nominal en las cámaras Veggie. Reciclar el agua en el ECLSS mantiene vivo el cultivo sin gastar reservas."',
+      en: 'NASA Kennedy botany (1.3s): "Nominal humidity in Veggie chambers. Recycling water in the ECLSS keeps crops thriving without draining reserves."',
     },
     houstonReplyMars: {
-      es: 'BOTÁNICA NASA KENNEDY (tras ~12 min reales): "Telemetría Veggie confirmada. Si una tormenta de polvo oscurece el Cráter Jezero, equilibren las lámparas LED con el generador MOXIE."',
-      en: 'NASA KENNEDY BOTANY (after ~12 real min): "Veggie telemetry confirmed. If a dust storm darkens Jezero Crater, balance LED grow lamps with the MOXIE generator."',
+      es: 'Botánica NASA Kennedy (tras ~12 min reales): "Telemetría Veggie confirmada. Si una tormenta de polvo oscurece el Cráter Jezero, equilibren las lámparas LED con el generador MOXIE."',
+      en: 'NASA Kennedy botany (after ~12 real min): "Veggie telemetry confirmed. If a dust storm darkens Jezero Crater, balance LED grow lamps with the MOXIE generator."',
     },
   },
 ];
@@ -319,11 +319,11 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
               <small>
                 {weather.isLiveNasaData
                   ? lang === 'es'
-                    ? 'NASA DONKI EN VIVO (VER DATOS)'
-                    : 'NASA DONKI LIVE (INSPECT)'
+                    ? 'DONKI EN VIVO'
+                    : 'DONKI LIVE'
                   : lang === 'es'
-                    ? 'REGISTRO REAL NASA DONKI (VER)'
-                    : 'REAL NASA DONKI RECORD (INSPECT)'}
+                    ? 'ARCHIVO DONKI'
+                    : 'DONKI ARCHIVE'}
               </small>
             </div>
           </button>
@@ -1153,7 +1153,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                       fontFamily="IBM Plex Mono, monospace"
                       fontWeight="bold"
                     >
-                      ALERT // MARTIAN GLOBAL DUST VEIL — SOLAR EFFICIENCY REDUCED
+                      ALERT // Martian dust veil active — solar output reduced
                     </text>
                   </g>
                 )}
