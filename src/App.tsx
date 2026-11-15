@@ -455,7 +455,8 @@ export const App: React.FC = () => {
       score: evaluation.score,
       rankTitle: evaluation.rank.title,
       won: mission.status === 'won',
-      badges: evaluation.badges.filter((b) => b.earned).length,
+      badges: evaluation.badges.filter((b) => b.earned || Boolean(patches.unlockedById[b.id]))
+        .length,
     });
     setBoardSaved(true);
   };

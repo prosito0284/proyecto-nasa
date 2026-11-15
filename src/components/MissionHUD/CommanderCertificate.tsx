@@ -234,7 +234,9 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
     commanderName.trim() ||
     (lang === 'es' ? 'Comandante Espacial Junior' : 'Junior Space Commander');
 
-  const earnedBadgesCount = evaluation.badges.filter((b) => b.earned).length;
+  const earnedBadgesCount = evaluation.badges.filter(
+    (b) => b.earned || Boolean(unlockedRecords?.[b.id]),
+  ).length;
 
   const defaultCrewMood: CrewMood =
     missionStatus === 'won' ? 'great' : missionStatus === 'failed' ? 'worried' : 'ok';
