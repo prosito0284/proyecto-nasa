@@ -1,0 +1,287 @@
+/**
+ * Estilos de la Vitrina de Parches y Notificación Táctica de Desbloqueo (P03).
+ *
+ * Dirección de arte "Cuaderno de Vuelo" (AGENTS.md §6 y §7):
+ * - Cero degradados, cero sombras difusas (`box-shadow: none`), esquinas de 2 px.
+ * - Bordes sólidos de 1.5 px / 2 px.
+ * - Mayúsculas solo en rótulos cortos (<= 3 palabras), títulos en tipo oración,
+ *   cuerpo mínimo de 16 px (1rem) y botones >= 44x44 px.
+ */
+
+.patch-showcase-card-shell {
+  max-width: 960px;
+}
+
+.patch-showcase-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.85rem;
+  background: var(--paper);
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+}
+
+.patch-showcase-lead {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: var(--ink-secondary);
+  max-width: 60ch;
+}
+
+.patch-showcase-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.75rem;
+  background: var(--nasa-blue);
+  color: #FFFFFF;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.patch-showcase-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.patch-filter-btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.4rem 0.8rem;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius);
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  box-shadow: none;
+}
+
+.patch-filter-btn:hover {
+  background: var(--paper-aged);
+}
+
+.patch-filter-btn--active {
+  background: var(--nasa-blue);
+  color: #FFFFFF;
+}
+
+.patch-filter-btn--active:hover {
+  background: var(--nasa-blue);
+}
+
+.patch-showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 0.75rem;
+}
+
+.patch-showcase-card {
+  background: var(--paper);
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  box-shadow: none;
+}
+
+.patch-showcase-card--unlocked {
+  background: var(--paper-sheet);
+  border: 2px solid var(--ok-green);
+}
+
+.patch-showcase-card--locked {
+  border: 1.5px dashed var(--rule);
+  color: var(--ink-muted);
+}
+
+.patch-showcase-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.patch-showcase-art-locked {
+  opacity: 0.58;
+}
+
+.patch-showcase-status {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--rule);
+  color: var(--ink-muted);
+}
+
+.patch-showcase-card--unlocked .patch-showcase-status {
+  color: var(--ok-green);
+  border-color: var(--ok-green);
+  background: var(--paper);
+}
+
+.patch-showcase-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.18rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.patch-showcase-card--locked .patch-showcase-title {
+  color: var(--ink-secondary);
+}
+
+.patch-showcase-hint {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.42;
+  color: var(--ink-secondary);
+  max-width: 55ch;
+}
+
+.patch-showcase-meta {
+  margin-top: auto;
+  padding-top: 0.45rem;
+  border-top: 1px dashed var(--rule);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ok-green);
+  font-weight: 600;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+/* Notificación / Banner Táctico No Bloqueante (P03) */
+.patch-unlock-toast-layer {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 9500;
+  pointer-events: none;
+  max-width: calc(100vw - 32px);
+}
+
+.patch-unlock-toast-card {
+  pointer-events: auto;
+  width: min(410px, calc(100vw - 32px));
+  background: #0B101B;
+  color: #F4EFE4;
+  border: 2px solid #00E5FF;
+  border-radius: 2px;
+  box-shadow: none;
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.patch-unlock-toast-emblem {
+  flex-shrink: 0;
+  padding: 4px;
+  background: var(--paper-sheet);
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+}
+
+.patch-unlock-toast-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.patch-unlock-toast-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #00E5FF;
+}
+
+.patch-unlock-toast-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #FFFFFF;
+}
+
+.patch-unlock-toast-subtitle {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.35;
+  color: #D2DCEB;
+}
+
+.patch-unlock-toast-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.patch-toast-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.35rem 0.65rem;
+  background: #141E30;
+  color: #FFFFFF;
+  border: 1.5px solid #00E5FF;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+}
+
+.patch-toast-btn:hover,
+.patch-toast-btn:focus-visible {
+  background: #1F2E47;
+}
+
+.patch-toast-btn--close {
+  border-color: #3B4E73;
+  color: #D2DCEB;
+}
+
+@media (max-width: 540px) {
+  .patch-unlock-toast-card {
+    flex-wrap: wrap;
+  }
+
+  .patch-unlock-toast-actions {
+    width: 100%;
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+}
