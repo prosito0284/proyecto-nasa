@@ -509,7 +509,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                       </div>
                       <div className="cert-history-detail">
                         <span className="cert-history-card-id">
-                          ORD: {formatCodeLabel(record.cardId)}
+                          {lang === 'es' ? 'ORD:' : 'WO:'} {formatCodeLabel(record.cardId)}
                         </span>
                         <span className="cert-history-choice-id">
                           <CheckIcon size={12} /> {lang === 'es' ? 'Opción:' : 'Choice:'}{' '}

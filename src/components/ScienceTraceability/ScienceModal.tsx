@@ -1042,7 +1042,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                   const howWeKnow =
                     (item as GlossaryTermWithEvidence).howWeKnow ||
                     getGlossaryTerm(item.id)?.howWeKnow;
-                  const catalogCode = `FICHA-${String(idx + 1).padStart(2, '0')} // ${item.id.toUpperCase()}`;
+                  const catalogCode = `${lang === 'es' ? 'FICHA' : 'CARD'}-${String(idx + 1).padStart(2, '0')} // ${item.id.toUpperCase()}`;
                   const cardKey = `glossary-${item.id}`;
                   const isExpanded = Boolean(expandedCardIds[cardKey]);
 
@@ -1574,7 +1574,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                         <img
                           src={img.imageUrl}
                           alt={descriptiveAlt}
-                          loading="eager"
+                          loading="lazy"
                           decoding="async"
                           width={480}
                           height={300}
