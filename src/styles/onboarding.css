@@ -1,0 +1,210 @@
+/**
+ * Estilos del Entrenamiento Interactivo de Encendido ("Aprender Haciendo")
+ * (src/styles/onboarding.css — T02, T03 & T04)
+ *
+ * Dirección de arte obligatoria:
+ * - Cero degradados, cero sombras difusas (`box-shadow: none`), esquinas de 2 px (`border-radius: 2px`).
+ * - 4 paneles oscuros con `rgba(6, 10, 18, 0.85)`.
+ * - Marco técnico de 2 px: cian `#00E5FF` para acción normal, ámbar `#FFB300` para alerta.
+ * - Recuadro micro-táctico oscuro NASA (`#0B101B`), rótulo en mayúsculas <= 3 palabras,
+ *   orden directa de cuerpo >= 16 px (`1.02rem`).
+ * - Efectos visuales de confirmación (pulso de red eléctrica, pulso de presurización de O2
+ *   y banner de micro-emergencia térmica nocturna).
+ */
+
+.onboarding-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 9600;
+  pointer-events: none;
+}
+
+.onboarding-quadrant {
+  position: fixed;
+  background-color: rgba(6, 10, 18, 0.85);
+  pointer-events: auto;
+  z-index: 9600;
+  transition:
+    top 120ms ease-out,
+    left 120ms ease-out,
+    width 120ms ease-out,
+    height 120ms ease-out;
+}
+
+.onboarding-cutout-frame {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9601;
+  border-width: 2px;
+  border-style: solid;
+  border-radius: 2px;
+  background: transparent;
+  box-shadow: none;
+  transition:
+    top 120ms ease-out,
+    left 120ms ease-out,
+    width 120ms ease-out,
+    height 120ms ease-out;
+}
+
+.onboarding-tone-info {
+  border-color: #00E5FF;
+}
+
+.onboarding-tone-caution {
+  border-color: #FFB300;
+}
+
+.onboarding-vector-svg {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9602;
+  overflow: visible;
+}
+
+/* T03: Recuadro micro-táctico sin botones de Siguiente/Anterior */
+.onboarding-micro-callout {
+  position: fixed;
+  z-index: 9603;
+  pointer-events: auto;
+  width: min(336px, calc(100vw - 24px));
+  background-color: #0B101B;
+  color: #F4EFE4;
+  border-width: 2px;
+  border-style: solid;
+  border-radius: 2px;
+  box-shadow: none;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onboarding-callout-info {
+  border-color: #00E5FF;
+}
+
+.onboarding-callout-caution {
+  border-color: #FFB300;
+}
+
+.onboarding-callout-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.onboarding-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.onboarding-callout-info .onboarding-eyebrow {
+  color: #00E5FF;
+}
+
+.onboarding-callout-caution .onboarding-eyebrow {
+  color: #FFB300;
+}
+
+.onboarding-command {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1.02rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #FFFFFF;
+}
+
+.onboarding-skip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  min-height: 30px;
+  background-color: #141E30;
+  color: #D2DCEB;
+  border: 1.5px solid #3B4E73;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.onboarding-skip-btn:hover,
+.onboarding-skip-btn:focus-visible {
+  background-color: #1F2E47;
+  color: #FFFFFF;
+  border-color: #00E5FF;
+}
+
+/* T04: Confirmaciones visuales al encender sistemas reales del HUD */
+@keyframes onboardingSystemPulse {
+  0% {
+    outline: 3px solid #00E5FF;
+    outline-offset: 2px;
+  }
+  100% {
+    outline: 0px solid transparent;
+    outline-offset: 6px;
+  }
+}
+
+.onboarding-grid-ignited {
+  animation: onboardingSystemPulse 900ms ease-out;
+}
+
+.onboarding-oxygen-pressurized {
+  background-color: #E2F1E8 !important;
+  border-color: #2E7D4F !important;
+  animation: onboardingSystemPulse 900ms ease-out;
+}
+
+/* T04 Paso 4: Alerta visual rápida en ámbar de micro-emergencia térmica */
+.onboarding-thermal-alert-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background-color: #1F1808;
+  color: #FFE082;
+  border: 2px solid #FFB300;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.onboarding-thermal-tag {
+  padding: 2px 6px;
+  background-color: #FFB300;
+  color: #0B101B;
+  border-radius: 2px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-quadrant,
+  .onboarding-cutout-frame {
+    transition: none;
+  }
+  .onboarding-grid-ignited,
+  .onboarding-oxygen-pressurized {
+    animation: none;
+  }
+}
