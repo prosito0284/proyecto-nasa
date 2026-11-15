@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CoreResources,
+  LocalizedText,
   MissionLogEntry,
   MissionState,
   OutpostSiteId,
@@ -223,6 +224,47 @@ export function applyAnomalyScanToMission(
   };
 }
 
+export function getMaintenanceDelayedBonus(
+  moduleId: ColonyWorldModuleId,
+): { description: LocalizedText; resourceDelta: Partial<CoreResources> } | null {
+  switch (moduleId) {
+    case 'power-grid':
+      return {
+        description: {
+          es: 'Paneles cepillados: +3 % batería garantizados al cierre del turno.',
+          en: 'Solar arrays brushed: +3% battery guaranteed at turn close.',
+        },
+        resourceDelta: { power: 3 },
+      };
+    case 'oxygen-module':
+      return {
+        description: {
+          es: 'Radiadores ECLSS purgados: +3 % soporte vital al cierre del turno.',
+          en: 'ECLSS radiators purged: +3% life support at turn close.',
+        },
+        resourceDelta: { lifeSupport: 3 },
+      };
+    case 'greenhouse':
+      return {
+        description: {
+          es: 'Boquillas Veggie limpias: +3 % comida al cierre del turno.',
+          en: 'Veggie nozzles rinsed: +3% food yield at turn close.',
+        },
+        resourceDelta: { food: 3 },
+      };
+    case 'comms-array':
+      return {
+        description: {
+          es: 'Antena recalibrada: +2 puntos de ciencia al cierre del turno.',
+          en: 'Dish recalibrated: +2 science points at turn close.',
+        },
+        resourceDelta: { sciencePoints: 2 },
+      };
+    default:
+      return null;
+  }
+}
+
 export function applyMaintenanceToMission(
   prev: MissionState,
   moduleId: ColonyWorldModuleId,
@@ -240,6 +282,7 @@ export function applyMaintenanceToMission(
   } else if (moduleId === 'comms-array') {
     nextRes.sciencePoints += 1;
   }
+  const delayedBonus = getMaintenanceDelayedBonus(moduleId);
   const modLabel = COLONY_WORLD_MODULES[moduleId].label;
   const entry: MissionLogEntry = {
     day: prev.currentDay,
@@ -254,6 +297,9 @@ export function applyMaintenanceToMission(
   return {
     ...prev,
     resources: nextRes,
+    pendingDelayedEffects: delayedBonus
+      ? [...prev.pendingDelayedEffects, delayedBonus]
+      : prev.pendingDelayedEffects,
     logs: [entry, ...prev.logs],
   };
 }

@@ -21,6 +21,7 @@ import {
 import {
   applyAnomalyScanToMission,
   applyMaintenanceToMission,
+  getMaintenanceDelayedBonus,
 } from '../../../hooks/useMission';
 import { OutpostMap } from '../../OutpostView/OutpostMap';
 import { ColonyWorld3D, resolveColonyKeyCommand } from '../ColonyWorld3D';
@@ -41,6 +42,7 @@ import {
   findAnomalyId,
   findColonyModuleId,
   generateTurnAnomalies,
+  getColonyEvolutionSummary,
   getColonyModuleStatus,
   getMaintenanceConfirmation,
   getModulesNeedingMaintenance,
@@ -661,9 +663,21 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
     const afterPowerMaint = applyMaintenanceToMission(lowPowerMission, 'power-grid')!;
     expect(afterPowerMaint.resources.power).toBe(42);
     expect(afterPowerMaint.logs[0].nasaTag).toBe('Artemis ECLSS');
+    expect(afterPowerMaint.pendingDelayedEffects).toHaveLength(1);
+    expect(afterPowerMaint.pendingDelayedEffects[0].resourceDelta.power).toBe(3);
 
     const afterCommsMaint = applyMaintenanceToMission(afterPowerMaint, 'comms-array')!;
     expect(afterCommsMaint.resources.sciencePoints).toBe(afterPowerMaint.resources.sciencePoints + 1);
+    expect(afterCommsMaint.pendingDelayedEffects).toHaveLength(2);
+    expect(afterCommsMaint.pendingDelayedEffects[1].resourceDelta.sciencePoints).toBe(2);
+    expect(getMaintenanceDelayedBonus('greenhouse')?.resourceDelta.food).toBe(3);
+    expect(getMaintenanceDelayedBonus('oxygen-module')?.resourceDelta.lifeSupport).toBe(3);
+    expect(getMaintenanceDelayedBonus('rover-moxie')).toBeNull();
+
+    const evoStarter = computeColonyEvolutionState({ currentDay: 1, solarAllocPercent: 20, shieldingAllocPercent: 10, greenhouseAllocPercent: 10 });
+    const evoMax = computeColonyEvolutionState({ currentDay: 6, sciencePoints: 50, lifeSupportPercent: 85, powerPercent: 85, foodPercent: 80, solarAllocPercent: 70, shieldingAllocPercent: 45, greenhouseAllocPercent: 45 });
+    expect(getColonyEvolutionSummary(evoStarter, 'es').badgeLabel).toBe('FASE I · 0/8');
+    expect(getColonyEvolutionSummary(evoMax, 'en').badgeLabel).toBe('TIER III · 8/8');
   });
 
   it('M04: ColonyWorld3D y OutpostMap renderizan respaldo SVG sin WebGL (orbital, rover, anomalías, mantenimiento) con cero errores', () => {
@@ -699,6 +713,7 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
         }),
       );
       expect(html).toContain('data-testid="colony-world-3d"');
+      expect(html).toContain('data-testid="colony-evo-badge"');
       expect(html).toContain('data-testid="colony-world-svg-fallback"');
       expect(html).toContain('data-testid="colony-anomalies-bar"');
       expect(html).toContain(`data-testid="svg-anomaly-${siteAnoms[0].id}"`);

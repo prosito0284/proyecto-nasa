@@ -244,8 +244,14 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
     badge.earned || Boolean(unlockedRecords?.[badge.id]);
 
   const earnedBadgesCount = evaluation.badges.filter(isBadgeEarned).length;
+  const pendingScienceDelta = pendingEffects.reduce(
+    (acc, item) => acc + (item.resourceDelta.sciencePoints ?? 0),
+    0,
+  );
   const scienceDelta =
-    projection.delta.sciencePoints + (hoveredChoice?.resourceDelta.sciencePoints ?? 0);
+    projection.delta.sciencePoints +
+    (hoveredChoice?.resourceDelta.sciencePoints ?? 0) +
+    pendingScienceDelta;
 
   return (
     <aside className="hud-panel" aria-label="Mission Resource Telemetry">
@@ -585,8 +591,8 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
               <strong>
                 <ClockIcon size={15} />{' '}
                 {lang === 'es'
-                  ? 'Consecuencia de Ayer Activa Hoy:'
-                  : 'Yesterday’s Consequence Active Today:'}
+                  ? 'Efectos Diferidos para el Turno:'
+                  : 'Active Turn-Over Effects:'}
               </strong>
               {pendingEffects.map((eff, i) => (
                 <p key={i}>• {eff.description[lang]}</p>
