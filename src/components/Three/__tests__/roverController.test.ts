@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import {
   buildColonyWorld,
@@ -13,6 +14,7 @@ import {
   PLANET_ROVER_PHYSICS,
   ROVER_COLLISION_RADIUS,
   ROVER_MAX_STEER_RAD,
+  ROVER_WHEEL_RADIUS,
   ROVER_WORLD_LIMITS,
 } from '../roverController';
 
@@ -208,3 +210,171 @@ describe('Planetary Rover Controller (R01)', () => {
     disposeObject3D(world.group);
   });
 });
+
+describe('Articulated Rover Mechanical Animations (R03)', () => {
+  it('gira las 6 ruedas en eje X proporcionalmente a la velocidad de avance y reversa', () => {
+    const moonWorld = buildColonyWorld({ siteId: 'moon-shackleton', terrainSeed: 20260415 });
+
+    expect(moonWorld.group.getObjectByName('wheels')).toBeTruthy();
+    expect(moonWorld.group.getObjectByName('frontSteering')).toBeTruthy();
+    expect(moonWorld.group.getObjectByName('rearSteering')).toBeTruthy();
+    expect(moonWorld.group.getObjectByName('roboticArm')).toBeTruthy();
+    expect(moonWorld.group.getObjectByName('mastCam')).toBeTruthy();
+    expect(moonWorld.group.getObjectByName('scannerBeam')).toBeTruthy();
+    expect(moonWorld.group.getObjectByName('rover-chassis-suspension')).toBeTruthy();
+
+    const wheelNames = ['fl', 'fr', 'ml', 'mr', 'rl', 'rr'] as const;
+    const wheels = wheelNames.map((n) => moonWorld.group.getObjectByName(`rover-wheel-${n}`)!);
+    for (const w of wheels) expect(w).toBeTruthy();
+
+    // Avance durante 1s (dt=0.05) -> rotation.x aumenta exactamente sum((v / r) * dt)
+    moonWorld.setRoverControlInput({ forward: true, backward: false, left: false, right: false });
+    let t = 0;
+    let expectedXSpin = 0;
+    for (let i = 0; i < 20; i++) {
+      t += 0.05;
+      moonWorld.animate(t, 0.05);
+      const tele = moonWorld.getRoverTelemetry();
+      expectedXSpin += (tele.linearVelocity / ROVER_WHEEL_RADIUS) * 0.05;
+    }
+    expect(expectedXSpin).toBeGreaterThan(2.5);
+    for (const w of wheels) {
+      expect(w.rotation.x).toBeCloseTo(expectedXSpin, 4);
+      expect(w.rotation.y).toBe(0);
+    }
+
+    // Reversa durante 1.8s -> velocidad negativa invierte sentido de giro en eje X
+    moonWorld.setRoverControlInput({ forward: false, backward: true, left: false, right: false });
+    const spinAfterForward = wheels[0].rotation.x;
+    for (let i = 0; i < 36; i++) {
+      t += 0.05;
+      moonWorld.animate(t, 0.05);
+    }
+    expect(moonWorld.getRoverTelemetry().linearVelocity).toBeLessThan(-1.5);
+    for (const w of wheels) {
+      expect(w.rotation.x).toBeLessThan(spinAfterForward);
+    }
+
+    disposeObject3D(moonWorld.group);
+  });
+
+  it('articula dirección Y (±28°) en ruedas delanteras/traseras, suspende chasis y barre mastCam', () => {
+    const world = buildColonyWorld({ siteId: 'mars-jezero', terrainSeed: 20260415 });
+
+    const flPivot = world.group.getObjectByName('rover-steer-fl')!;
+    const frPivot = world.group.getObjectByName('rover-steer-fr')!;
+    const rlPivot = world.group.getObjectByName('rover-steer-rl')!;
+    const rrPivot = world.group.getObjectByName('rover-steer-rr')!;
+    const chassis = world.group.getObjectByName('rover-chassis-suspension')!;
+    const mastPivot = world.group.getObjectByName('rover-mastcam-pivot')!;
+
+    // Girar a la izquierda + avanzar: delanteras positivas (<= +28°), traseras negativas (>= -28°)
+    world.setRoverControlInput({ forward: true, backward: false, left: true, right: false });
+    let t = 0;
+    let sawSuspBounce = false;
+    let sawAccelSquat = false;
+    let maxMastYaw = 0;
+    for (let i = 0; i < 24; i++) {
+      t += 0.05;
+      world.animate(t, 0.05);
+      if (Math.abs(chassis.position.y) > 0.002) sawSuspBounce = true;
+      if (chassis.rotation.z > 0.002) sawAccelSquat = true;
+      maxMastYaw = Math.max(maxMastYaw, Math.abs(mastPivot.rotation.y));
+    }
+
+    expect(flPivot.rotation.y).toBeGreaterThan(0.4);
+    expect(frPivot.rotation.y).toBeGreaterThan(0.4);
+    expect(flPivot.rotation.y).toBeLessThanOrEqual(ROVER_MAX_STEER_RAD + 0.001);
+    expect(rlPivot.rotation.y).toBeCloseTo(-flPivot.rotation.y, 4);
+    expect(rrPivot.rotation.y).toBeCloseTo(-frPivot.rotation.y, 4);
+    expect(sawSuspBounce).toBe(true);
+    expect(sawAccelSquat).toBe(true);
+    expect(maxMastYaw).toBeGreaterThan(0.1);
+
+    // Girar a la derecha + frenar/reversa -> inversión de dirección y cabeceo negativo al frenar
+    world.setRoverControlInput({ forward: false, backward: true, left: false, right: true });
+    let sawBrakeDive = false;
+    for (let i = 0; i < 36; i++) {
+      t += 0.05;
+      world.animate(t, 0.05);
+      if (chassis.rotation.z < -0.002) sawBrakeDive = true;
+    }
+    expect(flPivot.rotation.y).toBeLessThan(-0.4);
+    expect(rlPivot.rotation.y).toBeCloseTo(-flPivot.rotation.y, 4);
+    expect(sawBrakeDive).toBe(true);
+
+    disposeObject3D(world.group);
+  });
+
+  it('despliega roboticArm y scannerBeam cyan/ámbar al acercarse manualmente a <= 4.0 m de una anomalía y se retrae al alejarse', () => {
+    const world = buildColonyWorld({ siteId: 'mars-jezero', terrainSeed: 20260415, currentDay: 1 });
+    const anomalies = world.getAnomalies();
+    const targetAnom = anomalies[0];
+    const armPivot = world.group.getObjectByName('rover-scanner-arm')!;
+    const beamMesh = world.group.getObjectByName('rover-scanner-beam') as THREE.Mesh;
+    const beamMat = beamMesh.material as THREE.MeshBasicMaterial;
+    const beamGroup = world.group.getObjectByName('scannerBeam')!;
+
+    expect(beamMesh.visible).toBe(false);
+    expect(beamGroup.visible).toBe(false);
+
+    // Conducir manualmente guiando dirección hacia la anomalía hasta quedar a <= 4.0 m
+    let t = 0;
+    let reachedProximity = false;
+    const observedLaserHex = new Set<number>();
+    for (let step = 0; step < 300; step++) {
+      const tele = world.getRoverTelemetry();
+      const dx = targetAnom.position[0] - tele.x;
+      const dz = targetAnom.position[2] - tele.z;
+      const dist = Math.hypot(dx, dz);
+      const desiredYaw = Math.atan2(-dz, dx);
+      let hErr = (desiredYaw - tele.heading + Math.PI) % (Math.PI * 2);
+      if (hErr < 0) hErr += Math.PI * 2;
+      hErr -= Math.PI;
+
+      world.setRoverControlInput({
+        forward: dist > 2.4,
+        backward: false,
+        left: hErr > 0.12,
+        right: hErr < -0.12,
+      });
+
+      t += 0.05;
+      world.animate(t, 0.05);
+
+      const post = world.getRoverTelemetry();
+      if (post.nearestAnomalyDistance <= 4.0) {
+        reachedProximity = true;
+        expect(post.scannerActive).toBe(true);
+        expect(beamMesh.visible).toBe(true);
+        expect(beamGroup.visible).toBe(true);
+        observedLaserHex.add(beamMat.color.getHex());
+        if (observedLaserHex.size === 2 && armPivot.rotation.z < -0.3) {
+          break;
+        }
+      }
+    }
+
+    expect(reachedProximity).toBe(true);
+    expect(armPivot.rotation.z).toBeLessThan(-0.3);
+    expect(observedLaserHex.has(0x00e5ff)).toBe(true);
+    expect(observedLaserHex.has(0xffb300)).toBe(true);
+
+    // Alejarse en reversa fuera de 4.0 m -> debe ocultar el haz y replegar el brazo
+    world.setRoverControlInput({ forward: false, backward: true, left: false, right: false });
+    for (let step = 0; step < 60; step++) {
+      t += 0.05;
+      world.animate(t, 0.05);
+    }
+    const retreated = world.getRoverTelemetry();
+    if (retreated.nearestAnomalyDistance > 4.0) {
+      expect(retreated.scannerActive).toBe(false);
+      expect(beamMesh.visible).toBe(false);
+      expect(beamGroup.visible).toBe(false);
+      expect(armPivot.rotation.z).toBeGreaterThan(-0.15);
+    }
+
+    disposeObject3D(world.group);
+  });
+});
+
