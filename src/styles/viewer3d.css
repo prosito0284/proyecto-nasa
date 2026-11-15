@@ -21,6 +21,11 @@
   background-color: #2D160E;
 }
 
+.viewer3d-stage-wrap {
+  position: relative;
+  width: 100%;
+}
+
 .viewer3d-viewport {
   position: relative;
   width: 100%;
@@ -718,12 +723,15 @@
   grid-row: 2;
 }
 
-@media (max-width: 580px) {
+@media (max-width: 640px) {
   .colony3d-tactical-toast {
-    top: 2.55rem;
-    left: 0.45rem;
-    right: 0.45rem;
-    bottom: auto;
+    position: static;
+    width: 100%;
+    box-sizing: border-box;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    border-radius: 0;
     flex-wrap: wrap;
   }
 

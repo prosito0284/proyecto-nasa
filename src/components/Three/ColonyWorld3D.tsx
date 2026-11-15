@@ -1451,81 +1451,95 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       className={`viewer3d-frame ${isMars ? 'viewer3d-mars' : 'viewer3d-lunar'} ${className ?? ''}`.trim()}
       data-testid="colony-world-3d"
     >
-      <div
-        ref={hostRef}
-        className="viewer3d-viewport"
-        style={{ height: `${height}px` }}
-        tabIndex={0}
-        role="region"
-        aria-label={titleLabel}
-        onKeyDown={handleViewportKeyDown}
-      >
-        <div className="viewer3d-hud-top">
-          <span className="viewer3d-badge">
-            <GlobeIcon size={13} />
-            <span>
-              {webglSupported
-                ? cameraMode === 'rover'
-                  ? es
-                    ? '3D // CÁMARA ROVER'
-                    : '3D // ROVER CAM'
-                  : isMars
+      <div className="viewer3d-stage-wrap">
+        <div
+          ref={hostRef}
+          className="viewer3d-viewport"
+          style={{ height: `${height}px` }}
+          tabIndex={0}
+          role="region"
+          aria-label={titleLabel}
+          onKeyDown={handleViewportKeyDown}
+        >
+          <div className="viewer3d-hud-top">
+            <span className="viewer3d-badge">
+              <GlobeIcon size={13} />
+              <span>
+                {webglSupported
+                  ? cameraMode === 'rover'
                     ? es
-                      ? '3D // MARTE JEZERO'
-                      : '3D // MARS JEZERO'
-                    : es
-                      ? '3D // LUNA SHACKLETON'
-                      : '3D // LUNAR SHACKLETON'
-                : es
-                  ? 'SVG // SIN WEBGL'
-                  : 'SVG // NO WEBGL'}
+                      ? '3D // CÁMARA ROVER'
+                      : '3D // ROVER CAM'
+                    : isMars
+                      ? es
+                        ? '3D // MARTE JEZERO'
+                        : '3D // MARS JEZERO'
+                      : es
+                        ? '3D // LUNA SHACKLETON'
+                        : '3D // LUNAR SHACKLETON'
+                  : es
+                    ? 'SVG // SIN WEBGL'
+                    : 'SVG // NO WEBGL'}
+              </span>
             </span>
-          </span>
-          <div className="viewer3d-hud-right">
-            <span
-              className={`viewer3d-badge viewer3d-evo-badge evo-tier-${evoSummary.tier.toLowerCase()}`}
-              data-testid="colony-evo-badge"
-              title={evoSummary.detailText}
-            >
-              {evoSummary.badgeLabel}
-            </span>
-            <span className="viewer3d-badge viewer3d-seed-badge" data-testid="colony-seed-badge">
-              {`SEED #${seedBadgeCode}`}
-            </span>
+            <div className="viewer3d-hud-right">
+              <span
+                className={`viewer3d-badge viewer3d-evo-badge evo-tier-${evoSummary.tier.toLowerCase()}`}
+                data-testid="colony-evo-badge"
+                title={evoSummary.detailText}
+              >
+                {evoSummary.badgeLabel}
+              </span>
+              <span className="viewer3d-badge viewer3d-seed-badge" data-testid="colony-seed-badge">
+                {`SEED #${seedBadgeCode}`}
+              </span>
+            </div>
           </div>
-        </div>
 
-        {webglSupported && floatingTag && floatingTag.kind === 'anomaly' && activeAnomalyTag && (
-          <div
-            className={`colony3d-floating-tag tone-${activeAnomalyTag.tone}`}
-            style={{
-              left: `${floatingTag.x}px`,
-              top: `${floatingTag.y}px`,
-            }}
-            data-testid="colony3d-floating-tag"
-          >
-            <strong>{activeAnomalyTag.title}</strong>
-            <span>{activeAnomalyTag.subtitle}</span>
-          </div>
-        )}
-
-        {webglSupported &&
-          floatingTag &&
-          floatingTag.kind === 'module' &&
-          activeTagMeta &&
-          activeTagStatus && (
+          {webglSupported && floatingTag && floatingTag.kind === 'anomaly' && activeAnomalyTag && (
             <div
-              className={`colony3d-floating-tag tone-${activeTagStatus.tone}`}
+              className={`colony3d-floating-tag tone-${activeAnomalyTag.tone}`}
               style={{
                 left: `${floatingTag.x}px`,
                 top: `${floatingTag.y}px`,
               }}
               data-testid="colony3d-floating-tag"
             >
-              <strong>{activeTagMeta.label[lang]}</strong>
-              <span>{activeTagStatus.text}</span>
+              <strong>{activeAnomalyTag.title}</strong>
+              <span>{activeAnomalyTag.subtitle}</span>
             </div>
           )}
+
+          {webglSupported &&
+            floatingTag &&
+            floatingTag.kind === 'module' &&
+            activeTagMeta &&
+            activeTagStatus && (
+              <div
+                className={`colony3d-floating-tag tone-${activeTagStatus.tone}`}
+                style={{
+                  left: `${floatingTag.x}px`,
+                  top: `${floatingTag.y}px`,
+                }}
+                data-testid="colony3d-floating-tag"
+              >
+                <strong>{activeTagMeta.label[lang]}</strong>
+                <span>{activeTagStatus.text}</span>
+              </div>
+            )}
+
+          {webglSupported && (
+            <RoverControlsOverlay
+              lang={lang}
+              activeDirections={roverDirections}
+              speedMps={roverSpeedMps}
+              disabled={Boolean(options.isLowPowerBlackout || isPaused)}
+              onDirectionChange={handleDpadDirectionChange}
+            />
+          )}
+
+          {!webglSupported && renderSvgColonyFallback()}
+        </div>
 
         {tacticalNotice && (
           <div
@@ -1567,18 +1581,6 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
             </div>
           </div>
         )}
-
-        {webglSupported && (
-          <RoverControlsOverlay
-            lang={lang}
-            activeDirections={roverDirections}
-            speedMps={roverSpeedMps}
-            disabled={Boolean(options.isLowPowerBlackout || isPaused)}
-            onDirectionChange={handleDpadDirectionChange}
-          />
-        )}
-
-        {!webglSupported && renderSvgColonyFallback()}
       </div>
 
       <span className="sr-only" aria-live="polite">
