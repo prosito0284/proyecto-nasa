@@ -2640,6 +2640,7 @@ export interface ColonyWorldHandle {
   collectSample: (sampleId: string) => boolean;
   returnRoverToBase: () => boolean;
   setRoverControlInput: (input: RoverControlInput) => void;
+  stopRover: () => void;
   getRoverTelemetry: () => RoverTelemetrySnapshot;
   getRoverPose: (outPos: THREE.Vector3, outForward: THREE.Vector3) => void;
   getMastcamPose: (outPos: THREE.Vector3, outTarget: THREE.Vector3, outUp: THREE.Vector3) => void;
@@ -4114,6 +4115,29 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     }
   };
 
+  const stopRover = () => {
+    roverInput = { ...EMPTY_ROVER_INPUT };
+    roverSpeed = 0;
+    roverSteerAngle = 0;
+    roverWheelSpinDelta = 0;
+    roverSuspensionHeave = 0;
+    roverSuspensionPitch = 0;
+    roverCtrl.setPose({
+      x: roverWorldX,
+      z: roverWorldZ,
+      heading: roverHeading,
+      velocity: 0,
+    });
+    if (roverTask.mode !== 'collecting-sample') {
+      hasManualDrive = true;
+      roverTask = { mode: 'manual' };
+    }
+    scannerBeamGroup.visible = false;
+    scannerBeamMesh.visible = false;
+    scannerRingMesh.visible = false;
+    wakeGeo.setDrawRange(0, 0);
+  };
+
   const getRoverTelemetry = (): RoverTelemetrySnapshot => {
     const nearest = findNearestAnomalySnapshot();
     const nearestSample = findNearestSampleSnapshot();
@@ -4985,6 +5009,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     collectSample,
     returnRoverToBase,
     setRoverControlInput,
+    stopRover,
     getRoverTelemetry,
     getRoverPose,
     getMastcamPose,
