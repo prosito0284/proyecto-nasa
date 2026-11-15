@@ -735,6 +735,45 @@
   outline-offset: 1px;
 }
 
+.rover-collect-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.35rem 0.72rem;
+  background-color: #0B3D91;
+  color: #FFFFFF;
+  border: 1.5px solid #00E5FF;
+  border-radius: 2px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.viewer3d-mars .rover-collect-btn {
+  border-color: #FFB300;
+}
+
+.rover-collect-btn:hover:not(:disabled) {
+  background-color: #164DA8;
+  border-color: #FFFFFF;
+}
+
+.rover-collect-btn:focus-visible {
+  outline: 2px solid #00E5FF;
+  outline-offset: 1px;
+}
+
+.rover-collect-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 /* R02: Cruceta táctil en pantalla (D-Pad mínimo 44x44px, esquinas 2px, cero sombras difusas) */
 .rover-dpad-overlay {
   position: absolute;
@@ -910,6 +949,10 @@
     padding: 0.3rem 0.45rem;
     font-size: 0.68rem;
   }
+
+  .rover-collect-btn {
+    width: 100%;
+  }
 }
 
 @media (max-width: 640px) {
@@ -923,6 +966,7 @@
   }
 }
 
+.colony-samples-bar,
 .colony-anomalies-bar {
   display: flex;
   flex-wrap: wrap;
@@ -933,6 +977,7 @@
   border-top: 1.5px solid var(--ink, #1B1F2A);
 }
 
+.colony-samples-label,
 .colony-anomalies-label {
   display: inline-flex;
   align-items: center;
@@ -942,6 +987,39 @@
   font-weight: 700;
   color: var(--ink, #1B1F2A);
   margin-right: 0.2rem;
+}
+
+.colony-samples-counter {
+  padding: 0.08rem 0.36rem;
+  background-color: var(--nasa-blue, #0B3D91);
+  color: #FFFFFF;
+  border-radius: 2px;
+  font-size: 0.68rem;
+}
+
+.colony-sample-btn {
+  min-width: 44px;
+  min-height: 44px;
+  border-color: var(--nasa-blue, #0B3D91);
+  border-radius: 2px;
+}
+
+.colony-sample-btn.colony-sample-collected {
+  background-color: #E6F4EC;
+  border-color: #2E7D4F;
+  color: #14532D;
+}
+
+.colony-sample-pts {
+  padding: 0.08rem 0.34rem;
+  background-color: var(--nasa-blue, #0B3D91);
+  color: #FFFFFF;
+  border-radius: 2px;
+  font-size: 0.68rem;
+}
+
+.colony-sample-collected .colony-sample-pts {
+  background-color: #2E7D4F;
 }
 
 .colony-anomaly-btn {

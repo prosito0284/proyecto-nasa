@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Language } from '../../types/mission';
-import { ArrowIcon } from '../icons';
+import { ArrowIcon, ScienceIcon } from '../icons';
 
 export type RoverDirectionKey = 'forward' | 'backward' | 'left' | 'right';
 
@@ -70,6 +70,14 @@ export function mergeRoverDirections(
 
 export type ColonyCameraMode = 'chase' | 'mastcam' | 'orbital';
 
+export interface NearbySamplePrompt {
+  id: string;
+  code: string;
+  label: string;
+  points: number;
+  distance: number;
+}
+
 export interface RoverControlsOverlayProps {
   lang: Language;
   activeDirections: RoverDirectionState;
@@ -77,6 +85,8 @@ export interface RoverControlsOverlayProps {
   disabled?: boolean;
   cameraMode?: ColonyCameraMode;
   onCameraModeChange?: (mode: ColonyCameraMode) => void;
+  nearbySample?: NearbySamplePrompt | null;
+  onCollectSample?: (sampleId: string) => void;
   onDirectionChange: (direction: RoverDirectionKey, pressed: boolean) => void;
 }
 
@@ -183,51 +193,80 @@ export const RoverControlsOverlay: React.FC<RoverControlsOverlayProps> = ({
   disabled = false,
   cameraMode,
   onCameraModeChange,
+  nearbySample = null,
+  onCollectSample,
   onDirectionChange,
 }) => {
   const es = lang === 'es';
   const groupLabel = es ? 'Controles táctiles del rover' : 'Rover drive controls';
   const statusCode = disabled ? 'ROVER OFF' : `${Math.abs(speedMps).toFixed(1)} m/s`;
   const showCameraSelector = cameraMode !== undefined || onCameraModeChange !== undefined;
+  const showCollectButton = Boolean(nearbySample && onCollectSample);
+  const showLeftCluster = showCameraSelector || showCollectButton;
   const activeCamera: ColonyCameraMode = cameraMode ?? 'orbital';
 
   return (
     <div className="rover-hud-layer">
-      {showCameraSelector && (
+      {showLeftCluster && (
         <div
           className="rover-camera-cluster"
           data-testid="rover-camera-cluster"
           onPointerDown={(e) => e.stopPropagation()}
           onPointerUp={(e) => e.stopPropagation()}
         >
-          <div
-            className="rover-camera-selector"
-            data-testid="rover-camera-selector"
-            role="group"
-            aria-label={es ? 'Selector de cámara 3D' : '3D camera selector'}
-          >
-            <span className="rover-cam-tag" title={es ? 'Tecla C para rotar cámara' : 'Press C to cycle camera'}>
-              CAM [C]
-            </span>
-            <div className="rover-camera-buttons">
-              {CAMERA_MODE_SPECS.map((spec) => {
-                const active = activeCamera === spec.mode;
-                return (
-                  <button
-                    key={spec.mode}
-                    type="button"
-                    data-testid={spec.testId}
-                    className={`rover-cam-btn ${active ? 'is-active' : ''}`.trim()}
-                    aria-label={spec.ariaLabel[lang]}
-                    aria-pressed={active}
-                    onClick={() => onCameraModeChange?.(spec.mode)}
-                  >
-                    {spec.label[lang]}
-                  </button>
-                );
-              })}
+          {showCollectButton && nearbySample && onCollectSample && (
+            <button
+              type="button"
+              data-testid="rover-collect-btn"
+              className="rover-collect-btn"
+              disabled={disabled}
+              aria-label={
+                es
+                  ? `Recolectar ${nearbySample.label} (+${nearbySample.points} pts, barra espaciadora)`
+                  : `Collect ${nearbySample.label} (+${nearbySample.points} pts, spacebar)`
+              }
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                focusSiblingViewport(e.currentTarget);
+              }}
+              onPointerUp={(e) => e.stopPropagation()}
+              onClick={() => onCollectSample(nearbySample.id)}
+            >
+              <ScienceIcon size={15} />
+              <span>{es ? `RECOLECTAR +${nearbySample.points}` : `COLLECT +${nearbySample.points}`}</span>
+            </button>
+          )}
+
+          {showCameraSelector && (
+            <div
+              className="rover-camera-selector"
+              data-testid="rover-camera-selector"
+              role="group"
+              aria-label={es ? 'Selector de cámara 3D' : '3D camera selector'}
+            >
+              <span className="rover-cam-tag" title={es ? 'Tecla C para rotar cámara' : 'Press C to cycle camera'}>
+                CAM [C]
+              </span>
+              <div className="rover-camera-buttons">
+                {CAMERA_MODE_SPECS.map((spec) => {
+                  const active = activeCamera === spec.mode;
+                  return (
+                    <button
+                      key={spec.mode}
+                      type="button"
+                      data-testid={spec.testId}
+                      className={`rover-cam-btn ${active ? 'is-active' : ''}`.trim()}
+                      aria-label={spec.ariaLabel[lang]}
+                      aria-pressed={active}
+                      onClick={() => onCameraModeChange?.(spec.mode)}
+                    >
+                      {spec.label[lang]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 

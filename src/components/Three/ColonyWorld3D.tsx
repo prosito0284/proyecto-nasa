@@ -35,8 +35,10 @@ import {
   disposeObject3D,
   findAnomalyId,
   findColonyModuleId,
+  findSampleId,
   formatTerrainSeedBadge,
   generateTurnAnomalies,
+  generateTurnSamples,
   getAnomalyGlossaryTermId,
   getColonyModuleStatus,
   getColonyEvolutionSummary,
@@ -47,15 +49,20 @@ import {
   isStormShieldDeployed,
   normalizeTerrainSeed,
   resolveColonyModuleGlbUrl,
+  SAMPLE_COLLECT_RADIUS,
+  SAMPLE_MANUAL_RADIUS,
   sampleWorldTerrainHeight,
   softClampColonyTarget,
+  type SurfaceSampleSpec,
   type WorldAnomalySpec,
 } from './proceduralModels';
+import { formatSampleBadge } from './sampleManager';
 import {
   type ColonyCameraMode,
   EMPTY_ROVER_DIRECTIONS,
   mapKeyToRoverDirection,
   mergeRoverDirections,
+  type NearbySamplePrompt,
   resolveDirectionsFromKeys,
   RoverControlsOverlay,
   type RoverDirectionKey,
@@ -89,6 +96,8 @@ export interface ColonyWorld3DProps {
   onCameraModeChange?: (mode: ColonyCameraMode) => void;
   /** M03: Callbacks al escanear anomalías con el Rover o realizar mantenimiento en 3D */
   onScanAnomaly?: (anomaly: WorldAnomalySpec) => void | boolean;
+  /** R05: Callback al recolectar muestras científicas 3D con el brazo del Rover */
+  onCollectSample?: (sample: SurfaceSampleSpec) => void | boolean;
   onMaintainModule?: (moduleId: ColonyWorldModuleId) => void | boolean;
   /** M04: Abre el glosario científico NASA centrado en el término de la anomalía o módulo */
   onInspectScienceTerm?: (termId: string) => void;
@@ -190,7 +199,8 @@ function isEditableOrModalContext(target: EventTarget | null): boolean {
 
 type FloatingTagState =
   | { kind: 'module'; moduleId: ColonyWorldModuleId; x: number; y: number }
-  | { kind: 'anomaly'; anomalyId: string; x: number; y: number };
+  | { kind: 'anomaly'; anomalyId: string; x: number; y: number }
+  | { kind: 'sample'; sampleId: string; x: number; y: number };
 
 interface TacticalNotice {
   id: string;
@@ -216,6 +226,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   cameraMode,
   onCameraModeChange,
   onScanAnomaly,
+  onCollectSample,
   onMaintainModule,
   onInspectScienceTerm,
   moduleGlbFiles,
@@ -258,11 +269,19 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   const [roverHeadingDeg, setRoverHeadingDeg] = useState(180);
   const lastReportedHeadingRef = useRef(180);
   const autoScannedIdsRef = useRef<Set<string>>(new Set());
+  const collectedLocalIdsRef = useRef<Set<string>>(new Set(options.collectedSampleIds ?? []));
+  const [localCollectedIds, setLocalCollectedIds] = useState<string[]>(
+    options.collectedSampleIds ?? [],
+  );
+  const [nearbySample, setNearbySample] = useState<NearbySamplePrompt | null>(null);
+  const nearbySampleRef = useRef<NearbySamplePrompt | null>(null);
 
   const onSelectModuleRef = useRef(onSelectModule);
   onSelectModuleRef.current = onSelectModule;
   const onScanAnomalyRef = useRef(onScanAnomaly);
   onScanAnomalyRef.current = onScanAnomaly;
+  const onCollectSampleRef = useRef(onCollectSample);
+  onCollectSampleRef.current = onCollectSample;
   const onMaintainModuleRef = useRef(onMaintainModule);
   onMaintainModuleRef.current = onMaintainModule;
   const onCameraModeChangeRef = useRef(onCameraModeChange);
@@ -298,6 +317,10 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   const hoveredAnomalyRef = useRef<string | null>(null);
   hoveredAnomalyRef.current = hoveredAnomalyId;
 
+  const [hoveredSampleId, setHoveredSampleId] = useState<string | null>(null);
+  const hoveredSampleRef = useRef<string | null>(null);
+  hoveredSampleRef.current = hoveredSampleId;
+
   const [keyboardModule, setKeyboardModule] = useState<ColonyWorldModuleId | null>(null);
   const keyboardRef = useRef<ColonyWorldModuleId | null>(null);
   keyboardRef.current = keyboardModule;
@@ -320,10 +343,32 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     () => generateTurnAnomalies(siteId, effectiveSeed, options.currentDay ?? 1),
     [siteId, effectiveSeed, options.currentDay],
   );
+  const turnSamples = useMemo(
+    () =>
+      generateTurnSamples(siteId, effectiveSeed, options.currentDay ?? 1, {
+        getTerrainHeight: (x, z) => sampleWorldTerrainHeight(x, z, siteId, effectiveSeed),
+        avoidPositions: turnAnomalies.map((a) => ({
+          x: a.position[0],
+          z: a.position[2],
+          minDist: 4.6,
+        })),
+      }),
+    [siteId, effectiveSeed, options.currentDay, turnAnomalies],
+  );
+  const turnSamplesRef = useRef(turnSamples);
+  turnSamplesRef.current = turnSamples;
+
+  const collectedKey = (options.collectedSampleIds ?? []).join(',');
   const scannedSet = useMemo(
     () => new Set(options.scannedAnomalyIds ?? []),
     [options.scannedAnomalyIds],
   );
+  const collectedSamplesSet = useMemo(() => {
+    const merged = new Set(options.collectedSampleIds ?? []);
+    for (const sid of localCollectedIds) merged.add(sid);
+    return merged;
+  }, [options.collectedSampleIds, localCollectedIds]);
+
   const maintenanceIssues = useMemo(
     () => getModulesNeedingMaintenance(options, options.maintainedModuleIds),
     [options],
@@ -382,6 +427,26 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     autoScannedIdsRef.current = new Set(options.scannedAnomalyIds ?? []);
   }, [siteId, effectiveSeed, options.currentDay, options.scannedAnomalyIds]);
 
+  const prevMissionCtxRef = useRef<string>('');
+  const prevCollectedPropKeyRef = useRef<string>(collectedKey);
+  useEffect(() => {
+    const ctxKey = `${siteId}:${effectiveSeed}:${options.currentDay ?? 1}`;
+    const ctxChanged = prevMissionCtxRef.current !== ctxKey;
+    const propChanged = prevCollectedPropKeyRef.current !== collectedKey;
+    prevMissionCtxRef.current = ctxKey;
+    prevCollectedPropKeyRef.current = collectedKey;
+
+    if (ctxChanged || (propChanged && options.collectedSampleIds !== undefined)) {
+      const nextList = options.collectedSampleIds ?? [];
+      collectedLocalIdsRef.current = new Set(nextList);
+      setLocalCollectedIds(nextList);
+      if (ctxChanged || (nextList.length === 0 && nearbySampleRef.current !== null)) {
+        nearbySampleRef.current = null;
+        setNearbySample(null);
+      }
+    }
+  }, [siteId, effectiveSeed, options.currentDay, collectedKey]);
+
   useEffect(() => {
     if (options.isLowPowerBlackout || isPaused) {
       pressedKeysRef.current.clear();
@@ -389,6 +454,58 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       syncRoverDriveStateRef.current();
     }
   }, [options.isLowPowerBlackout, isPaused]);
+
+  const notifySampleCollected = (sampleId: string) => {
+    if (collectedLocalIdsRef.current.has(sampleId)) return;
+    const curOpts = latestOptionsRef.current;
+    if (curOpts.isLowPowerBlackout) return;
+    const list = worldRef.current?.getSamples() ?? turnSamplesRef.current;
+    const spec = list.find((s) => s.id === sampleId);
+    if (!spec) return;
+
+    collectedLocalIdsRef.current.add(sampleId);
+    setLocalCollectedIds((prev) => (prev.includes(sampleId) ? prev : [...prev, sampleId]));
+    if (nearbySampleRef.current?.id === sampleId) {
+      nearbySampleRef.current = null;
+      setNearbySample(null);
+    }
+    missionAudio.playSuccess();
+    onCollectSampleRef.current?.(spec);
+    setTacticalNotice({
+      id: `sample-${spec.id}`,
+      tone: 'ok',
+      badge: formatSampleBadge(spec, lang),
+      text: spec.finding[lang],
+      glossaryTermId: spec.glossaryTermId,
+    });
+  };
+  const notifySampleCollectedRef = useRef(notifySampleCollected);
+  notifySampleCollectedRef.current = notifySampleCollected;
+
+  const collectSampleById = (sampleId: string): boolean => {
+    const curOpts = latestOptionsRef.current;
+    if (curOpts.isLowPowerBlackout) {
+      missionAudio.playAlert();
+      setTacticalNotice({
+        id: `blackout-smp-${sampleId}`,
+        tone: 'warn',
+        badge: es ? 'ROVER SIN ENERGÍA' : 'ROVER OFFLINE',
+        text: es
+          ? 'Batería bajo 15 %. Recarga energía antes de usar el brazo.'
+          : 'Power below 15%. Recharge battery before deploying the arm.',
+      });
+      return false;
+    }
+    if (collectedLocalIdsRef.current.has(sampleId)) return false;
+    if (worldRef.current) {
+      const started = worldRef.current.collectSample(sampleId);
+      if (!started) return false;
+    }
+    notifySampleCollected(sampleId);
+    return true;
+  };
+  const collectSampleByIdRef = useRef(collectSampleById);
+  collectSampleByIdRef.current = collectSampleById;
 
   useEffect(() => {
     if (!webglSupported) return;
@@ -415,6 +532,24 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       const activeEl = typeof document !== 'undefined' ? document.activeElement : null;
       const frameContainsFocus = Boolean(frameRef.current && activeEl && frameRef.current.contains(activeEl));
       const viewportActive = frameContainsFocus || cameraModeRef.current !== 'orbital';
+
+      if (
+        ev.key === ' ' &&
+        !ev.repeat &&
+        !ev.defaultPrevented &&
+        viewportActive &&
+        nearbySampleRef.current &&
+        !latestOptionsRef.current.isLowPowerBlackout
+      ) {
+        const tag = (activeEl as HTMLElement | null)?.tagName?.toUpperCase?.();
+        const isOtherControl = tag === 'BUTTON' || tag === 'A' || tag === 'SELECT';
+        if (!isOtherControl || activeEl === hostRef.current) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          collectSampleByIdRef.current(nearbySampleRef.current.id);
+          return;
+        }
+      }
 
       if ((ev.key === 'c' || ev.key === 'C') && !ev.repeat && !ev.defaultPrevented && viewportActive) {
         ev.preventDefault();
@@ -503,6 +638,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     options.commsActive,
     options.commDelaySeconds,
     scannedKey,
+    collectedKey,
     maintainedKey,
   ];
 
@@ -587,6 +723,67 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   };
   const handleInspectAnomalyRef = useRef(handleInspectAnomaly);
   handleInspectAnomalyRef.current = handleInspectAnomaly;
+
+  const handleInspectSample = (sampleId: string) => {
+    const curOpts = latestOptionsRef.current;
+    const list = worldRef.current?.getSamples() ?? turnSamplesRef.current;
+    const spec = list.find((s) => s.id === sampleId);
+    if (!spec) return;
+
+    if (curOpts.isLowPowerBlackout) {
+      missionAudio.playAlert();
+      setTacticalNotice({
+        id: `blackout-${spec.id}`,
+        tone: 'warn',
+        badge: es ? 'ROVER SIN ENERGÍA' : 'ROVER OFFLINE',
+        text: es
+          ? 'Batería bajo 15 %. Recarga energía antes de enviar el rover.'
+          : 'Power below 15%. Recharge battery before deploying the rover.',
+      });
+      return;
+    }
+
+    const alreadyCollected =
+      collectedLocalIdsRef.current.has(spec.id) ||
+      Boolean(curOpts.collectedSampleIds?.includes(spec.id));
+    if (alreadyCollected) {
+      missionAudio.playClick();
+      setTacticalNotice({
+        id: `revisit-${spec.id}`,
+        tone: 'info',
+        badge: spec.title[lang],
+        text: spec.finding[lang],
+        glossaryTermId: spec.glossaryTermId,
+      });
+      return;
+    }
+
+    if (!worldRef.current) {
+      collectSampleById(spec.id);
+      return;
+    }
+
+    const tele = worldRef.current.getRoverTelemetry();
+    const dist = Math.hypot(spec.position[0] - tele.x, spec.position[2] - tele.z);
+    if (dist <= SAMPLE_MANUAL_RADIUS) {
+      collectSampleById(spec.id);
+      return;
+    }
+
+    worldRef.current.dispatchRoverToSample(spec.id);
+    missionAudio.playClick();
+    setTacticalNotice({
+      id: `route-${spec.id}`,
+      tone: 'info',
+      badge: es ? 'ROVER EN RUTA' : 'ROVER EN ROUTE',
+      text: es
+        ? `Navegando hacia ${spec.title.es} (+${spec.points} ciencia).`
+        : `Driving toward ${spec.title.en} (+${spec.points} science).`,
+      glossaryTermId: spec.glossaryTermId,
+    });
+  };
+  const handleInspectSampleRef = useRef(handleInspectSample);
+  handleInspectSampleRef.current = handleInspectSample;
 
   const activateModuleInteraction = (modId: ColonyWorldModuleId, focusOrbitalCamera: boolean) => {
     const curOpts = latestOptionsRef.current;
@@ -793,6 +990,11 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       handleResetView();
     } else if (cmd.type === 'toggle-pause' && e.target === e.currentTarget) {
       e.preventDefault();
+      if (nearbySampleRef.current && !latestOptionsRef.current.isLowPowerBlackout) {
+        e.stopPropagation();
+        collectSampleById(nearbySampleRef.current.id);
+        return;
+      }
       const targetMod = keyboardModule;
       if (targetMod) {
         activateModuleInteraction(targetMod, true);
@@ -934,6 +1136,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     let isDragging = false;
 
     type PickResult =
+      | { kind: 'sample'; id: string }
       | { kind: 'anomaly'; id: string }
       | { kind: 'module'; id: ColonyWorldModuleId }
       | null;
@@ -944,9 +1147,11 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       pointerNdc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
       pointerNdc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointerNdc, camera);
-      const targets = [...world.anomalyPickables, ...world.pickables];
+      const targets = [...world.samplePickables, ...world.anomalyPickables, ...world.pickables];
       const hits = raycaster.intersectObjects(targets, true);
       for (const hit of hits) {
+        const sampleId = findSampleId(hit.object);
+        if (sampleId) return { kind: 'sample', id: sampleId };
         const anomId = findAnomalyId(hit.object);
         if (anomId) return { kind: 'anomaly', id: anomId };
         const modId = findColonyModuleId(hit.object);
@@ -967,9 +1172,14 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           ? 'default'
           : 'grab';
 
+      const nextSample = hit?.kind === 'sample' ? hit.id : null;
       const nextAnom = hit?.kind === 'anomaly' ? hit.id : null;
       const nextMod = hit?.kind === 'module' ? hit.id : null;
 
+      if (nextSample !== hoveredSampleRef.current) {
+        setHoveredSampleId(nextSample);
+        world.setHoveredSample(nextSample);
+      }
       if (nextAnom !== hoveredAnomalyRef.current) {
         setHoveredAnomalyId(nextAnom);
         world.setHoveredAnomaly(nextAnom);
@@ -999,6 +1209,10 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           : 'grab';
       if (moved > 6 || !hit) return;
 
+      if (hit.kind === 'sample') {
+        handleInspectSampleRef.current(hit.id);
+        return;
+      }
       if (hit.kind === 'anomaly') {
         handleInspectAnomalyRef.current(hit.id);
         return;
@@ -1016,6 +1230,10 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       if (hoveredAnomalyRef.current !== null) {
         setHoveredAnomalyId(null);
         world.setHoveredAnomaly(null);
+      }
+      if (hoveredSampleRef.current !== null) {
+        setHoveredSampleId(null);
+        world.setHoveredSample(null);
       }
     };
 
@@ -1076,6 +1294,46 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       if (Math.abs(compassDeg - lastReportedHeadingRef.current) >= 2) {
         lastReportedHeadingRef.current = compassDeg;
         setRoverHeadingDeg(compassDeg);
+      }
+
+      if (nextTele.collectingSampleId && !latestOptionsRef.current.isLowPowerBlackout) {
+        notifySampleCollectedRef.current(nextTele.collectingSampleId);
+      }
+
+      if (
+        activeDrive &&
+        !latestOptionsRef.current.isLowPowerBlackout &&
+        nextTele.nearestSampleId &&
+        !nextTele.nearestSampleCollected &&
+        nextTele.nearestSampleDistance < SAMPLE_COLLECT_RADIUS
+      ) {
+        collectSampleByIdRef.current(nextTele.nearestSampleId);
+      }
+
+      if (
+        !latestOptionsRef.current.isLowPowerBlackout &&
+        nextTele.nearestSampleId &&
+        !nextTele.nearestSampleCollected &&
+        !collectedLocalIdsRef.current.has(nextTele.nearestSampleId) &&
+        nextTele.nearestSampleDistance <= SAMPLE_MANUAL_RADIUS
+      ) {
+        if (nearbySampleRef.current?.id !== nextTele.nearestSampleId) {
+          const smp = turnSamplesRef.current.find((s) => s.id === nextTele.nearestSampleId);
+          if (smp) {
+            const nextPrompt: NearbySamplePrompt = {
+              id: smp.id,
+              code: smp.code,
+              label: smp.title[lang],
+              points: smp.points,
+              distance: nextTele.nearestSampleDistance,
+            };
+            nearbySampleRef.current = nextPrompt;
+            setNearbySample(nextPrompt);
+          }
+        }
+      } else if (nearbySampleRef.current !== null) {
+        nearbySampleRef.current = null;
+        setNearbySample(null);
       }
 
       if (
@@ -1201,10 +1459,24 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
 
       renderer.render(scene, camera);
 
-      // Etiqueta táctica flotante proyectada sobre anomalía o módulo activo
+      // Etiqueta táctica flotante proyectada sobre muestra, anomalía o módulo activo
+      const activeSample = hoveredSampleRef.current;
       const activeAnom = hoveredAnomalyRef.current;
       const taggedMod = hoveredRef.current ?? keyboardRef.current;
-      if (activeAnom && world.getAnomalyAnchor(activeAnom, anchorVec)) {
+      if (activeSample && world.getSampleAnchor(activeSample, anchorVec)) {
+        anchorVec.project(camera);
+        if (anchorVec.z > -1 && anchorVec.z < 1) {
+          const cw = host.clientWidth || width;
+          const ch = height;
+          const px = Math.max(115, Math.min(cw - 115, (anchorVec.x * 0.5 + 0.5) * cw));
+          const py = Math.max(54, Math.min(ch - 32, (-anchorVec.y * 0.5 + 0.5) * ch));
+          const key = `smp:${activeSample}:${Math.round(px)}:${Math.round(py)}`;
+          if (key !== lastTagKey) {
+            lastTagKey = key;
+            setFloatingTag({ kind: 'sample', sampleId: activeSample, x: px, y: py });
+          }
+        }
+      } else if (activeAnom && world.getAnomalyAnchor(activeAnom, anchorVec)) {
         anchorVec.project(camera);
         if (anchorVec.z > -1 && anchorVec.z < 1) {
           const cw = host.clientWidth || width;
@@ -1271,6 +1543,24 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   useEffect(() => {
     worldRef.current?.setSelected(selectedModule ?? null);
   }, [selectedModule]);
+
+  const activeSampleTag = (() => {
+    if (!hoveredSampleId) return null;
+    const spec = turnSamples.find((s) => s.id === hoveredSampleId);
+    if (!spec) return null;
+    const isCollected = collectedSamplesSet.has(spec.id);
+    return {
+      title: spec.title[lang],
+      subtitle: isCollected
+        ? es
+          ? `Muestra guardada (+${spec.points} pts)`
+          : `Sample stored (+${spec.points} pts)`
+        : es
+          ? `Clic o acercar Rover (+${spec.points} ciencia)`
+          : `Click or drive near (+${spec.points} science)`,
+      tone: isCollected ? 'ok' : 'warn',
+    };
+  })();
 
   const activeAnomalyTag = (() => {
     if (!hoveredAnomalyId) return null;
@@ -1532,6 +1822,56 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
             );
           })}
 
+          {turnSamples.map((smp) => {
+            const sx = Math.max(20, Math.min(340, Math.round(185 + smp.position[0] * 7.6)));
+            const sy = Math.max(72, Math.min(174, Math.round(112 + smp.position[2] * 3.0)));
+            const collected = collectedSamplesSet.has(smp.id);
+            const sampleHex = collected ? '#2E7D4F' : smp.accentHex === 0x00e5ff ? '#00E5FF' : '#FFB300';
+            return (
+              <g
+                key={smp.id}
+                transform={`translate(${sx}, ${sy})`}
+                role="button"
+                tabIndex={0}
+                data-testid={`svg-sample-${smp.id}`}
+                aria-label={`${smp.title[lang]}${
+                  collected
+                    ? es
+                      ? ' (recolectada)'
+                      : ' (collected)'
+                    : es
+                      ? ` (+${smp.points} pts)`
+                      : ` (+${smp.points} pts)`
+                }`}
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleInspectSample(smp.id)}
+                onKeyDown={(ev) => {
+                  if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    handleInspectSample(smp.id);
+                  }
+                }}
+              >
+                <circle
+                  cx="0"
+                  cy="0"
+                  r="8.5"
+                  fill="none"
+                  stroke={sampleHex}
+                  strokeWidth="1.2"
+                  strokeDasharray="3 2"
+                />
+                <polygon
+                  points="0,-6 5.5,4.5 -5.5,4.5"
+                  fill={sampleHex}
+                  stroke="#0F172A"
+                  strokeWidth="0.9"
+                />
+              </g>
+            );
+          })}
+
           <text
             x="180"
             y="184"
@@ -1549,6 +1889,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
 
   const seedBadgeCode = formatTerrainSeedBadge(effectiveSeed);
   const evoSummary = getColonyEvolutionSummary(computeColonyEvolutionState(options), lang);
+  const collectedSampleCount = turnSamples.filter((s) => collectedSamplesSet.has(s.id)).length;
 
   return (
     <div
@@ -1638,6 +1979,20 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
               </div>
             )}
 
+            {webglSupported && floatingTag && floatingTag.kind === 'sample' && activeSampleTag && (
+              <div
+                className={`colony3d-floating-tag tone-${activeSampleTag.tone}`}
+                style={{
+                  left: `${floatingTag.x}px`,
+                  top: `${floatingTag.y}px`,
+                }}
+                data-testid="colony3d-floating-tag"
+              >
+                <strong>{activeSampleTag.title}</strong>
+                <span>{activeSampleTag.subtitle}</span>
+              </div>
+            )}
+
             {webglSupported && floatingTag && floatingTag.kind === 'anomaly' && activeAnomalyTag && (
               <div
                 className={`colony3d-floating-tag tone-${activeAnomalyTag.tone}`}
@@ -1681,6 +2036,8 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
               disabled={Boolean(options.isLowPowerBlackout || isPaused)}
               cameraMode={resolvedCameraMode}
               onCameraModeChange={selectCameraMode}
+              nearbySample={nearbySample}
+              onCollectSample={(id) => collectSampleById(id)}
               onDirectionChange={handleDpadDirectionChange}
             />
           )}
@@ -1732,6 +2089,39 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
         {focusedAnnouncement}
       </span>
 
+      {/* R05: Muestras científicas 3D del día/sol recolectables con el Rover */}
+      <div
+        className="colony-samples-bar"
+        data-testid="colony-samples-bar"
+        role="group"
+        aria-label={es ? 'Muestras científicas recolectables' : 'Collectible science samples'}
+      >
+        <span className="colony-samples-label">
+          <ScienceIcon size={14} />
+          <span>{es ? 'Muestras del terreno:' : 'Surface samples:'}</span>
+          <span className="colony-samples-counter" data-testid="colony-samples-counter">
+            {`${collectedSampleCount}/${turnSamples.length}`}
+          </span>
+        </span>
+        {turnSamples.map((smp) => {
+          const collected = collectedSamplesSet.has(smp.id);
+          return (
+            <button
+              key={smp.id}
+              type="button"
+              data-testid={`colony-sample-btn-${smp.id}`}
+              className={`viewer3d-btn colony-sample-btn ${collected ? 'colony-sample-collected' : ''}`.trim()}
+              onClick={() => handleInspectSample(smp.id)}
+              aria-pressed={collected}
+            >
+              {collected ? <CheckIcon size={13} /> : <ScienceIcon size={13} />}
+              <span>{smp.title[lang]}</span>
+              <span className="colony-sample-pts">{collected ? 'OK' : `+${smp.points}`}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Barra rápida de anomalías escaneables (accesible en mouse y teclado) */}
       <div
         className="colony-anomalies-bar"
@@ -1740,8 +2130,8 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
         aria-label={es ? 'Expediciones del Rover' : 'Rover expeditions'}
       >
         <span className="colony-anomalies-label">
-          <ScienceIcon size={14} />
-          <span>{es ? 'Muestras del terreno:' : 'Surface samples:'}</span>
+          <AlertIcon size={14} />
+          <span>{es ? 'Sensores rápidos:' : 'Quick sensors:'}</span>
         </span>
         {turnAnomalies.map((anom) => {
           const scanned = scannedSet.has(anom.id);

@@ -10,6 +10,25 @@ import {
   type RoverControlInput,
   type RoverController,
 } from './roverController';
+import {
+  createSampleVisualRuntime,
+  findSampleId,
+  generateTurnSamples,
+  SAMPLE_COLLECT_RADIUS,
+  SAMPLE_COLLECTION_DURATION,
+  SAMPLE_MANUAL_RADIUS,
+  type SampleVisualRuntime,
+  type SurfaceSampleSpec,
+} from './sampleManager';
+
+export {
+  findSampleId,
+  generateTurnSamples,
+  SAMPLE_COLLECT_RADIUS,
+  SAMPLE_COLLECTION_DURATION,
+  SAMPLE_MANUAL_RADIUS,
+  type SurfaceSampleSpec,
+};
 
 export type Model3DId = 'colony-base' | 'rover-moxie' | 'habitat-shield' | 'planet-globe';
 
@@ -2078,6 +2097,8 @@ export interface ColonyWorldStateOptions extends Model3DStateOptions {
   scienceAllocPercent?: number;
   /** Anomalías ya escaneadas por el Rover en la partida actual */
   scannedAnomalyIds?: string[];
+  /** Muestras geológicas recolectadas con el brazo del Rover */
+  collectedSampleIds?: string[];
   /** Módulos ya limpiados o calibrados durante el turno actual */
   maintainedModuleIds?: ColonyWorldModuleId[];
   /** Alerta ambiental de entrenamiento (p. ej. caída térmica del onboarding) */
@@ -2585,6 +2606,10 @@ export interface RoverTelemetrySnapshot {
   collidedWith: string | null;
   nearestAnomalyId: string | null;
   nearestAnomalyDistance: number;
+  nearestSampleId: string | null;
+  nearestSampleDistance: number;
+  nearestSampleCollected: boolean;
+  collectingSampleId: string | null;
   scannerActive: boolean;
 }
 
@@ -2595,18 +2620,24 @@ export interface ColonyWorldHandle {
   terrainSeed: number;
   pickables: THREE.Object3D[];
   anomalyPickables: THREE.Object3D[];
+  samplePickables: THREE.Object3D[];
   modules: Record<ColonyWorldModuleId, THREE.Group>;
   updateState: (next: ColonyWorldStateOptions) => void;
   setHovered: (id: ColonyWorldModuleId | null) => void;
   setHoveredAnomaly: (id: string | null) => void;
+  setHoveredSample: (id: string | null) => void;
   setSelected: (id: ColonyWorldModuleId | null) => void;
   pulse: (id: ColonyWorldModuleId) => void;
   getModuleAnchor: (id: ColonyWorldModuleId, out: THREE.Vector3) => THREE.Vector3;
   getAnomalyAnchor: (id: string, out: THREE.Vector3) => THREE.Vector3 | null;
+  getSampleAnchor: (id: string, out: THREE.Vector3) => THREE.Vector3 | null;
   getSunDirection: (out: THREE.Vector3) => THREE.Vector3;
   getEvolutionState: () => ColonyEvolutionState;
   getAnomalies: () => WorldAnomalySpec[];
+  getSamples: () => SurfaceSampleSpec[];
   dispatchRoverToAnomaly: (anomalyId: string) => boolean;
+  dispatchRoverToSample: (sampleId: string) => boolean;
+  collectSample: (sampleId: string) => boolean;
   setRoverControlInput: (input: RoverControlInput) => void;
   getRoverTelemetry: () => RoverTelemetrySnapshot;
   getRoverPose: (outPos: THREE.Vector3, outForward: THREE.Vector3) => void;
@@ -3534,6 +3565,9 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     }
   };
 
+  const sampleTerrainAt = (px: number, pz: number) =>
+    sampleWorldTerrainHeight(px, pz, siteId, terrainSeed);
+
   const syncTurnAnomalies = (day: number) => {
     const normDay = Math.max(1, Math.round(day));
     if (normDay === loadedAnomalyDay && anomalyRuntimes.size > 0) return;
@@ -3552,6 +3586,88 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       anomalyPickables.push(rt.group);
     }
     refreshAnomalyAppearance();
+  };
+
+  // R05: Contenedor dinámico de muestras geológicas recolectables (4–6 por día/sol)
+  const sampleContainer = new THREE.Group();
+  sampleContainer.name = 'world-samples';
+  root.add(sampleContainer);
+  const samplePickables: THREE.Object3D[] = [];
+  let currentSamples: SurfaceSampleSpec[] = [];
+  let loadedSampleDay = -1;
+  let hoveredSampleId: string | null = null;
+  const collectedSampleVisualIds = new Set<string>(options.collectedSampleIds ?? []);
+  const sampleRuntimes = new Map<string, SampleVisualRuntime>();
+
+  interface ActiveSampleCollection {
+    sampleId: string;
+    elapsed: number;
+    duration: number;
+    startWorldPos: THREE.Vector3;
+    lookX: number;
+    lookZ: number;
+    resumeTask: 'manual' | 'returning';
+  }
+  let activeSampleCollection: ActiveSampleCollection | null = null;
+
+  const refreshSampleAppearance = () => {
+    for (const [id, rt] of sampleRuntimes.entries()) {
+      const isCollecting = activeSampleCollection?.sampleId === id;
+      const isCollected = collectedSampleVisualIds.has(id);
+      const isHover = hoveredSampleId === id;
+      rt.collected = isCollected && !isCollecting;
+
+      if (isCollecting) {
+        rt.rockGroup.visible = true;
+        rt.beaconBeam.visible = true;
+        rt.beaconDiamond.visible = true;
+        rt.ringMat.color.setHex(0x00e5ff);
+        rt.ringMat.opacity = 0.94;
+      } else if (isCollected) {
+        rt.rockGroup.visible = false;
+        rt.beaconBeam.visible = false;
+        rt.beaconDiamond.visible = false;
+        rt.ringMat.color.setHex(0x2e7d4f);
+        rt.ringMat.opacity = 0.36;
+      } else {
+        rt.rockGroup.visible = true;
+        rt.rockGroup.position.set(0, 0, 0);
+        rt.rockGroup.scale.setScalar(1);
+        rt.beaconBeam.visible = true;
+        rt.beaconDiamond.visible = true;
+        rt.beaconDiamond.scale.setScalar(1);
+        rt.ringMat.color.setHex(isHover ? 0x38bdf8 : rt.spec.accentHex);
+        rt.ringMat.opacity = isHover ? 0.98 : 0.84;
+      }
+    }
+  };
+
+  const syncTurnSamples = (day: number) => {
+    const normDay = Math.max(1, Math.round(day));
+    if (normDay === loadedSampleDay && sampleRuntimes.size > 0) return;
+    loadedSampleDay = normDay;
+    activeSampleCollection = null;
+    for (const rt of sampleRuntimes.values()) {
+      sampleContainer.remove(rt.group);
+      disposeObject3D(rt.group);
+    }
+    sampleRuntimes.clear();
+    samplePickables.length = 0;
+    currentSamples = generateTurnSamples(siteId, terrainSeed, normDay, {
+      getTerrainHeight: sampleTerrainAt,
+      avoidPositions: currentAnomalies.map((a) => ({
+        x: a.position[0],
+        z: a.position[2],
+        minDist: 4.6,
+      })),
+    });
+    currentSamples.forEach((spec, idx) => {
+      const rt = createSampleVisualRuntime(spec, wire, idx);
+      sampleRuntimes.set(spec.id, rt);
+      sampleContainer.add(rt.group);
+      samplePickables.push(rt.group);
+    });
+    refreshSampleAppearance();
   };
 
   const dust = createWorldParticles(Math.max(1, atmo.dustStormCount), atmo.dustColor, 0.32);
@@ -3577,8 +3693,6 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   // R01/M03: Controlador de cinemática planetaria, colisiones y adaptación al terreno del Rover
   const roverHomeMeta = COLONY_WORLD_MODULES['rover-moxie'].position;
   const roverHomeOrigin = new THREE.Vector3(roverHomeMeta[0], 0, roverHomeMeta[1]);
-  const sampleTerrainAt = (px: number, pz: number) =>
-    sampleWorldTerrainHeight(px, pz, siteId, terrainSeed);
   const roverCtrl: RoverController = createRoverController({
     planet: atmo.kind,
     initialX: roverHomeOrigin.x + 2.4,
@@ -3616,6 +3730,8 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     | { mode: 'manual' }
     | { mode: 'driving'; anomalyId: string; targetX: number; targetZ: number; lookX: number; lookZ: number }
     | { mode: 'scanning'; anomalyId: string; lookX: number; lookZ: number; timer: number }
+    | { mode: 'driving-sample'; sampleId: string; targetX: number; targetZ: number; lookX: number; lookZ: number }
+    | { mode: 'collecting-sample'; sampleId: string }
     | { mode: 'returning' };
   let roverTask: RoverTask = { mode: 'patrol' };
 
@@ -3699,6 +3815,16 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       }
     }
     refreshAnomalyAppearance();
+
+    syncTurnSamples(state.currentDay ?? 1);
+    if (Array.isArray(state.collectedSampleIds)) {
+      if (state.collectedSampleIds.length === 0) {
+        collectedSampleVisualIds.clear();
+      } else {
+        for (const sid of state.collectedSampleIds) collectedSampleVisualIds.add(sid);
+      }
+    }
+    refreshSampleAppearance();
 
     const activeIssues = new Set(
       getModulesNeedingMaintenance(state, state.maintainedModuleIds).map((m) => m.moduleId),
@@ -3838,6 +3964,12 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     refreshAnomalyAppearance();
   };
 
+  const setHoveredSample = (id: string | null) => {
+    if (id === hoveredSampleId) return;
+    hoveredSampleId = id;
+    refreshSampleAppearance();
+  };
+
   const setSelected = (id: ColonyWorldModuleId | null) => {
     selectedId = id;
     refreshHighlights();
@@ -3867,11 +3999,21 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     return out;
   };
 
+  const getSampleAnchor = (id: string, out: THREE.Vector3): THREE.Vector3 | null => {
+    const rt = sampleRuntimes.get(id);
+    if (!rt) return null;
+    out.copy(rt.group.position);
+    out.y += 4.35;
+    return out;
+  };
+
   const getSunDirection = (out: THREE.Vector3) => out.copy(sunDirVec);
 
   const getEvolutionState = () => ({ ...evoState });
 
   const getAnomalies = () => currentAnomalies.map((a) => ({ ...a }));
+
+  const getSamples = () => currentSamples.map((s) => ({ ...s }));
 
   const findNearestAnomalySnapshot = (): { id: string | null; distance: number } => {
     let nearestId: string | null = null;
@@ -3886,6 +4028,43 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     return {
       id: nearestId,
       distance: Number.isFinite(nearestDist) ? Number(nearestDist.toFixed(2)) : Infinity,
+    };
+  };
+
+  const findNearestSampleSnapshot = (): {
+    id: string | null;
+    distance: number;
+    collected: boolean;
+  } => {
+    let nearestUncollectedId: string | null = null;
+    let nearestUncollectedDist = Infinity;
+    let nearestAnyId: string | null = null;
+    let nearestAnyDist = Infinity;
+
+    for (const spec of currentSamples) {
+      const d = Math.hypot(spec.position[0] - roverWorldX, spec.position[2] - roverWorldZ);
+      const collected = collectedSampleVisualIds.has(spec.id);
+      if (!collected && d < nearestUncollectedDist) {
+        nearestUncollectedDist = d;
+        nearestUncollectedId = spec.id;
+      }
+      if (d < nearestAnyDist) {
+        nearestAnyDist = d;
+        nearestAnyId = spec.id;
+      }
+    }
+
+    if (nearestUncollectedId !== null) {
+      return {
+        id: nearestUncollectedId,
+        distance: Number(nearestUncollectedDist.toFixed(2)),
+        collected: false,
+      };
+    }
+    return {
+      id: nearestAnyId,
+      distance: Number.isFinite(nearestAnyDist) ? Number(nearestAnyDist.toFixed(2)) : Infinity,
+      collected: nearestAnyId !== null,
     };
   };
 
@@ -3916,12 +4095,13 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       (nextInput.forward || nextInput.backward || nextInput.left || nextInput.right)
     ) {
       hasManualDrive = true;
-      if (roverTask.mode !== 'manual') {
+      if (roverTask.mode !== 'manual' && roverTask.mode !== 'collecting-sample') {
         roverCtrl.setPose({
           x: roverWorldX,
           z: roverWorldZ,
           heading: roverHeading,
-          velocity: roverTask.mode === 'driving' ? roverSpeed : 0,
+          velocity:
+            roverTask.mode === 'driving' || roverTask.mode === 'driving-sample' ? roverSpeed : 0,
         });
         roverTask = { mode: 'manual' };
       }
@@ -3930,6 +4110,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
 
   const getRoverTelemetry = (): RoverTelemetrySnapshot => {
     const nearest = findNearestAnomalySnapshot();
+    const nearestSample = findNearestSampleSnapshot();
     return {
       x: Number(roverWorldX.toFixed(3)),
       y: Number(rover.motionRoot.position.y.toFixed(3)),
@@ -3944,8 +4125,36 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       collidedWith: roverCollidedWith,
       nearestAnomalyId: nearest.id,
       nearestAnomalyDistance: nearest.distance,
+      nearestSampleId: nearestSample.id,
+      nearestSampleDistance: nearestSample.distance,
+      nearestSampleCollected: nearestSample.collected,
+      collectingSampleId: activeSampleCollection?.sampleId ?? null,
       scannerActive: scannerBeamMesh.visible,
     };
+  };
+
+  const collectSample = (sampleId: string): boolean => {
+    if (!roverMoving) return false;
+    const rt = sampleRuntimes.get(sampleId);
+    if (!rt || collectedSampleVisualIds.has(sampleId)) return false;
+    if (activeSampleCollection?.sampleId === sampleId) return false;
+    collectedSampleVisualIds.add(sampleId);
+    activeSampleCollection = {
+      sampleId,
+      elapsed: 0,
+      duration: SAMPLE_COLLECTION_DURATION,
+      startWorldPos: new THREE.Vector3(
+        rt.spec.position[0],
+        rt.spec.position[1] + 0.25,
+        rt.spec.position[2],
+      ),
+      lookX: rt.spec.position[0],
+      lookZ: rt.spec.position[2],
+      resumeTask: hasManualDrive || roverTask.mode === 'manual' ? 'manual' : 'returning',
+    };
+    roverTask = { mode: 'collecting-sample', sampleId };
+    refreshSampleAppearance();
+    return true;
   };
 
   const dispatchRoverToAnomaly = (anomalyId: string): boolean => {
@@ -3965,6 +4174,34 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       targetZ: safeTarget.z,
       lookX: ax,
       lookZ: az,
+    };
+    return true;
+  };
+
+  const dispatchRoverToSample = (sampleId: string): boolean => {
+    if (!roverMoving) return false;
+    const rt = sampleRuntimes.get(sampleId);
+    if (!rt || collectedSampleVisualIds.has(sampleId)) return false;
+    const sx = rt.spec.position[0];
+    const sz = rt.spec.position[2];
+    if (Math.hypot(sx - roverWorldX, sz - roverWorldZ) < SAMPLE_COLLECT_RADIUS) {
+      return collectSample(sampleId);
+    }
+    const vx = roverWorldX - sx;
+    const vz = roverWorldZ - sz;
+    const len = Math.max(0.01, Math.hypot(vx, vz));
+    const standOff = 1.65;
+    const safeTarget = resolveObstacleAndBounds(
+      sx + (vx / len) * standOff,
+      sz + (vz / len) * standOff,
+    );
+    roverTask = {
+      mode: 'driving-sample',
+      sampleId,
+      targetX: safeTarget.x,
+      targetZ: safeTarget.z,
+      lookX: sx,
+      lookZ: sz,
     };
     return true;
   };
@@ -4086,6 +4323,15 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
         floatBeacon.rotation.y += dtSec * 1.4;
       }
     }
+    for (const rt of sampleRuntimes.values()) {
+      if (rt.collected || activeSampleCollection?.sampleId === rt.spec.id) continue;
+      const pulse = 0.5 + 0.5 * Math.sin(elapsedSec * 4.4 + rt.animPhase);
+      rt.beaconMat.opacity = 0.24 + pulse * 0.36;
+      rt.beaconBeam.scale.set(0.8 + pulse * 0.42, 1, 0.8 + pulse * 0.42);
+      rt.beaconDiamond.position.y = 3.92 + Math.sin(elapsedSec * 3.1 + rt.animPhase) * 0.22;
+      rt.beaconDiamond.rotation.y += dtSec * 1.8;
+      rt.ring.scale.setScalar(0.95 + pulse * 0.14);
+    }
 
     shieldDome.scale.y += (shieldTarget - shieldDome.scale.y) * k;
     shieldMat.opacity = shieldTarget > 0.5 ? 0.24 + Math.sin(elapsedSec * 4) * 0.06 : 0.18;
@@ -4203,7 +4449,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     return { x: safe.x, z: safe.z, moveYaw };
   };
 
-    // R01/R03/M03: Cinemática del Rover y animaciones mecánicas articuladas
+    // R01/R03/M03/R05: Cinemática del Rover y animaciones mecánicas articuladas
     const setScannerLaserState = (
       active: boolean,
       targetX = roverWorldX,
@@ -4228,6 +4474,9 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
 
     if (roverMoving) {
       let ry = sampleTerrainAt(roverWorldX, roverWorldZ);
+      const armDeployZ = firstPersonMastcam ? -0.12 : -0.52;
+      const armRestZ = firstPersonMastcam ? 0.24 : 0;
+
       if (roverTask.mode === 'manual') {
         const tele = roverCtrl.step({
           dt: dtSec,
@@ -4250,46 +4499,50 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
         roverHitBoundary = tele.hitBoundary;
         roverCollidedWith = tele.collidedWith;
 
-        let nearAnomSpec: WorldAnomalySpec | null = null;
-        let nearAnomDist = Infinity;
-        for (const spec of currentAnomalies) {
-          const d = Math.hypot(spec.position[0] - roverWorldX, spec.position[2] - roverWorldZ);
-          if (d < nearAnomDist) {
-            nearAnomDist = d;
-            nearAnomSpec = spec;
+        const nearSampleSnap = findNearestSampleSnapshot();
+        const enteredSample =
+          nearSampleSnap.id &&
+          !nearSampleSnap.collected &&
+          nearSampleSnap.distance < SAMPLE_COLLECT_RADIUS &&
+          collectSample(nearSampleSnap.id);
+
+        if (!enteredSample) {
+          let nearAnomSpec: WorldAnomalySpec | null = null;
+          let nearAnomDist = Infinity;
+          for (const spec of currentAnomalies) {
+            const d = Math.hypot(spec.position[0] - roverWorldX, spec.position[2] - roverWorldZ);
+            if (d < nearAnomDist) {
+              nearAnomDist = d;
+              nearAnomSpec = spec;
+            }
+          }
+
+          if (nearAnomSpec && nearAnomDist <= 4.0) {
+            const lookYaw = Math.atan2(
+              -(nearAnomSpec.position[2] - roverWorldZ),
+              nearAnomSpec.position[0] - roverWorldX,
+            );
+            const relYaw = Math.max(-0.7, Math.min(0.7, shortestAngleDelta(roverHeading, lookYaw)));
+            const deployBlend = Math.min(1, dtSec * 8);
+            scannerArmPivot.rotation.z +=
+              (armDeployZ + Math.sin(elapsedSec * 7) * 0.1 - scannerArmPivot.rotation.z) * deployBlend;
+            scannerArmPivot.rotation.y += (relYaw - scannerArmPivot.rotation.y) * deployBlend;
+            mastCamPivot.rotation.y += (relYaw * 0.85 - mastCamPivot.rotation.y) * Math.min(1, dtSec * 7);
+            const phase = (elapsedSec * 1.15) % 1.0;
+            setScannerLaserState(true, nearAnomSpec.position[0], nearAnomSpec.position[2], phase);
+          } else {
+            const retractBlend = Math.min(1, dtSec * 5);
+            scannerArmPivot.rotation.z += (armRestZ - scannerArmPivot.rotation.z) * retractBlend;
+            scannerArmPivot.rotation.y += (0 - scannerArmPivot.rotation.y) * retractBlend;
+            const camSweep = Math.sin(elapsedSec * 1.35) * (Math.abs(roverSpeed) > 0.25 ? 0.18 : 0.26);
+            mastCamPivot.rotation.y +=
+              (roverSteerAngle * 0.58 + camSweep - mastCamPivot.rotation.y) * Math.min(1, dtSec * 6);
+            setScannerLaserState(false);
           }
         }
-
-        const armDeployZ = firstPersonMastcam ? -0.12 : -0.52;
-        const armRestZ = firstPersonMastcam ? 0.24 : 0;
-
-        if (nearAnomSpec && nearAnomDist <= 4.0) {
-          const lookYaw = Math.atan2(
-            -(nearAnomSpec.position[2] - roverWorldZ),
-            nearAnomSpec.position[0] - roverWorldX,
-          );
-          const relYaw = Math.max(-0.7, Math.min(0.7, shortestAngleDelta(roverHeading, lookYaw)));
-          const deployBlend = Math.min(1, dtSec * 8);
-          scannerArmPivot.rotation.z +=
-            (armDeployZ + Math.sin(elapsedSec * 7) * 0.1 - scannerArmPivot.rotation.z) * deployBlend;
-          scannerArmPivot.rotation.y += (relYaw - scannerArmPivot.rotation.y) * deployBlend;
-          mastCamPivot.rotation.y += (relYaw * 0.85 - mastCamPivot.rotation.y) * Math.min(1, dtSec * 7);
-          const phase = (elapsedSec * 1.15) % 1.0;
-          setScannerLaserState(true, nearAnomSpec.position[0], nearAnomSpec.position[2], phase);
-        } else {
-          const retractBlend = Math.min(1, dtSec * 5);
-          scannerArmPivot.rotation.z += (armRestZ - scannerArmPivot.rotation.z) * retractBlend;
-          scannerArmPivot.rotation.y += (0 - scannerArmPivot.rotation.y) * retractBlend;
-          const camSweep = Math.sin(elapsedSec * 1.35) * (Math.abs(roverSpeed) > 0.25 ? 0.18 : 0.26);
-          mastCamPivot.rotation.y +=
-            (roverSteerAngle * 0.58 + camSweep - mastCamPivot.rotation.y) * Math.min(1, dtSec * 6);
-          setScannerLaserState(false);
-        }
-      } else {
+      } else if (roverTask.mode !== 'collecting-sample') {
         roverHitBoundary = false;
         roverCollidedWith = null;
-        const armDeployZ = firstPersonMastcam ? -0.12 : -0.52;
-        const armRestZ = firstPersonMastcam ? 0.24 : 0;
         if (roverTask.mode === 'patrol') {
           roverAngle += dtSec * 0.09;
           const targetX = roverHomeOrigin.x + Math.cos(roverAngle) * 2.4;
@@ -4348,6 +4601,30 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
           scannerArmPivot.rotation.z += (armRestZ - scannerArmPivot.rotation.z) * retractBlend;
           scannerArmPivot.rotation.y += (0 - scannerArmPivot.rotation.y) * retractBlend;
           mastCamPivot.rotation.y = Math.sin(elapsedSec * 2.2) * 0.22;
+        } else if (roverTask.mode === 'driving-sample') {
+          const dx = roverTask.targetX - roverWorldX;
+          const dz = roverTask.targetZ - roverWorldZ;
+          const dist = Math.hypot(dx, dz);
+          const distToSample = Math.hypot(roverTask.lookX - roverWorldX, roverTask.lookZ - roverWorldZ);
+          if (dist > 0.35 && distToSample >= SAMPLE_COLLECT_RADIUS * 0.92) {
+            const step = Math.min(dist, dtSec * 8.4);
+            const safe = computeDetourStep(roverWorldX, roverWorldZ, roverTask.targetX, roverTask.targetZ, step);
+            roverWorldX = safe.x;
+            roverWorldZ = safe.z;
+            const deltaY = shortestAngleDelta(roverHeading, safe.moveYaw);
+            roverSteerAngle = Math.max(-0.48, Math.min(0.48, deltaY));
+            roverHeading += deltaY * Math.min(1, dtSec * 6.5);
+            roverSpeed = 7.6;
+          } else {
+            if (!collectSample(roverTask.sampleId)) {
+              roverTask = hasManualDrive ? { mode: 'manual' } : { mode: 'returning' };
+            }
+          }
+          setScannerLaserState(false);
+          const retractBlend = Math.min(1, dtSec * 5);
+          scannerArmPivot.rotation.z += (armRestZ - scannerArmPivot.rotation.z) * retractBlend;
+          scannerArmPivot.rotation.y += (0 - scannerArmPivot.rotation.y) * retractBlend;
+          mastCamPivot.rotation.y = Math.sin(elapsedSec * 2.4) * 0.22;
         } else if (roverTask.mode === 'scanning') {
           roverTask.timer += dtSec;
           const lookYaw = Math.atan2(-(roverTask.lookZ - roverWorldZ), roverTask.lookX - roverWorldX);
@@ -4392,28 +4669,140 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
           }
         }
 
+        if (!activeSampleCollection) {
+          roverCtrl.setPose({
+            x: roverWorldX,
+            z: roverWorldZ,
+            heading: roverHeading,
+            velocity: roverSpeed,
+          });
+          const fxAuto = Math.cos(roverHeading);
+          const fzAuto = -Math.sin(roverHeading);
+          const rxAuto = Math.sin(roverHeading);
+          const rzAuto = Math.cos(roverHeading);
+          const hF = sampleTerrainAt(roverWorldX + fxAuto * 0.95, roverWorldZ + fzAuto * 0.95);
+          const hR = sampleTerrainAt(roverWorldX - fxAuto * 0.95, roverWorldZ - fzAuto * 0.95);
+          const hL = sampleTerrainAt(roverWorldX - rxAuto * 1.05, roverWorldZ - rzAuto * 1.05);
+          const hRt = sampleTerrainAt(roverWorldX + rxAuto * 1.05, roverWorldZ + rzAuto * 1.05);
+          ry = Math.max(sampleTerrainAt(roverWorldX, roverWorldZ), (hF + hR + hL + hRt) * 0.25);
+          roverPitch = Math.max(-0.36, Math.min(0.36, Math.atan2(hF - hR, 1.9)));
+          roverRoll = Math.max(-0.32, Math.min(0.32, Math.atan2(hL - hRt, 2.1)));
+          const roughnessAuto = Math.max(0.25, Math.abs(hF - hR) + Math.abs(hL - hRt));
+          roverSuspensionHeave =
+            Math.sin(elapsedSec * 9.5) * 0.032 * Math.min(1, Math.abs(roverSpeed) / 5.5) * roughnessAuto;
+          roverSuspensionPitch = 0;
+          roverWheelSpinDelta = (roverSpeed / ROVER_WHEEL_RADIUS) * dtSec;
+        }
+      }
+
+      if (roverTask.mode === 'collecting-sample' && activeSampleCollection) {
+        activeSampleCollection.elapsed += dtSec;
+        const progress = Math.min(1, activeSampleCollection.elapsed / activeSampleCollection.duration);
+
+        // Frenado breve y seguro del Rover al activar el brazo recolector
+        roverSpeed *= Math.max(0, 1 - dtSec * 18);
+        if (Math.abs(roverSpeed) < 0.06) roverSpeed = 0;
+        roverSteerAngle *= Math.max(0, 1 - dtSec * 14);
+        if (Math.abs(roverSpeed) > 0.01) {
+          const fxBrk = Math.cos(roverHeading);
+          const fzBrk = -Math.sin(roverHeading);
+          const brkStep = resolveObstacleAndBounds(
+            roverWorldX + fxBrk * roverSpeed * dtSec,
+            roverWorldZ + fzBrk * roverSpeed * dtSec,
+          );
+          roverWorldX = brkStep.x;
+          roverWorldZ = brkStep.z;
+        }
+
+        const lookYaw = Math.atan2(
+          -(activeSampleCollection.lookZ - roverWorldZ),
+          activeSampleCollection.lookX - roverWorldX,
+        );
+        const relYaw = shortestAngleDelta(roverHeading, lookYaw);
+        roverHeading += Math.sign(relYaw) * Math.min(Math.abs(relYaw), dtSec * 4.5);
+
         roverCtrl.setPose({
           x: roverWorldX,
           z: roverWorldZ,
           heading: roverHeading,
           velocity: roverSpeed,
         });
-        const fxAuto = Math.cos(roverHeading);
-        const fzAuto = -Math.sin(roverHeading);
-        const rxAuto = Math.sin(roverHeading);
-        const rzAuto = Math.cos(roverHeading);
-        const hF = sampleTerrainAt(roverWorldX + fxAuto * 0.95, roverWorldZ + fzAuto * 0.95);
-        const hR = sampleTerrainAt(roverWorldX - fxAuto * 0.95, roverWorldZ - fzAuto * 0.95);
-        const hL = sampleTerrainAt(roverWorldX - rxAuto * 1.05, roverWorldZ - rzAuto * 1.05);
-        const hRt = sampleTerrainAt(roverWorldX + rxAuto * 1.05, roverWorldZ + rzAuto * 1.05);
+        const fxCol = Math.cos(roverHeading);
+        const fzCol = -Math.sin(roverHeading);
+        const rxCol = Math.sin(roverHeading);
+        const rzCol = Math.cos(roverHeading);
+        const hF = sampleTerrainAt(roverWorldX + fxCol * 0.95, roverWorldZ + fzCol * 0.95);
+        const hR = sampleTerrainAt(roverWorldX - fxCol * 0.95, roverWorldZ - fzCol * 0.95);
+        const hL = sampleTerrainAt(roverWorldX - rxCol * 1.05, roverWorldZ - rzCol * 1.05);
+        const hRt = sampleTerrainAt(roverWorldX + rxCol * 1.05, roverWorldZ + rzCol * 1.05);
         ry = Math.max(sampleTerrainAt(roverWorldX, roverWorldZ), (hF + hR + hL + hRt) * 0.25);
         roverPitch = Math.max(-0.36, Math.min(0.36, Math.atan2(hF - hR, 1.9)));
         roverRoll = Math.max(-0.32, Math.min(0.32, Math.atan2(hL - hRt, 2.1)));
-        const roughnessAuto = Math.max(0.25, Math.abs(hF - hR) + Math.abs(hL - hRt));
-        roverSuspensionHeave =
-          Math.sin(elapsedSec * 9.5) * 0.032 * Math.min(1, Math.abs(roverSpeed) / 5.5) * roughnessAuto;
-        roverSuspensionPitch = 0;
+        roverSuspensionHeave = 0;
+        roverSuspensionPitch = progress < 0.22 ? 0.028 * (1 - progress / 0.22) : 0;
         roverWheelSpinDelta = (roverSpeed / ROVER_WHEEL_RADIUS) * dtSec;
+
+        const armYawGoal = Math.max(-0.7, Math.min(0.7, shortestAngleDelta(roverHeading, lookYaw)));
+        const deployBlend = Math.min(1, dtSec * 14);
+        scannerArmPivot.rotation.z +=
+          (armDeployZ + Math.sin(elapsedSec * 9) * 0.07 - scannerArmPivot.rotation.z) * deployBlend;
+        scannerArmPivot.rotation.y += (armYawGoal - scannerArmPivot.rotation.y) * deployBlend;
+        mastCamPivot.rotation.y += (armYawGoal * 0.85 - mastCamPivot.rotation.y) * deployBlend;
+
+        const scanActive = progress < 0.88;
+        const laserPhase = (activeSampleCollection.elapsed * 2.1) % 1.0;
+        setScannerLaserState(scanActive, activeSampleCollection.lookX, activeSampleCollection.lookZ, laserPhase);
+
+        const colRt = sampleRuntimes.get(activeSampleCollection.sampleId);
+        if (colRt) {
+          rover.motionRoot.position.set(
+            roverWorldX - roverHomeOrigin.x,
+            ry,
+            roverWorldZ - roverHomeOrigin.z,
+          );
+          rover.visual.rotation.order = 'YZX';
+          rover.visual.rotation.y = roverHeading;
+          rover.visual.rotation.z = roverPitch;
+          rover.visual.rotation.x = roverRoll;
+          rover.group.updateMatrixWorld(true);
+
+          const hopperWorld = new THREE.Vector3(-0.32, 1.48, 0.0);
+          roverChassisGroup.localToWorld(hopperWorld);
+
+          colRt.beaconMat.opacity = Math.max(0, 0.46 * (1 - progress * 1.45));
+          colRt.beaconDiamond.scale.setScalar(Math.max(0.05, 1 - progress));
+          colRt.ringMat.opacity = Math.max(0.18, 0.9 * (1 - progress * 0.65));
+
+          if (progress <= 0.32) {
+            const p0 = progress / 0.32;
+            colRt.rockGroup.position.set(0, p0 * 0.55, 0);
+            colRt.rockGroup.scale.setScalar(1 + p0 * 0.08);
+          } else {
+            const u = (progress - 0.32) / 0.68;
+            const smoothU = u * u * (3 - 2 * u);
+            const liftArc = Math.sin(u * Math.PI) * 1.1;
+            const worldRockPos = activeSampleCollection.startWorldPos.clone().lerp(hopperWorld, smoothU);
+            worldRockPos.y += liftArc;
+            colRt.group.worldToLocal(worldRockPos);
+            colRt.rockGroup.position.copy(worldRockPos);
+            colRt.rockGroup.scale.setScalar(Math.max(0.06, 1.08 - smoothU * 1.0));
+            colRt.rockGroup.rotation.y += dtSec * 6.5;
+          }
+        }
+
+        if (activeSampleCollection.elapsed >= activeSampleCollection.duration) {
+          const doneRt = sampleRuntimes.get(activeSampleCollection.sampleId);
+          if (doneRt) {
+            doneRt.collected = true;
+          }
+          const resume = hasManualDrive ? 'manual' : activeSampleCollection.resumeTask;
+          activeSampleCollection = null;
+          roverTask = { mode: resume };
+          roverSpeed = 0;
+          roverSteerAngle = 0;
+          setScannerLaserState(false);
+          refreshSampleAppearance();
+        }
       }
 
       const fx = Math.cos(roverHeading);
@@ -4518,18 +4907,24 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     terrainSeed,
     pickables: COLONY_WORLD_MODULE_IDS.map((id) => runtimes[id].group),
     anomalyPickables,
+    samplePickables,
     modules,
     updateState,
     setHovered,
     setHoveredAnomaly,
+    setHoveredSample,
     setSelected,
     pulse,
     getModuleAnchor,
     getAnomalyAnchor,
+    getSampleAnchor,
     getSunDirection,
     getEvolutionState,
     getAnomalies,
+    getSamples,
     dispatchRoverToAnomaly,
+    dispatchRoverToSample,
+    collectSample,
     setRoverControlInput,
     getRoverTelemetry,
     getRoverPose,

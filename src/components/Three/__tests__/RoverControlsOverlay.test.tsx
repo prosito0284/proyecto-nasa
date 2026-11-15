@@ -200,6 +200,12 @@ describe('RoverControlsOverlay (R02 dual keyboard & tactile D-pad)', () => {
     expect(viewer3dCss).toMatch(/\.rover-cam-btn\s*\{[^}]*min-width:\s*44px;/s);
     expect(viewer3dCss).toMatch(/\.rover-cam-btn\s*\{[^}]*min-height:\s*44px;/s);
     expect(viewer3dCss).toMatch(/\.rover-cam-btn\s*\{[^}]*border-radius:\s*2px;/s);
+    expect(viewer3dCss).toMatch(/\.rover-collect-btn\s*\{[^}]*min-width:\s*44px;/s);
+    expect(viewer3dCss).toMatch(/\.rover-collect-btn\s*\{[^}]*min-height:\s*44px;/s);
+    expect(viewer3dCss).toMatch(/\.rover-collect-btn\s*\{[^}]*border-radius:\s*2px;/s);
+    expect(viewer3dCss).toMatch(/\.colony-sample-btn\s*\{[^}]*min-width:\s*44px;/s);
+    expect(viewer3dCss).toMatch(/\.colony-sample-btn\s*\{[^}]*min-height:\s*44px;/s);
+    expect(viewer3dCss).toMatch(/\.colony-sample-btn\s*\{[^}]*border-radius:\s*2px;/s);
   });
 
   it('R04: renderiza selector de 3 cámaras (Seguir, Cabina Mastcam, Orbital) sin emoji y emite onCameraModeChange', () => {
@@ -250,5 +256,54 @@ describe('RoverControlsOverlay (R02 dual keyboard & tactile D-pad)', () => {
     expect(onCameraModeChange).toHaveBeenLastCalledWith('mastcam');
     (byId['rover-cam-orbital-btn'].props as { onClick: () => void }).onClick();
     expect(onCameraModeChange).toHaveBeenLastCalledWith('orbital');
+  });
+
+  it('R05: renderiza el botón RECOLECTAR / COLLECT cuando hay una muestra cercana y dispara onCollectSample', () => {
+    const sample = {
+      id: 'smp-ice-1',
+      code: 'ICE-15',
+      label: 'Polar ice core',
+      points: 15,
+      distance: 1.8,
+    };
+
+    const htmlEs = renderToStaticMarkup(
+      React.createElement(RoverControlsOverlay, {
+        lang: 'es',
+        activeDirections: EMPTY_ROVER_DIRECTIONS,
+        cameraMode: 'chase',
+        nearbySample: sample,
+        onCollectSample: () => {},
+        onDirectionChange: () => {},
+      }),
+    );
+    expect(htmlEs).toContain('data-testid="rover-collect-btn"');
+    expect(htmlEs).toContain('RECOLECTAR +15');
+    expect(EMOJI_REGEX.test(htmlEs)).toBe(false);
+
+    const htmlEn = renderToStaticMarkup(
+      React.createElement(RoverControlsOverlay, {
+        lang: 'en',
+        activeDirections: EMPTY_ROVER_DIRECTIONS,
+        cameraMode: 'mastcam',
+        nearbySample: { ...sample, points: 25 },
+        onCollectSample: () => {},
+        onDirectionChange: () => {},
+      }),
+    );
+    expect(htmlEn).toContain('COLLECT +25');
+    expect(EMOJI_REGEX.test(htmlEn)).toBe(false);
+
+    const onCollectSample = vi.fn();
+    const tree = RoverControlsOverlay({
+      lang: 'es',
+      activeDirections: EMPTY_ROVER_DIRECTIONS,
+      nearbySample: sample,
+      onCollectSample,
+      onDirectionChange: () => {},
+    });
+    const byId = findElementsByTestId(tree);
+    (byId['rover-collect-btn'].props as { onClick: () => void }).onClick();
+    expect(onCollectSample).toHaveBeenCalledWith('smp-ice-1');
   });
 });

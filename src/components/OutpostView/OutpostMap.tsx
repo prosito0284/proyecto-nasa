@@ -36,6 +36,7 @@ import {
   type ColonyWorldStateOptions,
   getModuleGlossaryTermId,
   getModulesNeedingMaintenance,
+  type SurfaceSampleSpec,
   type WorldAnomalySpec,
 } from '../Three/proceduralModels';
 
@@ -63,8 +64,11 @@ export interface OutpostMapProps {
   onRegenerateTerrain?: () => void;
   /** M03: Estado de anomalías escaneadas y módulos mantenidos */
   scannedAnomalyIds?: string[];
+  /** R05: Muestras geológicas 3D recolectadas y callback al recolectar */
+  collectedSampleIds?: string[];
   maintainedModules?: ColonyWorldModuleId[];
   onScanAnomaly?: (anomaly: WorldAnomalySpec) => void | boolean;
+  onCollectSample?: (sample: SurfaceSampleSpec) => void | boolean;
   onMaintainModule?: (moduleId: ColonyWorldModuleId) => void | boolean;
 }
 
@@ -166,8 +170,10 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   canRegenerateTerrain = true,
   onRegenerateTerrain,
   scannedAnomalyIds,
+  collectedSampleIds,
   maintainedModules,
   onScanAnomaly,
+  onCollectSample,
   onMaintainModule,
 }) => {
   const [selectedModule, setSelectedModule] = useState<ModuleKey>('shielding');
@@ -245,6 +251,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
     commsActive: commState === 'transmitting',
     commDelaySeconds: realDelaySec,
     scannedAnomalyIds,
+    collectedSampleIds,
     maintainedModuleIds: maintainedModules,
   };
   const pendingMaintenance = getModulesNeedingMaintenance(colonyWorldOptions, maintainedModules);
@@ -625,6 +632,10 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
               onScanAnomaly={(anomaly) => {
                 onTutorialAction?.('step-outpost-map');
                 return onScanAnomaly?.(anomaly);
+              }}
+              onCollectSample={(sample) => {
+                onTutorialAction?.('step-outpost-map');
+                return onCollectSample?.(sample);
               }}
               onMaintainModule={onMaintainModule}
               onInspectScienceTerm={
