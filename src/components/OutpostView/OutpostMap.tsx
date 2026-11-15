@@ -432,7 +432,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
     }
   };
 
-  const prevSiteAndSeedRef = useRef(`${site.id}:${effectiveSeed}`);
+  const prevSiteRef = useRef(site.id);
   const prevDayRef = useRef(currentDay);
 
   useEffect(() => {
@@ -441,13 +441,12 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
     setCommProgress(0);
     setNotice2D(null);
 
-    const nextSiteAndSeed = `${site.id}:${effectiveSeed}`;
-    const siteOrSeedChanged = prevSiteAndSeedRef.current !== nextSiteAndSeed;
+    const siteChanged = prevSiteRef.current !== site.id;
     const restartedToDayOne = prevDayRef.current > 1 && currentDay === 1;
-    prevSiteAndSeedRef.current = nextSiteAndSeed;
+    prevSiteRef.current = site.id;
     prevDayRef.current = currentDay;
 
-    if (siteOrSeedChanged || restartedToDayOne) {
+    if (siteChanged || restartedToDayOne) {
       setViewMode(resolveInitialViewMode());
       setSelectedModule('shielding');
       setSelectedWorldModule('oxygen-module');
@@ -459,7 +458,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
     return () => {
       clearCommInterval();
     };
-  }, [site.id, effectiveSeed, currentDay]);
+  }, [site.id, currentDay]);
 
   const handleTestComms = () => {
     if (commState === 'transmitting' || commIntervalRef.current !== null) return;

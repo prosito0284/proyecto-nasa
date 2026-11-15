@@ -137,9 +137,18 @@ function loadSavedGame(): SavedGame | null {
     const normalizedSampleIds = Array.isArray(m.collectedSampleIds)
       ? m.collectedSampleIds.filter((id): id is string => typeof id === 'string')
       : [];
-    const normalizedSampleSlots = Array.isArray(m.collectedSampleSlots)
+    const rawSampleSlots = Array.isArray(m.collectedSampleSlots)
       ? m.collectedSampleSlots.filter((id): id is string => typeof id === 'string')
       : [];
+    const derivedSlotsSet = new Set<string>(rawSampleSlots);
+    for (const sid of normalizedSampleIds) {
+      const parsed = parseSampleDayAndSlot(sid);
+      if (parsed) {
+        derivedSlotsSet.add(formatMissionSampleSlotKey(parsed.day, parsed.slotIndex));
+        derivedSlotsSet.add(formatSampleSlotId(parsed.day, parsed.slotIndex));
+      }
+    }
+    const normalizedSampleSlots = Array.from(derivedSlotsSet);
     const normalizedMission: MissionState = {
       ...m,
       collectedSampleIds: normalizedSampleIds,
