@@ -276,7 +276,11 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   const currentPreset = RADIO_PRESETS[selectedPresetIdx];
 
   return (
-    <section className="outpost-stage" aria-label="Outpost Interactive Schematic">
+    <section
+      className="outpost-stage"
+      data-tutorial-id="outpost-map"
+      aria-label="Outpost Interactive Schematic"
+    >
       <div className={`surface-canvas ${isLunar ? 'surface-lunar' : 'surface-mars'}`}>
         {/* Cabecera del Mapa Planetario + Clima de Hoy */}
         <div className="surface-header">
