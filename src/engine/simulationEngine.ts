@@ -757,7 +757,7 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
         es: 'Mantuviste el blindaje ≥60% en todos los días de tormenta solar DONKI.',
         en: 'Kept shielding ≥60% on every DONKI solar storm day.',
       },
-      earned: tel.stormDays > 0 && tel.shieldedStormDays === tel.stormDays,
+      earned: finished && tel.stormDays > 0 && tel.shieldedStormDays === tel.stormDays,
     },
     {
       id: 'eclss-master',
@@ -802,7 +802,7 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
         es: `Ganaste ${SCIENCE_TARGET} o más puntos de ciencia en la misión.`,
         en: `Earned ${SCIENCE_TARGET}+ science points during the mission.`,
       },
-      earned: sciEarned >= SCIENCE_TARGET,
+      earned: finished && sciEarned >= SCIENCE_TARGET,
     },
     {
       id: 'isru-pioneer',
@@ -811,7 +811,7 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
         es: 'Usaste recursos locales (hielo o regolito) al menos 2 veces.',
         en: 'Used local resources (ice or regolith) at least 2 times.',
       },
-      earned: choices.filter((c) => ISRU_CHOICES.includes(c)).length >= 2,
+      earned: finished && choices.filter((c) => ISRU_CHOICES.includes(c)).length >= 2,
     },
     {
       id: 'happy-crew',
@@ -844,6 +844,62 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
     missionDoseMsv,
     topRankChecks,
   };
+}
+
+/**
+ * Calcula qué parches persistentes se activan al completar un turno en el motor:
+ * - Victoria en Cráter Shackleton (Luna) o Cráter Jezero (Marte).
+ * - Supervivencia estable tras un evento crítico (tormenta DONKI / polvo / vitales en riesgo).
+ * - Insignias de ingeniería obtenidas en `evaluateCommanderPerformance`.
+ */
+export function evaluateTurnPatchUnlocks(
+  previousState: MissionState,
+  updatedState: MissionState,
+): string[] {
+  const unlocked: string[] = [];
+
+  if (updatedState.status === 'won') {
+    unlocked.push(
+      updatedState.siteId === 'moon-shackleton' ? 'lunar-commander' : 'mars-commander',
+    );
+  }
+
+  const prevWeather = previousState.currentWeather;
+  const prevRes = previousState.resources;
+  const hadHazardousWeather =
+    prevWeather.severity === 'critical' ||
+    prevWeather.severity === 'warning' ||
+    STORM_TYPES.includes(prevWeather.type) ||
+    prevWeather.type === 'DUST_STORM';
+  const hadCriticalVital =
+    Math.min(
+      prevRes.power,
+      prevRes.lifeSupport,
+      prevRes.food,
+      prevRes.shielding,
+      prevRes.crewHealth,
+    ) <= 25;
+
+  const nextRes = updatedState.resources;
+  const colonyStable =
+    updatedState.status !== 'failed' &&
+    nextRes.power > 25 &&
+    nextRes.lifeSupport > 25 &&
+    nextRes.crewHealth > 25 &&
+    nextRes.food >= 20;
+
+  if ((hadHazardousWeather || hadCriticalVital) && colonyStable) {
+    unlocked.push('emergency-responder');
+  }
+
+  const perf = evaluateCommanderPerformance(updatedState);
+  for (const badge of perf.badges) {
+    if (!badge.earned) continue;
+    if (badge.id === 'solar-guardian' && updatedState.status !== 'won') continue;
+    unlocked.push(badge.id);
+  }
+
+  return Array.from(new Set(unlocked));
 }
 
 /** Compatibilidad: listado completo de tarjetas por si la UI lo necesita. */

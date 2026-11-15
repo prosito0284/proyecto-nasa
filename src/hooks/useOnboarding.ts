@@ -141,6 +141,8 @@ export interface OnboardingMachineState {
   isDone: boolean;
   stepIndex: number;
   completionSeq: number;
+  /** Incrementado únicamente cuando se completan los 4 pasos reales (no al saltar). */
+  graduatedSeq?: number;
 }
 
 export type OnboardingMachineAction =
@@ -187,6 +189,7 @@ export function onboardingReducer(
           isActive: false,
           isDone: true,
           completionSeq: state.completionSeq + 1,
+          graduatedSeq: (state.graduatedSeq ?? 0) + 1,
         };
       }
       return {
@@ -203,6 +206,10 @@ export interface UseOnboardingOptions {
   steps?: OnboardingStep[];
   onStepCompleted?: (targetId: string, nextStepIndex: number) => void;
   onFinish?: () => void;
+  /** Callback disparado únicamente al completar los 4 clics reales del entrenamiento. */
+  onCompleteTraining?: () => void;
+  /** Clave opcional (p. ej. idioma) para recalcular geometría tras cambios de texto en el HUD */
+  recomputeKey?: unknown;
 }
 
 export interface UseOnboardingReturn {
@@ -228,6 +235,95 @@ function toOnboardingRect(rect: DOMRect): OnboardingRect {
   };
 }
 
+function areOnboardingRectsEqual(a: OnboardingRect | null, b: OnboardingRect | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    Math.abs(a.top - b.top) < 0.5 &&
+    Math.abs(a.left - b.left) < 0.5 &&
+    Math.abs(a.width - b.width) < 0.5 &&
+    Math.abs(a.height - b.height) < 0.5 &&
+    Math.abs(a.right - b.right) < 0.5 &&
+    Math.abs(a.bottom - b.bottom) < 0.5
+  );
+}
+
+/**
+ * Desplaza de forma instantánea el objetivo activo antes de medir `getBoundingClientRect()`:
+ * - Si el control vive dentro de `.top-nav` (p. ej. `#open-science-modal-btn` en móvil),
+ *   lleva el scroll al tope (`top: 0`) para evitar recortes superiores contra el viewport.
+ * - Si está fuera del pliegue (p. ej. `power-grid` en 1280x800), usa `scrollIntoView`
+ *   con `behavior: 'instant'` y `block: 'center'` antes de fijar las coordenadas del recorte.
+ */
+export function scrollOnboardingTargetIntoView(targetEl: HTMLElement | null): void {
+  if (!targetEl || typeof window === 'undefined') return;
+  const vh = window.innerHeight || 800;
+  const vw = window.innerWidth || 1280;
+  const isTopNavTarget =
+    typeof targetEl.closest === 'function' && Boolean(targetEl.closest('.top-nav'));
+
+  if (isTopNavTarget) {
+    if (typeof window.scrollTo === 'function') {
+      try {
+        window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+      } catch {
+        try {
+          window.scrollTo(0, 0);
+        } catch {
+          // Ignorar mocks parciales sin scrollTo
+        }
+      }
+    }
+
+    if (typeof targetEl.getBoundingClientRect === 'function') {
+      const topNavRect = targetEl.getBoundingClientRect();
+      if ((topNavRect.top < 4 || topNavRect.bottom > vh - 8) && typeof targetEl.scrollIntoView === 'function') {
+        try {
+          targetEl.scrollIntoView({
+            behavior: 'instant' as ScrollBehavior,
+            block: 'center',
+            inline: 'nearest',
+          });
+        } catch {
+          try {
+            targetEl.scrollIntoView({ block: 'center', inline: 'nearest' });
+          } catch {
+            // Ignorar en mocks parciales
+          }
+        }
+      }
+    }
+    return;
+  }
+
+  if (typeof targetEl.getBoundingClientRect !== 'function') return;
+  const rect = targetEl.getBoundingClientRect();
+  const hasStickyVitalsAbove =
+    vw <= 900 &&
+    typeof targetEl.closest === 'function' &&
+    Boolean(targetEl.closest('.hud-details-panel, .mission-center-col'));
+  const minSafeTop = hasStickyVitalsAbove ? 84 : 16;
+  const maxSafeBottom = vh - 16;
+
+  if (rect.top < minSafeTop || rect.bottom > maxSafeBottom) {
+    if (typeof targetEl.scrollIntoView === 'function') {
+      try {
+        targetEl.scrollIntoView({
+          behavior: 'instant' as ScrollBehavior,
+          block: 'center',
+          inline: 'nearest',
+        });
+      } catch {
+        try {
+          targetEl.scrollIntoView({ block: 'center', inline: 'nearest' });
+        } catch {
+          // Ignorar en entornos de test sin scrollIntoView completo
+        }
+      }
+    }
+  }
+}
+
 export function useOnboarding(options: UseOnboardingOptions = {}): UseOnboardingReturn {
   const {
     autoStart = true,
@@ -235,6 +331,8 @@ export function useOnboarding(options: UseOnboardingOptions = {}): UseOnboarding
     steps = ONBOARDING_STEPS,
     onStepCompleted,
     onFinish,
+    onCompleteTraining,
+    recomputeKey,
   } = options;
 
   const [machine, dispatch] = useReducer(
@@ -245,18 +343,23 @@ export function useOnboarding(options: UseOnboardingOptions = {}): UseOnboarding
       isDone: readOnboardingDone(),
       stepIndex: 0,
       completionSeq: 0,
+      graduatedSeq: 0,
     }),
   );
 
   const [targetRect, setTargetRect] = useState<OnboardingRect | null>(null);
   const autoStartedRef = useRef(false);
   const handledCompletionRef = useRef(0);
+  const handledGraduationRef = useRef(0);
   const onStepCompletedRef = useRef(onStepCompleted);
   onStepCompletedRef.current = onStepCompleted;
   const onFinishRef = useRef(onFinish);
   onFinishRef.current = onFinish;
+  const onCompleteTrainingRef = useRef(onCompleteTraining);
+  onCompleteTrainingRef.current = onCompleteTraining;
 
   const { isActive, isDone, stepIndex, completionSeq } = machine;
+  const graduatedSeq = machine.graduatedSeq ?? 0;
   const currentStep = isActive && steps.length > 0 ? (steps[stepIndex] ?? null) : null;
 
   useEffect(() => {
@@ -267,6 +370,13 @@ export function useOnboarding(options: UseOnboardingOptions = {}): UseOnboarding
       onFinishRef.current?.();
     }
   }, [completionSeq]);
+
+  useEffect(() => {
+    if (graduatedSeq > handledGraduationRef.current) {
+      handledGraduationRef.current = graduatedSeq;
+      onCompleteTrainingRef.current?.();
+    }
+  }, [graduatedSeq]);
 
   const startOnboarding = useCallback(() => {
     writeOnboardingDone(false);
@@ -303,7 +413,7 @@ export function useOnboarding(options: UseOnboardingOptions = {}): UseOnboarding
     }
   }, [autoStart, enabled, isDone, isActive, steps.length]);
 
-  // Medición reactiva con getBoundingClientRect() + ResizeObserver + scroll/resize
+  // Medición reactiva con scroll instantáneo previo + getBoundingClientRect() + bucle rAF + ResizeObserver
   useEffect(() => {
     if (!isActive || !enabled || !currentStep) {
       setTargetRect(null);
@@ -313,30 +423,39 @@ export function useOnboarding(options: UseOnboardingOptions = {}): UseOnboarding
     const measure = () => {
       const el = findOnboardingTarget(currentStep.targetId);
       if (!el) {
-        setTargetRect(null);
+        setTargetRect((prev) => (prev === null ? prev : null));
         return;
       }
       const rect = el.getBoundingClientRect();
       if (rect.width > 0 && rect.height > 0) {
-        setTargetRect(toOnboardingRect(rect));
+        const nextRect = toOnboardingRect(rect);
+        setTargetRect((prev) => (areOnboardingRectsEqual(prev, nextRect) ? prev : nextRect));
       } else {
-        setTargetRect(null);
+        setTargetRect((prev) => (prev === null ? prev : null));
       }
     };
 
+    const targetEl = findOnboardingTarget(currentStep.targetId);
+    scrollOnboardingTargetIntoView(targetEl);
     measure();
 
-    const targetEl = findOnboardingTarget(currentStep.targetId);
-    if (targetEl && typeof targetEl.scrollIntoView === 'function') {
-      try {
-        const r = targetEl.getBoundingClientRect();
-        const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
-        if (r.top < 12 || r.bottom > vh - 12) {
-          targetEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-        }
-      } catch {
-        // Ignorar en entornos de test sin scrollIntoView completo
+    let rafId: number | null = null;
+    let remainingFrames = 24;
+    const stabilize = () => {
+      measure();
+      remainingFrames -= 1;
+      if (
+        remainingFrames > 0 &&
+        typeof window !== 'undefined' &&
+        typeof window.requestAnimationFrame === 'function'
+      ) {
+        rafId = window.requestAnimationFrame(stabilize);
+      } else {
+        rafId = null;
       }
+    };
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      rafId = window.requestAnimationFrame(stabilize);
     }
 
     window.addEventListener('resize', measure, { passive: true });
@@ -356,11 +475,18 @@ export function useOnboarding(options: UseOnboardingOptions = {}): UseOnboarding
     }
 
     return () => {
+      if (
+        rafId !== null &&
+        typeof window !== 'undefined' &&
+        typeof window.cancelAnimationFrame === 'function'
+      ) {
+        window.cancelAnimationFrame(rafId);
+      }
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
       observer?.disconnect();
     };
-  }, [isActive, enabled, currentStep]);
+  }, [isActive, enabled, currentStep, recomputeKey]);
 
   // Avance automático al hacer clic directamente en el elemento real iluminado
   useEffect(() => {

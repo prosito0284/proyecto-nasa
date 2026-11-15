@@ -295,3 +295,57 @@ describe('tripulación', () => {
     expect(getCrewReaction(s.resources, s.resources)).toBeNull();
   });
 });
+
+describe('insignias (F04: exigen misión completada y ganada)', () => {
+  it('solar-guardian, star-scientist e isru-pioneer no se otorgan en misiones abortadas o en curso', () => {
+    const base = createInitialMissionState('moon-shackleton', POOL[0], 7);
+    const qualifiedMidMission: MissionState = {
+      ...base,
+      status: 'playing',
+      resources: {
+        ...base.resources,
+        sciencePoints: base.resources.sciencePoints + 160,
+      },
+      engine: {
+        ...base.engine!,
+        stormDays: 2,
+        shieldedStormDays: 2,
+        history: [
+          {
+            day: 1,
+            cardId: 'card-1',
+            choiceId: 'launch-eva',
+            weatherType: 'FLR',
+          },
+          {
+            day: 2,
+            cardId: 'card-2',
+            choiceId: 'psr-rover-ice-run',
+            weatherType: 'SEP',
+          },
+        ],
+      },
+    };
+
+    const gatedIds = ['solar-guardian', 'star-scientist', 'isru-pioneer'] as const;
+
+    const playingEval = evaluateCommanderPerformance(qualifiedMidMission);
+    for (const id of gatedIds) {
+      expect(playingEval.badges.find((b) => b.id === id)?.earned).toBe(false);
+    }
+
+    const failedEval = evaluateCommanderPerformance({
+      ...qualifiedMidMission,
+      status: 'failed',
+    });
+    expect(failedEval.badges.every((b) => !b.earned)).toBe(true);
+
+    const wonEval = evaluateCommanderPerformance({
+      ...qualifiedMidMission,
+      status: 'won',
+    });
+    for (const id of gatedIds) {
+      expect(wonEval.badges.find((b) => b.id === id)?.earned).toBe(true);
+    }
+  });
+});

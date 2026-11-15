@@ -1,7 +1,7 @@
 /**
  * BLOQUE C (Asignado a: Antigravity Principal - Rama: feat/outpost-ui)
- * C10 — Parches Bordados de Misión (NASA Flight Patches SVG)
- * Un emblema vectorial distinto para cada una de las 9 insignias de `evaluateCommanderPerformance`.
+ * C10 & P02 — Parches Bordados de Misión (NASA Flight Patches SVG)
+ * Un emblema vectorial distinto para cada uno de los 14 parches persistentes del catálogo.
  * - `earned === true`: parche bordado a color plano (azul NASA, rojo vector, verde misión, tinta y papel) con costura perimetral.
  * - `earned === false`: silueta técnica en contorno punteado sobre el papel del cuaderno de vuelo.
  */
@@ -380,6 +380,231 @@ export const MissionPatch: React.FC<MissionPatchProps> = ({
           </g>
         );
 
+      case 'training-graduate':
+        // Consola de encendido con 4 indicadores + vector orbital de despegue
+        return (
+          <g>
+            {/* Panel de secuencia de encendido */}
+            <rect
+              x="16"
+              y="29"
+              width="32"
+              height="16"
+              rx="2"
+              fill={primaryFill}
+              stroke={strokeColor}
+              strokeWidth="1.7"
+              strokeDasharray={dashPattern}
+            />
+            {/* 4 luces de secuencia activadas */}
+            <circle cx="22" cy="37" r="2" fill={greenFill} stroke={strokeColor} strokeWidth="1.2" />
+            <circle cx="28.5" cy="37" r="2" fill={greenFill} stroke={strokeColor} strokeWidth="1.2" />
+            <circle cx="35.5" cy="37" r="2" fill={greenFill} stroke={strokeColor} strokeWidth="1.2" />
+            <circle cx="42" cy="37" r="2" fill={accentFill} stroke={strokeColor} strokeWidth="1.2" />
+            {/* Vector de ascenso */}
+            <polygon
+              points="32,14 40,26 35,26 35,29 29,29 29,26 24,26"
+              fill={accentFill}
+              stroke={strokeColor}
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+              strokeDasharray={dashPattern}
+            />
+          </g>
+        );
+
+      case 'lunar-commander':
+        // Luna con cráteres + banderín polar Artemis en Shackleton
+        return (
+          <g>
+            {/* Disco lunar */}
+            <circle
+              cx="30"
+              cy="34"
+              r="12.5"
+              fill={primaryFill}
+              stroke={strokeColor}
+              strokeWidth="1.8"
+              strokeDasharray={dashPattern}
+            />
+            {/* Cráteres lunares */}
+            <circle
+              cx="24.5"
+              cy="31"
+              r="2.6"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="1.3"
+              strokeDasharray={dashPattern}
+            />
+            <circle
+              cx="34"
+              cy="38.5"
+              r="3"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="1.3"
+              strokeDasharray={dashPattern}
+            />
+            {/* Mástil y banderín polar */}
+            <path
+              d="M36 22V14"
+              stroke={strokeColor}
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeDasharray={dashPattern}
+            />
+            <polygon
+              points="36,14 48,18 36,22"
+              fill={accentFill}
+              stroke={strokeColor}
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+              strokeDasharray={dashPattern}
+            />
+            {/* Anillo orbital */}
+            <path
+              d="M15 24c8-5 24-4 34 3"
+              fill="none"
+              stroke={earned ? PAPER : INK}
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeDasharray={dashPattern}
+            />
+          </g>
+        );
+
+      case 'mars-commander':
+        // Planeta rojo Marte con órbita + antena de rover en Cráter Jezero
+        return (
+          <g>
+            {/* Horizonte marciano */}
+            <circle
+              cx="32"
+              cy="33"
+              r="12"
+              fill={accentFill}
+              stroke={strokeColor}
+              strokeWidth="1.8"
+              strokeDasharray={dashPattern}
+            />
+            {/* Banda ecuatorial del cráter */}
+            <path
+              d="M21.5 31c6 2.2 15 2.2 21 0"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="1.4"
+              strokeDasharray={dashPattern}
+            />
+            {/* Mástil científico */}
+            <path
+              d="M32 21v-5M29 18h6"
+              stroke={strokeColor}
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeDasharray={dashPattern}
+            />
+            {/* Trayectoria orbital */}
+            <ellipse
+              cx="32"
+              cy="33"
+              rx="18"
+              ry="6.5"
+              transform="rotate(-20 32 33)"
+              fill="none"
+              stroke={earned ? PAPER : INK}
+              strokeWidth="1.5"
+              strokeDasharray={dashPattern}
+            />
+          </g>
+        );
+
+      case 'quiz-ace':
+        // Hoja técnica de verificación científica + sello de calificación perfecta
+        return (
+          <g>
+            {/* Ficha técnica de laboratorio con esquina doblada */}
+            <polygon
+              points="18,17 34,17 40,23 40,45 18,45"
+              fill={primaryFill}
+              stroke={strokeColor}
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+              strokeDasharray={dashPattern}
+            />
+            <polyline
+              points="34,17 34,23 40,23"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="1.4"
+              strokeLinejoin="round"
+              strokeDasharray={dashPattern}
+            />
+            {/* Líneas de evaluación científica */}
+            <path
+              d="M22.5 26h10M22.5 31h12.5M22.5 36h8"
+              stroke={strokeColor}
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeDasharray={dashPattern}
+            />
+            {/* Sello circular de acierto perfecto */}
+            <circle
+              cx="39"
+              cy="39"
+              r="7.5"
+              fill={greenFill}
+              stroke={strokeColor}
+              strokeWidth="1.6"
+              strokeDasharray={dashPattern}
+            />
+            <path
+              d="M35.5 39l2.3 2.4 4.7-4.8"
+              fill="none"
+              stroke={earned ? PAPER : INK}
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={dashPattern}
+            />
+          </g>
+        );
+
+      case 'emergency-responder':
+        // Baliza romboidal de alerta + onda de telemetría estabilizada
+        return (
+          <g>
+            <polygon
+              points="32,14 49,32 32,50 15,32"
+              fill={accentFill}
+              stroke={strokeColor}
+              strokeWidth="1.8"
+              strokeLinejoin="round"
+              strokeDasharray={dashPattern}
+            />
+            <rect
+              x="21"
+              y="25"
+              width="22"
+              height="14"
+              rx="1"
+              fill={primaryFill}
+              stroke={strokeColor}
+              strokeWidth="1.4"
+              strokeDasharray={dashPattern}
+            />
+            {/* Pulso estable */}
+            <polyline
+              points="23,32 27,32 29.5,27.5 32.5,36.5 35,32 41,32"
+              fill="none"
+              stroke={earned ? '#FFFFFF' : INK}
+              strokeWidth="1.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={dashPattern}
+            />
+          </g>
+        );
       default:
         return (
           <polygon

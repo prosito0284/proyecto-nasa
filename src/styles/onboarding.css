@@ -126,18 +126,27 @@
   color: #FFFFFF;
 }
 
+/* F02: Desbloquea botones de Idioma y Sonido sobre cuadrantes durante el onboarding sin perder contraste */
+.app-shell.is-onboarding-active #toggle-mute-btn,
+.app-shell.is-onboarding-active #toggle-lang-btn {
+  position: relative;
+  z-index: 9601;
+}
+
 .onboarding-skip-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  min-height: 30px;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  min-height: 44px;
+  min-width: 44px;
   background-color: #141E30;
   color: #D2DCEB;
   border: 1.5px solid #3B4E73;
   border-radius: 2px;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   box-shadow: none;

@@ -4,7 +4,7 @@
  * C9: Cero emoji; usa exclusivamente iconos SVG de trazo de `src/components/icons`.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   CrewMood,
   CrewStatus,
@@ -14,6 +14,8 @@ import {
   SpaceWeatherEvent,
 } from '../../types/mission';
 import type { CommanderEvaluation } from '../../engine/simulationEngine';
+import type { UnlockedPatchRecord } from '../../services/patchStorage';
+import { CREW_MEMBERS, getCrewMemberName } from '../../data/crew';
 import { missionAudio } from '../../utils/sound';
 import { CrewPortrait } from '../crew';
 import {
@@ -31,6 +33,10 @@ import {
   SunIcon,
 } from '../icons';
 import { MissionPatch } from './MissionPatch';
+import { formatPatchUnlockDate } from './PatchShowcaseModal';
+
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export interface CommanderCertificateProps {
   lang: Language;
@@ -48,6 +54,10 @@ export interface CommanderCertificateProps {
   astronautName?: string;
   /** C17: Estado opcional de la tripulación para mostrar sus retratos en el diploma */
   crew?: CrewStatus[];
+  /** P03: Registros persistidos de parches desbloqueados */
+  unlockedRecords?: Record<string, UnlockedPatchRecord>;
+  /** P03: Callback opcional para abrir la Vitrina de Parches completa */
+  onOpenShowcase?: () => void;
 }
 
 export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
@@ -63,8 +73,13 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
   history,
   astronautName,
   crew,
+  unlockedRecords,
+  onOpenShowcase,
 }) => {
   const [commanderName, setCommanderName] = useState(astronautName ?? '');
+  const modalCardRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (astronautName !== undefined) {
@@ -74,14 +89,59 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
+
+    const focusTimer = window.setTimeout(() => {
+      closeButtonRef.current?.focus();
+    }, 20);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
         missionAudio.playClick();
         onClose();
+        return;
+      }
+
+      if (event.key === 'Tab' && modalCardRef.current) {
+        const focusableNodeList =
+          modalCardRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+        const focusables = Array.from(focusableNodeList).filter(
+          (el) => el.offsetParent !== null || el === document.activeElement,
+        );
+
+        if (focusables.length === 0) {
+          event.preventDefault();
+          return;
+        }
+
+        const firstEl = focusables[0];
+        const lastEl = focusables[focusables.length - 1];
+        const activeEl = document.activeElement as HTMLElement | null;
+
+        if (event.shiftKey) {
+          if (activeEl === firstEl || !modalCardRef.current.contains(activeEl)) {
+            event.preventDefault();
+            lastEl.focus();
+          }
+        } else {
+          if (activeEl === lastEl || !modalCardRef.current.contains(activeEl)) {
+            event.preventDefault();
+            firstEl.focus();
+          }
+        }
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
+        previousFocusRef.current.focus();
+      }
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -163,36 +223,16 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
     crew && crew.length > 0
       ? crew.map((c) => ({
           id: c.member.id,
-          name: c.member.name,
+          name: getCrewMemberName(c.member, lang),
           role: c.member.role[lang],
           mood: c.mood,
         }))
-      : [
-          {
-            id: 'commander',
-            name: 'Cmdr. Vega',
-            role: lang === 'es' ? 'Comandante de misión' : 'Mission commander',
-            mood: defaultCrewMood,
-          },
-          {
-            id: 'engineer',
-            name: 'Ing. Sato',
-            role: lang === 'es' ? 'Ingeniería eléctrica' : 'Power engineer',
-            mood: defaultCrewMood,
-          },
-          {
-            id: 'botanist',
-            name: 'Dra. Okafor',
-            role: lang === 'es' ? 'Botánica e invernadero' : 'Botanist & greenhouse',
-            mood: defaultCrewMood,
-          },
-          {
-            id: 'medic',
-            name: 'Dr. Ríos',
-            role: lang === 'es' ? 'Medicina y dosimetría' : 'Flight surgeon & RAD',
-            mood: defaultCrewMood,
-          },
-        ];
+      : CREW_MEMBERS.map((member) => ({
+          id: member.id,
+          name: getCrewMemberName(member, lang),
+          role: member.role[lang],
+          mood: defaultCrewMood,
+        }));
 
   return (
     <div
@@ -201,29 +241,52 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
       aria-modal="true"
       aria-labelledby="certificate-modal-title"
       id="commander-certificate-modal"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          missionAudio.playClick();
+          onClose();
+        }
+      }}
     >
-      <div className="modal-card certificate-modal-card">
+      <div ref={modalCardRef} className="modal-card certificate-modal-card">
         <div className="cert-paper-diploma-frame">
           {/* C12: Cinta Técnica de Serie del Documento Oficial */}
           <div className="cert-serial-bar">
-            <span>FORM JSC-2026-CERT</span>
+            <span>{lang === 'es' ? 'FORMULARIO JSC-2026-CERT' : 'FORM JSC-2026-CERT'}</span>
             <span>
-              SITE: {site.id.toUpperCase()} ({site.coordinates})
+              {lang === 'es' ? 'SITIO:' : 'SITE:'} {site.id.toUpperCase()} ({site.coordinates})
             </span>
             <span>
-              PATCHES: {earnedBadgesCount}/{evaluation.badges.length}
+              {lang === 'es' ? 'PARCHES:' : 'PATCHES:'} {earnedBadgesCount}/
+              {evaluation.badges.length}
             </span>
           </div>
 
           <div className="modal-header cert-diploma-header">
             <div>
-              <span className="nasa-badge">EVALUACIÓN NASA</span>
+              <span className="nasa-badge">
+                {lang === 'es' ? 'EVALUACIÓN NASA' : 'NASA EVALUATION'}
+              </span>
               <h2 id="certificate-modal-title">
                 <PatchIcon size={22} /> {evaluation.rank.title[lang]} — {evaluation.score}/100 pts
               </h2>
               <p className="brand-subtitle">{evaluation.rank.message[lang]}</p>
             </div>
             <div className="cert-header-actions no-print">
+              {onOpenShowcase && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    missionAudio.playClick();
+                    onOpenShowcase();
+                  }}
+                  id="open-showcase-from-cert-btn"
+                >
+                  <PatchIcon size={16} />{' '}
+                  {lang === 'es' ? 'Vitrina completa' : 'Full showcase'}
+                </button>
+              )}
               <button
                 type="button"
                 className="btn-secondary"
@@ -237,6 +300,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                 {lang === 'es' ? 'Imprimir diploma (A4/Carta)' : 'Print diploma (A4/Letter)'}
               </button>
               <button
+                ref={closeButtonRef}
                 type="button"
                 className="btn-secondary"
                 onClick={() => {
@@ -410,39 +474,51 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                 : 'NASA Space Engineering Patches'}
             </h3>
             <div className="badges-grid">
-              {evaluation.badges.map((badge) => (
-                <div
-                  key={badge.id}
-                  className={`badge-card ${badge.earned ? 'badge-earned' : 'badge-locked'}`}
-                >
-                  <div className="badge-card-top">
-                    <MissionPatch
-                      badgeId={badge.id}
-                      earned={badge.earned}
-                      size={46}
-                      title={badge.title[lang]}
-                    />
-                    <span className="badge-status-tag">
-                      {badge.earned
-                        ? lang === 'es'
-                          ? 'GANADA'
-                          : 'EARNED'
-                        : lang === 'es'
-                          ? 'POR DESBLOQUEAR'
-                          : 'LOCKED'}
-                    </span>
+              {evaluation.badges.map((badge) => {
+                const persistedRecord = unlockedRecords?.[badge.id];
+                const isEarned = badge.earned || Boolean(persistedRecord);
+                return (
+                  <div
+                    key={badge.id}
+                    className={`badge-card ${isEarned ? 'badge-earned' : 'badge-locked'}`}
+                  >
+                    <div className="badge-card-top">
+                      <MissionPatch
+                        badgeId={badge.id}
+                        earned={isEarned}
+                        size={46}
+                        title={badge.title[lang]}
+                      />
+                      <span className="badge-status-tag">
+                        {isEarned
+                          ? lang === 'es'
+                            ? 'GANADA'
+                            : 'EARNED'
+                          : lang === 'es'
+                            ? 'POR DESBLOQUEAR'
+                            : 'LOCKED'}
+                      </span>
+                    </div>
+                    <h4>{badge.title[lang]}</h4>
+                    <p>{badge.description[lang]}</p>
+                    {persistedRecord && (
+                      <small className="cert-sig-line">
+                        {lang === 'es' ? 'Guardado' : 'Saved'}:{' '}
+                        {formatPatchUnlockDate(persistedRecord.unlockedAt, lang)}
+                      </small>
+                    )}
                   </div>
-                  <h4>{badge.title[lang]}</h4>
-                  <p>{badge.description[lang]}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
           {/* C12: Pie de Firma Oficial del Diploma de Papel */}
           <div className="cert-signature-footer">
             <div className="cert-sig-col">
-              <span className="cert-sig-script">NASA Flight Control — Houston</span>
+              <span className="cert-sig-script">
+                {lang === 'es' ? 'Control de Vuelo NASA — Houston' : 'NASA Flight Control — Houston'}
+              </span>
               <span className="cert-sig-line">
                 {lang === 'es'
                   ? 'Dirección de entrenamiento Artemis / Marte'
@@ -450,7 +526,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
               </span>
             </div>
             <div className="cert-seal-box">
-              <span>TELEMETRY VERIFIED</span>
+              <span>{lang === 'es' ? 'TELEMETRÍA VERIFICADA' : 'TELEMETRY VERIFIED'}</span>
               <strong>DONKI + OSDR</strong>
             </div>
             <div className="cert-sig-col">

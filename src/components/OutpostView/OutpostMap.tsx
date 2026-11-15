@@ -4,7 +4,7 @@
  * y simulador de retraso de señal plegados por defecto, usando iconos SVG de trazo (cero emoji).
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   CoreResources,
   Language,
@@ -106,6 +106,16 @@ const RADIO_PRESETS: RadioMessagePreset[] = [
   },
 ];
 
+export function cancelCommIntervalRef(
+  ref: { current: ReturnType<typeof setInterval> | null },
+  cancelFn: (id: ReturnType<typeof setInterval>) => void = clearInterval,
+): boolean {
+  if (ref.current === null) return false;
+  cancelFn(ref.current);
+  ref.current = null;
+  return true;
+}
+
 export const OutpostMap: React.FC<OutpostMapProps> = ({
   lang,
   site,
@@ -129,6 +139,11 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   const [selectedPresetIdx, setSelectedPresetIdx] = useState(0);
   const [commState, setCommState] = useState<'idle' | 'transmitting' | 'received'>('idle');
   const [commProgress, setCommProgress] = useState(0);
+  const commIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearCommInterval = () => {
+    cancelCommIntervalRef(commIntervalRef);
+  };
 
   const isLunar = site.id === 'moon-shackleton';
   const isSolarStorm =
@@ -146,8 +161,12 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   const realDelayMin = (realDelaySec / 60).toFixed(1);
 
   useEffect(() => {
+    clearCommInterval();
     setCommState('idle');
     setCommProgress(0);
+    return () => {
+      clearCommInterval();
+    };
   }, [site.id, currentDay]);
 
   const handleSelectModuleFromSvg = (mod: ModuleKey) => {
@@ -178,7 +197,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   };
 
   const handleTestComms = () => {
-    if (commState === 'transmitting') return;
+    if (commState === 'transmitting' || commIntervalRef.current !== null) return;
     missionAudio.playCommPing(true);
     setCommState('transmitting');
     setCommProgress(0);
@@ -188,12 +207,13 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
     const stepMs = 60;
     let elapsed = 0;
 
-    const interval = setInterval(() => {
+    clearCommInterval();
+    commIntervalRef.current = setInterval(() => {
       elapsed += stepMs;
       const pct = Math.min(100, Math.round((elapsed / totalSimMs) * 100));
       setCommProgress(pct);
       if (elapsed >= totalSimMs) {
-        clearInterval(interval);
+        clearCommInterval();
         missionAudio.playCommPing(false);
         setCommState('received');
       }
@@ -1449,7 +1469,9 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   value={selectedPresetIdx}
                   onChange={(e) => {
                     missionAudio.playClick();
+                    clearCommInterval();
                     setSelectedPresetIdx(Number(e.target.value));
+                    setCommProgress(0);
                     setCommState('idle');
                   }}
                 >

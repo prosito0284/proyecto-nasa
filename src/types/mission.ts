@@ -223,6 +223,7 @@ export interface CrewMember {
   /** Identificador estable: 'commander' | 'engineer' | 'botanist' | 'medic' */
   id: string;
   name: string;
+  localizedName?: LocalizedText;
   role: LocalizedText;
   /** Recurso del que esta persona se encarga y sobre el que opina */
   watches: 'power' | 'lifeSupport' | 'food' | 'shielding' | 'crewHealth';
