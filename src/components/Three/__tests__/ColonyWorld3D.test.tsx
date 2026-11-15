@@ -11,7 +11,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { VERIFIED_NASA_WEATHER_EVENTS } from '../../../data/nasa-datasets';
+import { getGlossaryTerm, VERIFIED_NASA_WEATHER_EVENTS } from '../../../data/nasa-datasets';
 import { OUTPOST_SITES } from '../../../data/scenarios';
 import {
   createInitialMissionState,
@@ -26,6 +26,7 @@ import {
 import { OutpostMap } from '../../OutpostView/OutpostMap';
 import { ColonyWorld3D, resolveColonyKeyCommand } from '../ColonyWorld3D';
 import {
+  ANOMALY_GLOSSARY_TERM_MAP,
   buildColonyWorld,
   clampColonyCameraDistance,
   clampColonyPolarAngle,
@@ -42,15 +43,18 @@ import {
   findAnomalyId,
   findColonyModuleId,
   generateTurnAnomalies,
+  getAnomalyGlossaryTermId,
   getColonyEvolutionSummary,
   getColonyModuleStatus,
   getMaintenanceConfirmation,
+  getModuleGlossaryTermId,
   getModulesNeedingMaintenance,
   getWorldAtmosphere,
   isStormShieldDeployed,
   resolveColonyModuleGlbUrl,
   sampleWorldTerrainHeight,
   softClampColonyTarget,
+  type WorldAnomalyKind,
   WORLD_ATMOSPHERES,
   WORLD_TERRAIN_SIZE,
 } from '../proceduralModels';
@@ -764,5 +768,67 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
 
     expect(warnSpy).not.toHaveBeenCalled();
     expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('Bloque 4: cielo Phobos/corona, anillo láser de escaneo + estela del Rover y enlaces al glosario NASA', () => {
+    // 1. Todos los módulos y anomalías 3D mapean a entradas reales del glosario científico NASA
+    for (const kind of Object.keys(ANOMALY_GLOSSARY_TERM_MAP) as WorldAnomalyKind[]) {
+      const termId = getAnomalyGlossaryTermId(kind);
+      expect(getGlossaryTerm(termId)).toBeTruthy();
+    }
+    for (const siteId of ['moon-shackleton', 'mars-jezero'] as const) {
+      for (const modId of COLONY_WORLD_MODULE_IDS) {
+        const termId = getModuleGlossaryTermId(modId, siteId);
+        expect(getGlossaryTerm(termId)).toBeTruthy();
+      }
+    }
+
+    // 2. Cielo diferenciado en 3D: Marte añade Phobos/Deimos y bruma de horizonte sin estrellas; Luna mantiene corona y Tierra
+    const marsWorld = buildColonyWorld({ siteId: 'mars-jezero', terrainSeed: 20260415 });
+    expect(marsWorld.group.getObjectByName('world-phobos')).toBeTruthy();
+    expect(marsWorld.group.getObjectByName('world-mars-horizon-haze')).toBeTruthy();
+    expect(marsWorld.group.getObjectByName('world-sun-corona')).toBeTruthy();
+    expect(marsWorld.group.getObjectByName('world-stars')).toBeUndefined();
+    expect(marsWorld.group.getObjectByName('world-earth')).toBeUndefined();
+
+    // 3. Anillo láser horizontal, pivote Mastcam-Z y estela de ruedas del Rover activos y con dispose limpio
+    const ringMesh = marsWorld.group.getObjectByName('rover-scanner-ring') as THREE.Mesh;
+    const wakePoints = marsWorld.group.getObjectByName('rover-wake-dust') as THREE.Points;
+    const mastPivot = marsWorld.group.getObjectByName('rover-mastcam-pivot');
+    expect(ringMesh).toBeTruthy();
+    expect(wakePoints).toBeTruthy();
+    expect(mastPivot).toBeTruthy();
+
+    const anom = marsWorld.getAnomalies()[0];
+    expect(marsWorld.dispatchRoverToAnomaly(anom.id)).toBe(true);
+    let sawRing = false;
+    let t = 0;
+    for (let s = 0; s < 100; s++) {
+      t += 0.1;
+      marsWorld.animate(t, 0.1);
+      if (ringMesh.visible) sawRing = true;
+    }
+    expect(sawRing).toBe(true);
+
+    const ringGeoSpy = vi.spyOn(ringMesh.geometry, 'dispose');
+    disposeObject3D(marsWorld.group);
+    expect(ringGeoSpy).toHaveBeenCalledTimes(1);
+
+    const lunarWorld = buildColonyWorld({ siteId: 'moon-shackleton', terrainSeed: 20260415 });
+    expect(lunarWorld.group.getObjectByName('world-phobos')).toBeUndefined();
+    expect(lunarWorld.group.getObjectByName('world-earth')).toBeTruthy();
+    expect(lunarWorld.group.getObjectByName('world-sun-corona')).toBeTruthy();
+    disposeObject3D(lunarWorld.group);
+
+    // 4. ColonyWorld3D acepta onInspectScienceTerm sin errores
+    const htmlWithCallback = renderToStaticMarkup(
+      React.createElement(ColonyWorld3D, {
+        lang: 'es',
+        forceFallback: true,
+        onInspectScienceTerm: () => {},
+        options: { siteId: 'moon-shackleton', terrainSeed: 20260415 },
+      }),
+    );
+    expect(htmlWithCallback).toContain('data-testid="colony-world-3d"');
   });
 });

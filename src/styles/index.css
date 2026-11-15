@@ -1428,6 +1428,25 @@ body {
   max-width: 68ch;
 }
 
+.inspector-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  padding-top: 0.25rem;
+}
+
+.inspector-science-btn {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 /* Simulador de Retraso de Señal (Light-Time Delay) */
 .comm-delay-bar {
   background: var(--paper);
