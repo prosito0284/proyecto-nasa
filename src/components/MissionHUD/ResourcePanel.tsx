@@ -134,23 +134,32 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   onTutorialAction,
 }) => {
   const [showAdvancedSliders, setShowAdvancedSliders] = useState(false);
+  const [gridIgnited, setGridIgnited] = useState(false);
+  const [oxygenPressurized, setOxygenPressurized] = useState(false);
   const totalPowerUsed = projection.load;
 
   const updateSlider = (key: keyof PowerAllocation, val: number) => {
     missionAudio.playSliderTick();
+    setGridIgnited(true);
     onChangeAllocation({
       ...allocation,
       [key]: val,
     });
     onTutorialAction?.('step-power-presets');
+    onTutorialAction?.('power-grid');
   };
 
   const applyPreset = (preset: PowerAllocation, presetId?: string) => {
     missionAudio.playClick();
+    setGridIgnited(true);
     onChangeAllocation(preset);
     onTutorialAction?.('step-power-presets');
+    onTutorialAction?.('power-grid');
     if (presetId) {
       onTutorialAction?.(`power-preset-${presetId}`);
+      if (presetId === 'storm') {
+        onTutorialAction?.('thermal-stabilizer');
+      }
     }
   };
 
@@ -332,7 +341,11 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
         </div>
 
         {/* C14: Vitales como Hoja de Checklist con Casilla de Estado, Retrato Opcional y Proyección */}
-        <div className="panel-section" data-tutorial-id="vitals-checklist">
+        <div
+          className={`panel-section ${gridIgnited ? 'onboarding-grid-ignited' : ''}`}
+          data-tutorial-id="vitals-checklist"
+          data-onboarding-id="vitals-checklist"
+        >
           <div className="section-title-row">
             <h2>
               <SlidersIcon size={17} />{' '}
@@ -364,12 +377,23 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                     : 'OK';
 
               const watcher = crew?.find((c) => c.member.watches === m.id);
+              const isOxygenRow = m.id === 'lifeSupport';
 
               return (
                 <div
                   key={m.id}
                   role="listitem"
-                  className={`vital-checklist-row vital-row-${statusKey}`}
+                  data-onboarding-id={isOxygenRow ? 'oxygen-module' : `vital-${m.id}`}
+                  className={`vital-checklist-row vital-row-${statusKey} ${
+                    isOxygenRow && oxygenPressurized ? 'onboarding-oxygen-pressurized' : ''
+                  }`}
+                  onClick={() => {
+                    if (isOxygenRow) {
+                      missionAudio.playClick();
+                      setOxygenPressurized(true);
+                      onTutorialAction?.('oxygen-module');
+                    }
+                  }}
                 >
                   <div className="vital-checklist-main">
                     {/* Casilla de checklist con estado (bien / atención / crítico) */}
@@ -470,7 +494,11 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
         </div>
 
         {/* C3: Modos de Energía como Botones Grandes Principales + Sliders Plegados bajo "Avanzado" */}
-        <div className="panel-section" data-tutorial-id="power-presets">
+        <div
+          className="panel-section"
+          data-tutorial-id="power-presets"
+          data-onboarding-id="power-presets-section"
+        >
           <div className="section-title-row">
             <h2>
               <BatteryIcon size={17} />{' '}
@@ -484,12 +512,19 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
           <div className="power-presets-large-grid">
             {POWER_PRESETS.map((preset) => {
               const isActive = isSameAllocation(allocation, preset.alloc);
+              const onboardingAttr =
+                preset.id === 'balanced'
+                  ? 'power-grid'
+                  : preset.id === 'storm'
+                    ? 'thermal-stabilizer'
+                    : `power-preset-${preset.id}`;
               return (
                 <button
                   key={preset.id}
                   type="button"
                   id={`power-preset-${preset.id}-btn`}
                   data-tutorial-id={`power-preset-${preset.id}`}
+                  data-onboarding-id={onboardingAttr}
                   className={`preset-large-btn ${isActive ? 'preset-large-active' : ''}`}
                   aria-pressed={isActive}
                   onClick={() => applyPreset(preset.alloc, preset.id)}

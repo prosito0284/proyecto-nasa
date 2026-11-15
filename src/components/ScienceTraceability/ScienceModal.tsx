@@ -452,6 +452,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
         ref={modalCardRef}
         className="modal-card science-annex-sheet"
         data-tutorial-id="science-modal-sheet"
+        data-onboarding-id="science-modal-sheet"
       >
         {/* Cabecera del Anexo del Cuaderno de Vuelo */}
         <header className="science-annex-header">
@@ -487,6 +488,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
           <button
             ref={closeButtonRef}
             type="button"
+            data-onboarding-id="science-modal-close"
             className="science-annex-btn"
             style={MIN_TOUCH_TARGET_STYLE}
             onClick={() => {
