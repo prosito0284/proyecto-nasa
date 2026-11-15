@@ -1,5 +1,13 @@
 import * as THREE from 'three';
 import type { Language, LocalizedText, OutpostSiteId, SpaceWeatherEvent } from '../../types/mission';
+import {
+  clampRoverAxis,
+  createRoverController,
+  EMPTY_ROVER_INPUT,
+  getColonyObstacleColliders,
+  type RoverControlInput,
+  type RoverController,
+} from './roverController';
 
 export type Model3DId = 'colony-base' | 'rover-moxie' | 'habitat-shield' | 'planet-globe';
 
@@ -1472,9 +1480,33 @@ function getSeededTerrainProfile(kind: WorldAtmosphereKind, rawSeed?: number): S
   return profile;
 }
 
+const COLONY_FLAT_PADS: ReadonlyArray<{ x: number; z: number; r0: number; r1: number }> = [
+  { x: 0, z: 0, r0: 7.4, r1: 10.2 },
+  { x: -13.6, z: 3.4, r0: 6.4, r1: 8.8 },
+  { x: 12.5, z: 3.0, r0: 4.9, r1: 7.4 },
+  { x: -5.4, z: -12.0, r0: 3.4, r1: 5.4 },
+  { x: -3.3, z: -7.2, r0: 2.6, r1: 4.4 },
+  { x: -7.1, z: 2.7, r0: 2.2, r1: 4.0 },
+  { x: 9.0, z: 12.5, r0: 2.2, r1: 4.2 },
+  { x: 4.8, z: 8.8, r0: 2.2, r1: 4.0 },
+];
+
+function computeColonyPadMask(x: number, z: number): number {
+  let factor = 1;
+  for (const pad of COLONY_FLAT_PADS) {
+    const d = Math.hypot(x - pad.x, z - pad.z);
+    if (d <= pad.r0) return 0;
+    if (d < pad.r1) {
+      factor = Math.min(factor, smoothstep(pad.r0, pad.r1, d));
+    }
+  }
+  return factor;
+}
+
 /**
  * Altura determinista del terreno en (x, z) modulada por `terrainSeed`;
- * la plaza de la base queda nivelada en `y = 0`.
+ * las plataformas de edificios quedan niveladas en `y = 0`, mientras las
+ * rutas exteriores del Rover conservan dunas/cráteres transitables.
  */
 export function sampleWorldTerrainHeight(
   x: number,
@@ -1485,13 +1517,43 @@ export function sampleWorldTerrainHeight(
   const kind: WorldAtmosphereKind = siteId === 'mars-jezero' ? 'mars' : 'lunar';
   const r = Math.hypot(x, z);
   const outside = smoothstep(BASE_PAD_RADIUS, BASE_PAD_RADIUS + 16, r);
-  if (outside <= 0) return 0;
-
+  const padMask = computeColonyPadMask(x, z);
   const prof = getSeededTerrainProfile(kind, terrainSeed);
-  const angle = Math.atan2(z, x);
   const rx = x * Math.cos(prof.ridgeRot) - z * Math.sin(prof.ridgeRot);
   const rz = x * Math.sin(prof.ridgeRot) + z * Math.cos(prof.ridgeRot);
 
+  // Microrrelieve transitable dentro del perímetro de la colonia (dunas y cráteres bajos)
+  let localH = 0;
+  if (padMask > 0 && outside < 1) {
+    if (kind === 'mars') {
+      localH =
+        Math.sin(rx * 0.24 + prof.phaseX + Math.sin(rz * 0.14 + prof.phaseZ) * 0.7) * 0.56 +
+        Math.cos(rz * 0.19 - prof.phaseZ) * 0.28 +
+        0.16;
+    } else {
+      const craterA = Math.hypot(x + 14.5, z + 13.5);
+      const craterB = Math.hypot(x - 15.5, z + 12.5);
+      const craterC = Math.hypot(x - 0.5, z - 16.5);
+      const craterTerm = (dist: number, rad: number, dep: number) => {
+        if (dist > rad * 1.55) return 0;
+        const u = dist / rad;
+        const bowl = u < 1 ? -dep * (1 - u * u) : 0;
+        const rim = dep * 0.62 * Math.exp(-Math.pow((u - 1) / 0.28, 2));
+        return bowl + rim;
+      };
+      localH =
+        Math.sin(rx * 0.21 + prof.phaseX) * Math.cos(rz * 0.18 + prof.phaseZ) * 0.34 +
+        craterTerm(craterA, 4.4, 0.78) +
+        craterTerm(craterB, 4.1, 0.72) +
+        craterTerm(craterC, 4.2, 0.74);
+    }
+  }
+
+  if (outside <= 0) {
+    return localH * padMask;
+  }
+
+  const angle = Math.atan2(z, x);
   let h =
     Math.sin(rx * 0.13 + prof.phaseX) * Math.cos(rz * 0.11 + prof.phaseZ) * 0.36 +
     Math.sin(rx * 0.041 + rz * 0.027 + prof.phaseX) * 1.25 +
@@ -1538,12 +1600,49 @@ export function sampleWorldTerrainHeight(
     h += dunes + mesa + farHills;
   }
 
-  return h * outside;
+  return localH * padMask * (1 - outside) + h * outside;
 }
 
 function warpGridCoord(t: number): number {
   const half = WORLD_TERRAIN_SIZE / 2;
-  return half * (0.06 * t + 0.94 * t * t * t);
+  return half * (0.08 * t + 0.92 * t * t * t);
+}
+
+function buildConformingColonyGrid(
+  wireTint: number,
+  siteId: OutpostSiteId,
+  terrainSeed?: number,
+): THREE.LineSegments {
+  const half = 24;
+  const step = 2;
+  const segsPerLine = 48;
+  const positions: number[] = [];
+
+  for (let c = -half; c <= half; c += step) {
+    for (let i = 0; i < segsPerLine; i++) {
+      const a0 = -half + (i / segsPerLine) * (half * 2);
+      const a1 = -half + ((i + 1) / segsPerLine) * (half * 2);
+      const yx0 = sampleWorldTerrainHeight(a0, c, siteId, terrainSeed) + 0.035;
+      const yx1 = sampleWorldTerrainHeight(a1, c, siteId, terrainSeed) + 0.035;
+      positions.push(a0, yx0, c, a1, yx1, c);
+
+      const yz0 = sampleWorldTerrainHeight(c, a0, siteId, terrainSeed) + 0.035;
+      const yz1 = sampleWorldTerrainHeight(c, a1, siteId, terrainSeed) + 0.035;
+      positions.push(c, yz0, a0, c, yz1, a1);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  const mat = new THREE.LineBasicMaterial({
+    color: wireTint,
+    transparent: true,
+    opacity: 0.2,
+  });
+  const lines = new THREE.LineSegments(geo, mat);
+  lines.name = 'colony-terrain-grid';
+  lines.raycast = () => undefined;
+  return lines;
 }
 
 function buildWorldTerrain(
@@ -1610,7 +1709,7 @@ function buildRockField(
   let placed = 0;
   for (let i = 0; placed < count && i < count * 4; i++) {
     const angle = rng() * Math.PI * 2;
-    const dist = 9 + Math.pow(rng(), 1.5) * 170;
+    const dist = 24 + Math.pow(rng(), 1.35) * 165;
     const x = Math.cos(angle) * dist;
     const z = Math.sin(angle) * dist;
     let blocked = false;
@@ -2470,6 +2569,23 @@ interface ColonyModuleRuntime {
   pulseT: number;
 }
 
+export interface RoverTelemetrySnapshot {
+  x: number;
+  y: number;
+  z: number;
+  heading: number;
+  pitch: number;
+  roll: number;
+  linearVelocity: number;
+  steerAngle: number;
+  isMoving: boolean;
+  hitBoundary: boolean;
+  collidedWith: string | null;
+  nearestAnomalyId: string | null;
+  nearestAnomalyDistance: number;
+  scannerActive: boolean;
+}
+
 export interface ColonyWorldHandle {
   group: THREE.Group;
   fog: THREE.FogExp2;
@@ -2489,6 +2605,8 @@ export interface ColonyWorldHandle {
   getEvolutionState: () => ColonyEvolutionState;
   getAnomalies: () => WorldAnomalySpec[];
   dispatchRoverToAnomaly: (anomalyId: string) => boolean;
+  setRoverControlInput: (input: RoverControlInput) => void;
+  getRoverTelemetry: () => RoverTelemetrySnapshot;
   getRoverPose: (outPos: THREE.Vector3, outForward: THREE.Vector3) => void;
   triggerMaintenanceAnimation: (id: ColonyWorldModuleId) => void;
   replaceModuleVisual: (id: ColonyWorldModuleId, object: THREE.Object3D) => void;
@@ -2556,13 +2674,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   root.add(buildWorldTerrain(atmo, siteId, terrainSeed));
   root.add(buildRockField(atmo, siteId, terrainSeed));
   root.add(buildOutcropSpires(atmo, siteId, terrainSeed));
-  const grid = new THREE.GridHelper(48, 24, wire, atmo.gridColor);
-  const gridMat = grid.material as THREE.Material;
-  gridMat.transparent = true;
-  gridMat.opacity = 0.22;
-  grid.position.y = 0.03;
-  grid.raycast = () => undefined;
-  root.add(grid);
+  root.add(buildConformingColonyGrid(wire, siteId, terrainSeed));
 
   const connectors = new THREE.Group();
   addConnector(connectors, [4.6, 0.9, 1.4], [9.4, 0.9, 2.4], 0.8, atmo.hullColor, wire);
@@ -3353,19 +3465,46 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   let commsNeedsMaint = false;
   let oxygenMaintFlash = false;
 
-  // M03: Estado cinemático y navegación sobre el terreno del Rover
+  // R01/M03: Controlador de cinemática planetaria, colisiones y adaptación al terreno del Rover
   const roverHomeMeta = COLONY_WORLD_MODULES['rover-moxie'].position;
   const roverHomeOrigin = new THREE.Vector3(roverHomeMeta[0], 0, roverHomeMeta[1]);
+  const sampleTerrainAt = (px: number, pz: number) =>
+    sampleWorldTerrainHeight(px, pz, siteId, terrainSeed);
+  const roverCtrl: RoverController = createRoverController({
+    planet: atmo.kind,
+    initialX: roverHomeOrigin.x + 2.4,
+    initialZ: roverHomeOrigin.z,
+    initialHeading: -Math.PI / 2,
+    getTerrainHeight: sampleTerrainAt,
+  });
   let roverAngle = 0;
   let roverMoving = true;
   let roverWorldX = roverHomeOrigin.x + 2.4;
   let roverWorldZ = roverHomeOrigin.z;
   let roverHeading = -Math.PI / 2;
+  let roverPitch = 0;
+  let roverRoll = 0;
+  let roverSuspensionHeave = 0;
+  let roverSuspensionPitch = 0;
+  let roverSteerAngle = 0;
   let roverSpeed = 0;
-  rover.motionRoot.position.set(roverWorldX - roverHomeOrigin.x, 0, roverWorldZ - roverHomeOrigin.z);
+  let roverWheelSpinDelta = 0;
+  let roverHitBoundary = false;
+  let roverCollidedWith: string | null = null;
+  let roverInput: RoverControlInput = { ...EMPTY_ROVER_INPUT };
+  let hasManualDrive = false;
+  let activeObstacles = getColonyObstacleColliders(evoState);
+
+  rover.motionRoot.position.set(
+    roverWorldX - roverHomeOrigin.x,
+    sampleTerrainAt(roverWorldX, roverWorldZ),
+    roverWorldZ - roverHomeOrigin.z,
+  );
+  rover.visual.rotation.order = 'YZX';
   rover.visual.rotation.y = roverHeading;
   type RoverTask =
     | { mode: 'patrol' }
+    | { mode: 'manual' }
     | { mode: 'driving'; anomalyId: string; targetX: number; targetZ: number; lookX: number; lookZ: number }
     | { mode: 'scanning'; anomalyId: string; lookX: number; lookZ: number; timer: number }
     | { mode: 'returning' };
@@ -3431,6 +3570,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   const updateState = (next: ColonyWorldStateOptions) => {
     state = { ...state, ...next, siteId };
     evoState = computeColonyEvolutionState(state);
+    activeObstacles = getColonyObstacleColliders(evoState);
     syncEvolutionPart(evoSolarWingLeft, evoState.solarWingLeft);
     syncEvolutionPart(evoSolarWingRight, evoState.solarWingRight);
     syncEvolutionPart(evoTunnelAirlock, evoState.tunnelAirlockSpur);
@@ -3624,6 +3764,81 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
 
   const getAnomalies = () => currentAnomalies.map((a) => ({ ...a }));
 
+  const findNearestAnomalySnapshot = (): { id: string | null; distance: number } => {
+    let nearestId: string | null = null;
+    let nearestDist = Infinity;
+    for (const spec of currentAnomalies) {
+      const d = Math.hypot(spec.position[0] - roverWorldX, spec.position[2] - roverWorldZ);
+      if (d < nearestDist) {
+        nearestDist = d;
+        nearestId = spec.id;
+      }
+    }
+    return {
+      id: nearestId,
+      distance: Number.isFinite(nearestDist) ? Number(nearestDist.toFixed(2)) : Infinity,
+    };
+  };
+
+  const resolveObstacleAndBounds = (px: number, pz: number): { x: number; z: number } => {
+    let x = clampRoverAxis(px);
+    let z = clampRoverAxis(pz);
+    for (let pass = 0; pass < 2; pass++) {
+      for (const obs of activeObstacles) {
+        const minDist = obs.radius + 1.45;
+        const dx = x - obs.x;
+        const dz = z - obs.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist < minDist) {
+          const nx = dist > 1e-4 ? dx / dist : 1;
+          const nz = dist > 1e-4 ? dz / dist : 0;
+          x = obs.x + nx * minDist;
+          z = obs.z + nz * minDist;
+        }
+      }
+    }
+    return { x: clampRoverAxis(x), z: clampRoverAxis(z) };
+  };
+
+  const setRoverControlInput = (nextInput: RoverControlInput) => {
+    roverInput = { ...nextInput };
+    if (
+      roverMoving &&
+      (nextInput.forward || nextInput.backward || nextInput.left || nextInput.right)
+    ) {
+      hasManualDrive = true;
+      if (roverTask.mode !== 'manual') {
+        roverCtrl.setPose({
+          x: roverWorldX,
+          z: roverWorldZ,
+          heading: roverHeading,
+          velocity: roverTask.mode === 'driving' ? roverSpeed : 0,
+        });
+        roverTask = { mode: 'manual' };
+      }
+    }
+  };
+
+  const getRoverTelemetry = (): RoverTelemetrySnapshot => {
+    const nearest = findNearestAnomalySnapshot();
+    return {
+      x: Number(roverWorldX.toFixed(3)),
+      y: Number(rover.motionRoot.position.y.toFixed(3)),
+      z: Number(roverWorldZ.toFixed(3)),
+      heading: roverHeading,
+      pitch: roverPitch,
+      roll: roverRoll,
+      linearVelocity: roverSpeed,
+      steerAngle: roverSteerAngle,
+      isMoving: Math.abs(roverSpeed) > 0.05 || Math.abs(roverSteerAngle) > 0.02,
+      hitBoundary: roverHitBoundary,
+      collidedWith: roverCollidedWith,
+      nearestAnomalyId: nearest.id,
+      nearestAnomalyDistance: nearest.distance,
+      scannerActive: scannerBeamMesh.visible,
+    };
+  };
+
   const dispatchRoverToAnomaly = (anomalyId: string): boolean => {
     const rt = anomalyRuntimes.get(anomalyId);
     if (!rt) return false;
@@ -3633,13 +3848,12 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     const vz = roverWorldZ - az;
     const len = Math.max(0.01, Math.hypot(vx, vz));
     const standOff = 2.35;
-    const targetX = clampToColonyBounds(ax + (vx / len) * standOff);
-    const targetZ = clampToColonyBounds(az + (vz / len) * standOff);
+    const safeTarget = resolveObstacleAndBounds(ax + (vx / len) * standOff, az + (vz / len) * standOff);
     roverTask = {
       mode: 'driving',
       anomalyId,
-      targetX,
-      targetZ,
+      targetX: safeTarget.x,
+      targetZ: safeTarget.z,
       lookX: ax,
       lookZ: az,
     };
@@ -3794,123 +4008,241 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       growLight.intensity = state.isLowPowerBlackout ? 0 : evoState.greenhouseTier3 ? 3.2 : 2.4;
     }
 
-    // Cinemática del Rover: patrulla elíptica o expedición al terreno con brazo escáner
-    if (roverMoving) {
-      if (roverTask.mode === 'patrol') {
-        roverAngle += dtSec * 0.09;
-        const targetX = roverHomeOrigin.x + Math.cos(roverAngle) * 2.4;
-        const targetZ = roverHomeOrigin.z + Math.sin(roverAngle) * 1.6;
-        const dx = targetX - roverWorldX;
-        const dz = targetZ - roverWorldZ;
-        const dist = Math.hypot(dx, dz);
-        if (dist > 0.01) {
-          roverWorldX += dx * Math.min(1, dtSec * 2.5);
-          roverWorldZ += dz * Math.min(1, dtSec * 2.5);
-          const desiredYaw = Math.atan2(-dz, dx);
-          roverHeading += shortestAngleDelta(roverHeading, desiredYaw) * Math.min(1, dtSec * 5);
-        }
-        roverSpeed = 1.8;
-        scannerBeamMesh.visible = false;
-        scannerRingMesh.visible = false;
-        scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * Math.min(1, dtSec * 5);
-        mastCamPivot.rotation.y = Math.sin(elapsedSec * 0.85) * 0.48;
-      } else if (roverTask.mode === 'driving') {
-        const dx = roverTask.targetX - roverWorldX;
-        const dz = roverTask.targetZ - roverWorldZ;
-        const dist = Math.hypot(dx, dz);
-        const desiredYaw = Math.atan2(-dz, dx);
-        roverHeading += shortestAngleDelta(roverHeading, desiredYaw) * Math.min(1, dtSec * 6.5);
-        const step = Math.min(dist, dtSec * 7.8);
-        if (dist > 0.25) {
-          roverWorldX = clampToColonyBounds(roverWorldX + (dx / dist) * step);
-          roverWorldZ = clampToColonyBounds(roverWorldZ + (dz / dist) * step);
-          roverSpeed = 7.2;
-        } else {
-          roverWorldX = roverTask.targetX;
-          roverWorldZ = roverTask.targetZ;
-          roverTask = {
-            mode: 'scanning',
-            anomalyId: roverTask.anomalyId,
-            lookX: roverTask.lookX,
-            lookZ: roverTask.lookZ,
-            timer: 0,
-          };
-          roverSpeed = 0;
-        }
-        scannerBeamMesh.visible = false;
-        scannerRingMesh.visible = false;
-        scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * Math.min(1, dtSec * 5);
-        mastCamPivot.rotation.y = Math.sin(elapsedSec * 2.2) * 0.22;
-      } else if (roverTask.mode === 'scanning') {
-        roverTask.timer += dtSec;
-        const lookYaw = Math.atan2(-(roverTask.lookZ - roverWorldZ), roverTask.lookX - roverWorldX);
-        roverHeading += shortestAngleDelta(roverHeading, lookYaw) * Math.min(1, dtSec * 7);
-        roverSpeed = 0;
-        scannerArmPivot.rotation.z = -0.52 + Math.sin(elapsedSec * 7) * 0.12;
-        mastCamPivot.rotation.y = Math.sin(elapsedSec * 4) * 0.14;
-        const scanActive = roverTask.timer < 1.8;
-        scannerBeamMesh.visible = scanActive;
-        scannerBeamMat.opacity = 0.55 + Math.sin(elapsedSec * 18) * 0.25;
-        scannerRingMesh.visible = scanActive;
-        if (scanActive) {
-          const groundScanY =
-            sampleWorldTerrainHeight(roverTask.lookX, roverTask.lookZ, siteId, terrainSeed) + 0.14;
-          const phase = (roverTask.timer % 0.9) / 0.9;
-          scannerRingMesh.position.set(roverTask.lookX, groundScanY, roverTask.lookZ);
-          scannerRingMesh.scale.setScalar(0.65 + phase * 1.85);
-          scannerRingMat.opacity = (1 - phase) * 0.9;
-        }
-        if (roverTask.timer >= 1.8 && !scannedVisualIds.has(roverTask.anomalyId)) {
-          scannedVisualIds.add(roverTask.anomalyId);
-          refreshAnomalyAppearance();
-        }
-        if (roverTask.timer >= 2.8) {
-          roverTask = { mode: 'returning' };
-        }
-      } else if (roverTask.mode === 'returning') {
-        const targetX = roverHomeOrigin.x + Math.cos(roverAngle) * 2.4;
-        const targetZ = roverHomeOrigin.z + Math.sin(roverAngle) * 1.6;
-        const dx = targetX - roverWorldX;
-        const dz = targetZ - roverWorldZ;
-        const dist = Math.hypot(dx, dz);
-        const desiredYaw = Math.atan2(-dz, dx);
-        roverHeading += shortestAngleDelta(roverHeading, desiredYaw) * Math.min(1, dtSec * 5.5);
-        scannerBeamMesh.visible = false;
-        scannerRingMesh.visible = false;
-        scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * Math.min(1, dtSec * 5);
-        mastCamPivot.rotation.y *= 0.9;
-        if (dist > 0.35) {
-          const step = Math.min(dist, dtSec * 6.5);
-          roverWorldX += (dx / dist) * step;
-          roverWorldZ += (dz / dist) * step;
-          roverSpeed = 5.5;
-        } else {
-          roverTask = { mode: 'patrol' };
+  const computeDetourStep = (
+    curX: number,
+    curZ: number,
+    goalX: number,
+    goalZ: number,
+    stepLen: number,
+  ): { x: number; z: number; moveYaw: number } => {
+    const toGoalX = goalX - curX;
+    const toGoalZ = goalZ - curZ;
+    const goalDist = Math.max(1e-4, Math.hypot(toGoalX, toGoalZ));
+    let dirX = toGoalX / goalDist;
+    let dirZ = toGoalZ / goalDist;
+
+    for (const obs of activeObstacles) {
+      const minDist = obs.radius + 1.45;
+      const dx = curX - obs.x;
+      const dz = curZ - obs.z;
+      const d = Math.hypot(dx, dz);
+      // Si el obstáculo está justo adelante dentro de una franja de anticipación, rodea tangencialmente
+      if (d < minDist + 1.1) {
+        const nx = d > 1e-4 ? dx / d : 1;
+        const nz = d > 1e-4 ? dz / d : 0;
+        const headingInto = dirX * nx + dirZ * nz;
+        if (headingInto < 0.2) {
+          const t1x = -nz;
+          const t1z = nx;
+          const dot1 = dirX * t1x + dirZ * t1z;
+          // Desempate determinista si va 100% frontal al centro del obstáculo
+          const sign = Math.abs(dot1) > 0.08 ? Math.sign(dot1) : obs.x >= 0 ? -1 : 1;
+          const tx = t1x * sign;
+          const tz = t1z * sign;
+          const pushOut = Math.max(0, (minDist + 0.45 - d) * 0.7);
+          dirX = tx + nx * pushOut;
+          dirZ = tz + nz * pushOut;
+          const mag = Math.max(1e-4, Math.hypot(dirX, dirZ));
+          dirX /= mag;
+          dirZ /= mag;
+          break;
         }
       }
+    }
 
-      const ry = sampleWorldTerrainHeight(roverWorldX, roverWorldZ, siteId, terrainSeed);
-      rover.motionRoot.position.set(
-        roverWorldX - roverHomeOrigin.x,
-        ry,
-        roverWorldZ - roverHomeOrigin.z,
-      );
-      rover.visual.rotation.y = roverHeading;
-      // Inclinación suave siguiendo la pendiente del terreno en dirección de avance
+    const rawX = curX + dirX * stepLen;
+    const rawZ = curZ + dirZ * stepLen;
+    const safe = resolveObstacleAndBounds(rawX, rawZ);
+    const actualDx = safe.x - curX;
+    const actualDz = safe.z - curZ;
+    const moveYaw =
+      Math.hypot(actualDx, actualDz) > 1e-4
+        ? Math.atan2(-actualDz, actualDx)
+        : Math.atan2(-dirZ, dirX);
+    return { x: safe.x, z: safe.z, moveYaw };
+  };
+
+    // R01/M03: Cinemática del Rover (control manual por física planetaria o expedición autónoma)
+    if (roverMoving) {
+      let ry = sampleTerrainAt(roverWorldX, roverWorldZ);
+      if (roverTask.mode === 'manual') {
+        const tele = roverCtrl.step({
+          dt: dtSec,
+          input: roverInput,
+          getTerrainHeight: sampleTerrainAt,
+          obstacles: activeObstacles,
+          disabled: !roverMoving,
+        });
+        roverWorldX = tele.x;
+        roverWorldZ = tele.z;
+        ry = tele.y;
+        roverHeading = tele.heading;
+        roverPitch = tele.pitch;
+        roverRoll = tele.roll;
+        roverSuspensionHeave = tele.suspensionHeave;
+        roverSuspensionPitch = tele.suspensionPitch;
+        roverSteerAngle = tele.steerAngle;
+        roverSpeed = tele.linearVelocity;
+        roverWheelSpinDelta = tele.wheelSpinDelta;
+        roverHitBoundary = tele.hitBoundary;
+        roverCollidedWith = tele.collidedWith;
+
+        scannerBeamMesh.visible = false;
+        scannerRingMesh.visible = false;
+        scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * Math.min(1, dtSec * 5);
+        mastCamPivot.rotation.y +=
+          (roverSteerAngle * 0.55 - mastCamPivot.rotation.y) * Math.min(1, dtSec * 6);
+      } else {
+        roverHitBoundary = false;
+        roverCollidedWith = null;
+        if (roverTask.mode === 'patrol') {
+          roverAngle += dtSec * 0.09;
+          const targetX = roverHomeOrigin.x + Math.cos(roverAngle) * 2.4;
+          const targetZ = roverHomeOrigin.z + Math.sin(roverAngle) * 1.6;
+          const dx = targetX - roverWorldX;
+          const dz = targetZ - roverWorldZ;
+          const dist = Math.hypot(dx, dz);
+          if (dist > 0.01) {
+            const safe = computeDetourStep(
+              roverWorldX,
+              roverWorldZ,
+              targetX,
+              targetZ,
+              dist * Math.min(1, dtSec * 2.5),
+            );
+            roverWorldX = safe.x;
+            roverWorldZ = safe.z;
+            const deltaY = shortestAngleDelta(roverHeading, safe.moveYaw);
+            roverSteerAngle = Math.max(-0.48, Math.min(0.48, deltaY));
+            roverHeading += deltaY * Math.min(1, dtSec * 5);
+          }
+          roverSpeed = 1.8;
+          scannerBeamMesh.visible = false;
+          scannerRingMesh.visible = false;
+          scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * Math.min(1, dtSec * 5);
+          mastCamPivot.rotation.y = Math.sin(elapsedSec * 0.85) * 0.48;
+        } else if (roverTask.mode === 'driving') {
+          const dx = roverTask.targetX - roverWorldX;
+          const dz = roverTask.targetZ - roverWorldZ;
+          const dist = Math.hypot(dx, dz);
+          const step = Math.min(dist, dtSec * 8.2);
+          if (dist > 0.35) {
+            const safe = computeDetourStep(roverWorldX, roverWorldZ, roverTask.targetX, roverTask.targetZ, step);
+            roverWorldX = safe.x;
+            roverWorldZ = safe.z;
+            const deltaY = shortestAngleDelta(roverHeading, safe.moveYaw);
+            roverSteerAngle = Math.max(-0.48, Math.min(0.48, deltaY));
+            roverHeading += deltaY * Math.min(1, dtSec * 6.5);
+            roverSpeed = 7.4;
+          } else {
+            roverWorldX = roverTask.targetX;
+            roverWorldZ = roverTask.targetZ;
+            roverTask = {
+              mode: 'scanning',
+              anomalyId: roverTask.anomalyId,
+              lookX: roverTask.lookX,
+              lookZ: roverTask.lookZ,
+              timer: 0,
+            };
+            roverSpeed = 0;
+            roverSteerAngle = 0;
+          }
+          scannerBeamMesh.visible = false;
+          scannerRingMesh.visible = false;
+          scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * Math.min(1, dtSec * 5);
+          mastCamPivot.rotation.y = Math.sin(elapsedSec * 2.2) * 0.22;
+        } else if (roverTask.mode === 'scanning') {
+          roverTask.timer += dtSec;
+          const lookYaw = Math.atan2(-(roverTask.lookZ - roverWorldZ), roverTask.lookX - roverWorldX);
+          roverHeading += shortestAngleDelta(roverHeading, lookYaw) * Math.min(1, dtSec * 7);
+          roverSpeed = 0;
+          roverSteerAngle = 0;
+          scannerArmPivot.rotation.z = -0.52 + Math.sin(elapsedSec * 7) * 0.12;
+          mastCamPivot.rotation.y = Math.sin(elapsedSec * 4) * 0.14;
+          const scanActive = roverTask.timer < 1.8;
+          scannerBeamMesh.visible = scanActive;
+          scannerBeamMat.opacity = 0.55 + Math.sin(elapsedSec * 18) * 0.25;
+          scannerRingMesh.visible = scanActive;
+          if (scanActive) {
+            const groundScanY = sampleTerrainAt(roverTask.lookX, roverTask.lookZ) + 0.14;
+            const phase = (roverTask.timer % 0.9) / 0.9;
+            scannerRingMesh.position.set(roverTask.lookX, groundScanY, roverTask.lookZ);
+            scannerRingMesh.scale.setScalar(0.65 + phase * 1.85);
+            scannerRingMat.opacity = (1 - phase) * 0.9;
+          }
+          if (roverTask.timer >= 1.8 && !scannedVisualIds.has(roverTask.anomalyId)) {
+            scannedVisualIds.add(roverTask.anomalyId);
+            refreshAnomalyAppearance();
+          }
+          if (roverTask.timer >= 2.8) {
+            roverTask = hasManualDrive ? { mode: 'manual' } : { mode: 'returning' };
+          }
+        } else if (roverTask.mode === 'returning') {
+          const targetX = roverHomeOrigin.x + Math.cos(roverAngle) * 2.4;
+          const targetZ = roverHomeOrigin.z + Math.sin(roverAngle) * 1.6;
+          const dx = targetX - roverWorldX;
+          const dz = targetZ - roverWorldZ;
+          const dist = Math.hypot(dx, dz);
+          scannerBeamMesh.visible = false;
+          scannerRingMesh.visible = false;
+          scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * Math.min(1, dtSec * 5);
+          mastCamPivot.rotation.y *= 0.9;
+          if (dist > 0.35) {
+            const step = Math.min(dist, dtSec * 6.5);
+            const safe = computeDetourStep(roverWorldX, roverWorldZ, targetX, targetZ, step);
+            roverWorldX = safe.x;
+            roverWorldZ = safe.z;
+            const deltaY = shortestAngleDelta(roverHeading, safe.moveYaw);
+            roverSteerAngle = Math.max(-0.48, Math.min(0.48, deltaY));
+            roverHeading += deltaY * Math.min(1, dtSec * 5.5);
+            roverSpeed = 5.5;
+          } else {
+            roverTask = { mode: 'patrol' };
+          }
+        }
+
+        roverCtrl.setPose({
+          x: roverWorldX,
+          z: roverWorldZ,
+          heading: roverHeading,
+          velocity: roverSpeed,
+        });
+        const fxAuto = Math.cos(roverHeading);
+        const fzAuto = -Math.sin(roverHeading);
+        const rxAuto = Math.sin(roverHeading);
+        const rzAuto = Math.cos(roverHeading);
+        const hF = sampleTerrainAt(roverWorldX + fxAuto * 0.95, roverWorldZ + fzAuto * 0.95);
+        const hR = sampleTerrainAt(roverWorldX - fxAuto * 0.95, roverWorldZ - fzAuto * 0.95);
+        const hL = sampleTerrainAt(roverWorldX - rxAuto * 1.05, roverWorldZ - rzAuto * 1.05);
+        const hRt = sampleTerrainAt(roverWorldX + rxAuto * 1.05, roverWorldZ + rzAuto * 1.05);
+        ry = Math.max(sampleTerrainAt(roverWorldX, roverWorldZ), (hF + hR + hL + hRt) * 0.25);
+        roverPitch = Math.max(-0.36, Math.min(0.36, Math.atan2(hF - hR, 1.9)));
+        roverRoll = Math.max(-0.32, Math.min(0.32, Math.atan2(hL - hRt, 2.1)));
+        roverSuspensionHeave = 0;
+        roverSuspensionPitch = 0;
+        roverWheelSpinDelta = (roverSpeed / 0.42) * dtSec;
+      }
+
       const fx = Math.cos(roverHeading);
       const fz = -Math.sin(roverHeading);
-      const yAhead = sampleWorldTerrainHeight(roverWorldX + fx * 1.1, roverWorldZ + fz * 1.1, siteId, terrainSeed);
-      const ySide = sampleWorldTerrainHeight(roverWorldX - fz * 0.9, roverWorldZ + fx * 0.9, siteId, terrainSeed);
-      rover.visual.rotation.z = Math.max(-0.28, Math.min(0.28, Math.atan2(yAhead - ry, 1.1)));
-      rover.visual.rotation.x = Math.max(-0.25, Math.min(0.25, Math.atan2(ry - ySide, 0.9)));
-      for (const w of wheels) w.rotation.y -= dtSec * roverSpeed;
+      rover.motionRoot.position.set(
+        roverWorldX - roverHomeOrigin.x,
+        ry + roverSuspensionHeave,
+        roverWorldZ - roverHomeOrigin.z,
+      );
+      rover.visual.rotation.order = 'YZX';
+      rover.visual.rotation.y = roverHeading;
+      rover.visual.rotation.z = roverPitch + roverSuspensionPitch;
+      rover.visual.rotation.x = roverRoll;
+      for (const w of wheels) w.rotation.y -= roverWheelSpinDelta;
 
-      if (roverSpeed > 2.4) {
+      if (Math.abs(roverSpeed) > 1.9) {
         const wakeArr = (wakeGeo.attributes.position as THREE.BufferAttribute).array as Float32Array;
+        const dirSign = roverSpeed >= 0 ? 1 : -1;
         for (let i = 0; i < wakeCount; i++) {
           const sideSign = i % 2 === 0 ? 1.0 : -1.0;
           const trail = ((elapsedSec * 3.8 + i * 0.27) % 1.0);
-          const backDist = 1.05 + trail * 2.2;
+          const backDist = (1.05 + trail * 2.2) * dirSign;
           const lateral = sideSign * (0.95 + trail * 0.25);
           wakeArr[i * 3] = roverWorldX - fx * backDist - fz * lateral;
           wakeArr[i * 3 + 1] = ry + 0.12 + trail * 0.48;
@@ -3991,6 +4323,8 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     getEvolutionState,
     getAnomalies,
     dispatchRoverToAnomaly,
+    setRoverControlInput,
+    getRoverTelemetry,
     getRoverPose,
     triggerMaintenanceAnimation,
     replaceModuleVisual,
