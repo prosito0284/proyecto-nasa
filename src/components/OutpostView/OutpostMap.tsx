@@ -1663,6 +1663,8 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                         : smp.accentHex === 0x00e5ff
                           ? '#00E5FF'
                           : '#FFB300';
+                      const hitX = Math.max(-pos.x, Math.min(-60, 860 - pos.x - 120));
+                      const hitY = Math.max(-pos.y, Math.min(-60, 280 - pos.y - 120));
                       return (
                         <g
                           key={smp.id}
@@ -1682,7 +1684,13 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                           onClick={() => handleCollect2DSample(smp)}
                           onKeyDown={(e) => handle2DSampleKeyDown(e, smp)}
                         >
-                          <circle cx="0" cy="0" r="18" fill="transparent" />
+                          <rect
+                            x={hitX}
+                            y={hitY}
+                            width="120"
+                            height="120"
+                            fill="transparent"
+                          />
                           <circle
                             cx="0"
                             cy="0"

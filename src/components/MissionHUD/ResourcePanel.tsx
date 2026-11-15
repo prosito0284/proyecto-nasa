@@ -221,21 +221,21 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
     {
       id: 'power',
       icon: <BatteryIcon size={16} />,
-      label: lang === 'es' ? 'Energía (Baterías)' : 'Power (Batteries)',
+      label: lang === 'es' ? 'Energía' : 'Power',
       value: resources.power,
       unit: '%',
     },
     {
       id: 'lifeSupport',
       icon: <DropletIcon size={16} />,
-      label: lang === 'es' ? 'Soporte Vital (O₂/H₂O)' : 'Life Support (O₂/H₂O)',
+      label: lang === 'es' ? 'Soporte vital (O₂)' : 'Life support (O₂)',
       value: resources.lifeSupport,
       unit: '%',
     },
     {
       id: 'shielding',
       icon: <ShieldIcon size={16} />,
-      label: lang === 'es' ? 'Blindaje Radiación' : 'Radiation Shielding',
+      label: lang === 'es' ? 'Blindaje' : 'Shielding',
       value: resources.shielding,
       unit: '%',
     },
@@ -249,7 +249,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
     {
       id: 'crewHealth',
       icon: <HelmetIcon size={16} />,
-      label: lang === 'es' ? 'Salud Tripulación' : 'Crew Health',
+      label: lang === 'es' ? 'Salud tripulación' : 'Crew health',
       value: resources.crewHealth,
       unit: '%',
     },

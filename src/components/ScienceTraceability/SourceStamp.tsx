@@ -157,7 +157,12 @@ export const SourceStamp: React.FC<SourceStampProps> = ({
         target="_blank"
         rel="noopener noreferrer"
         className="nasa-source-stamp nasa-source-stamp--link"
-        style={stampStyle}
+        style={{
+          ...stampStyle,
+          minHeight: '44px',
+          minWidth: '44px',
+          padding: '0.35rem 0.6rem',
+        }}
         aria-label={ariaLabel}
         title={ariaLabel}
       >
