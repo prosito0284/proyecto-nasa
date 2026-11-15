@@ -2638,6 +2638,7 @@ export interface ColonyWorldHandle {
   dispatchRoverToAnomaly: (anomalyId: string) => boolean;
   dispatchRoverToSample: (sampleId: string) => boolean;
   collectSample: (sampleId: string) => boolean;
+  returnRoverToBase: () => boolean;
   setRoverControlInput: (input: RoverControlInput) => void;
   getRoverTelemetry: () => RoverTelemetrySnapshot;
   getRoverPose: (outPos: THREE.Vector3, outForward: THREE.Vector3) => void;
@@ -3606,7 +3607,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     startWorldPos: THREE.Vector3;
     lookX: number;
     lookZ: number;
-    resumeTask: 'manual' | 'returning';
+    resumeTask: 'manual' | 'returning' | 'returning-base';
   }
   let activeSampleCollection: ActiveSampleCollection | null = null;
 
@@ -3732,6 +3733,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     | { mode: 'scanning'; anomalyId: string; lookX: number; lookZ: number; timer: number }
     | { mode: 'driving-sample'; sampleId: string; targetX: number; targetZ: number; lookX: number; lookZ: number }
     | { mode: 'collecting-sample'; sampleId: string }
+    | { mode: 'returning-base'; targetX: number; targetZ: number }
     | { mode: 'returning' };
   let roverTask: RoverTask = { mode: 'patrol' };
 
@@ -4101,7 +4103,11 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
           z: roverWorldZ,
           heading: roverHeading,
           velocity:
-            roverTask.mode === 'driving' || roverTask.mode === 'driving-sample' ? roverSpeed : 0,
+            roverTask.mode === 'driving' ||
+            roverTask.mode === 'driving-sample' ||
+            roverTask.mode === 'returning-base'
+              ? roverSpeed
+              : 0,
         });
         roverTask = { mode: 'manual' };
       }
@@ -4202,6 +4208,23 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       targetZ: safeTarget.z,
       lookX: sx,
       lookZ: sz,
+    };
+    return true;
+  };
+
+  const returnRoverToBase = (): boolean => {
+    if (!roverMoving) return false;
+    hasManualDrive = true;
+    roverInput = { ...EMPTY_ROVER_INPUT };
+    if (activeSampleCollection) {
+      activeSampleCollection.resumeTask = 'returning-base';
+      return true;
+    }
+    const baseDock = resolveObstacleAndBounds(6.8, 6.0);
+    roverTask = {
+      mode: 'returning-base',
+      targetX: baseDock.x,
+      targetZ: baseDock.z,
     };
     return true;
   };
@@ -4667,6 +4690,31 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
           } else {
             roverTask = { mode: 'patrol' };
           }
+        } else if (roverTask.mode === 'returning-base') {
+          const dx = roverTask.targetX - roverWorldX;
+          const dz = roverTask.targetZ - roverWorldZ;
+          const dist = Math.hypot(dx, dz);
+          setScannerLaserState(false);
+          const retractBlend = Math.min(1, dtSec * 5);
+          scannerArmPivot.rotation.z += (armRestZ - scannerArmPivot.rotation.z) * retractBlend;
+          scannerArmPivot.rotation.y += (0 - scannerArmPivot.rotation.y) * retractBlend;
+          mastCamPivot.rotation.y *= 0.9;
+          if (dist > 0.42) {
+            const step = Math.min(dist, dtSec * 8.2);
+            const safe = computeDetourStep(roverWorldX, roverWorldZ, roverTask.targetX, roverTask.targetZ, step);
+            roverWorldX = safe.x;
+            roverWorldZ = safe.z;
+            const deltaY = shortestAngleDelta(roverHeading, safe.moveYaw);
+            roverSteerAngle = Math.max(-0.48, Math.min(0.48, deltaY));
+            roverHeading += deltaY * Math.min(1, dtSec * 6.5);
+            roverSpeed = Math.min(7.8, Math.max(2.2, dist * 1.4));
+          } else {
+            roverWorldX = roverTask.targetX;
+            roverWorldZ = roverTask.targetZ;
+            roverSpeed = 0;
+            roverSteerAngle = 0;
+            roverTask = { mode: 'manual' };
+          }
         }
 
         if (!activeSampleCollection) {
@@ -4795,9 +4843,19 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
           if (doneRt) {
             doneRt.collected = true;
           }
-          const resume = hasManualDrive ? 'manual' : activeSampleCollection.resumeTask;
+          const queuedResume =
+            activeSampleCollection.resumeTask === 'returning-base'
+              ? 'returning-base'
+              : hasManualDrive
+                ? 'manual'
+                : activeSampleCollection.resumeTask;
           activeSampleCollection = null;
-          roverTask = { mode: resume };
+          if (queuedResume === 'returning-base') {
+            const baseDock = resolveObstacleAndBounds(6.8, 6.0);
+            roverTask = { mode: 'returning-base', targetX: baseDock.x, targetZ: baseDock.z };
+          } else {
+            roverTask = { mode: queuedResume };
+          }
           roverSpeed = 0;
           roverSteerAngle = 0;
           setScannerLaserState(false);
@@ -4925,6 +4983,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     dispatchRoverToAnomaly,
     dispatchRoverToSample,
     collectSample,
+    returnRoverToBase,
     setRoverControlInput,
     getRoverTelemetry,
     getRoverPose,

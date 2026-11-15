@@ -96,6 +96,7 @@ export interface RoverControlsOverlayProps {
   onCameraModeChange?: (mode: ColonyCameraMode) => void;
   nearbySample?: NearbySamplePrompt | null;
   onCollectSample?: (sampleId: string) => void;
+  onReturnToBase?: () => void;
   telemetry?: RoverTelemetryHudData;
   onDirectionChange: (direction: RoverDirectionKey, pressed: boolean) => void;
 }
@@ -205,6 +206,7 @@ export const RoverControlsOverlay: React.FC<RoverControlsOverlayProps> = ({
   onCameraModeChange,
   nearbySample = null,
   onCollectSample,
+  onReturnToBase,
   telemetry,
   onDirectionChange,
 }) => {
@@ -213,7 +215,8 @@ export const RoverControlsOverlay: React.FC<RoverControlsOverlayProps> = ({
   const statusCode = disabled ? 'ROVER OFF' : `${Math.abs(speedMps).toFixed(1)} m/s`;
   const showCameraSelector = cameraMode !== undefined || onCameraModeChange !== undefined;
   const showCollectButton = Boolean(nearbySample && onCollectSample);
-  const showLeftCluster = showCameraSelector || showCollectButton;
+  const showReturnButton = Boolean(onReturnToBase);
+  const showLeftCluster = showCameraSelector || showCollectButton || showReturnButton;
   const activeCamera: ColonyCameraMode = cameraMode ?? 'orbital';
   const radarDist = telemetry?.nearestSampleDistance ?? null;
   const radarNear = radarDist !== null && radarDist <= 3.8;
@@ -280,6 +283,29 @@ export const RoverControlsOverlay: React.FC<RoverControlsOverlayProps> = ({
                 })}
               </div>
             </div>
+          )}
+
+          {showReturnButton && onReturnToBase && (
+            <button
+              type="button"
+              data-testid="rover-return-base-btn"
+              className="rover-return-btn"
+              disabled={disabled}
+              aria-label={
+                es
+                  ? 'Regresar el rover junto al domo central de la base'
+                  : 'Return rover beside central colony dome'
+              }
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                focusSiblingViewport(e.currentTarget);
+              }}
+              onPointerUp={(e) => e.stopPropagation()}
+              onClick={() => onReturnToBase()}
+            >
+              <ArrowIcon size={14} direction="left" />
+              <span>{es ? 'REGRESAR A BASE' : 'RETURN TO BASE'}</span>
+            </button>
           )}
         </div>
       )}

@@ -435,6 +435,42 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     syncRoverDriveState();
   };
 
+  const handleReturnToBase = () => {
+    pressedKeysRef.current.clear();
+    pointerDirectionsRef.current = { ...EMPTY_ROVER_DIRECTIONS };
+    syncRoverDriveState();
+    desiredPoseRef.current = null;
+    if (latestOptionsRef.current.isLowPowerBlackout) {
+      missionAudio.playAlert();
+      setTacticalNotice({
+        id: 'blackout-return-base',
+        tone: 'warn',
+        badge: es ? 'ROVER SIN ENERGÍA' : 'ROVER OFFLINE',
+        text: es
+          ? 'Batería bajo 15 %. Recarga energía antes de mover el rover.'
+          : 'Power below 15%. Recharge battery before moving the rover.',
+        autoDismissMs: 3500,
+      });
+      return;
+    }
+    if (isPausedRef.current) {
+      setIsPaused(false);
+    }
+    missionAudio.playClick();
+    const engaged = worldRef.current?.returnRoverToBase() ?? true;
+    if (engaged) {
+      setTacticalNotice({
+        id: 'return-base-active',
+        tone: 'info',
+        badge: es ? 'RETORNO A BASE' : 'RETURN TO BASE',
+        text: es
+          ? 'Rover regresando junto al domo central de la colonia.'
+          : 'Rover returning smoothly beside central colony dome.',
+        autoDismissMs: 2800,
+      });
+    }
+  };
+
   useEffect(() => {
     autoScannedIdsRef.current = new Set(options.scannedAnomalyIds ?? []);
   }, [siteId, effectiveSeed, options.currentDay, options.scannedAnomalyIds]);
@@ -2099,6 +2135,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
               onCameraModeChange={selectCameraMode}
               nearbySample={nearbySample}
               onCollectSample={(id) => collectSampleById(id)}
+              onReturnToBase={handleReturnToBase}
               telemetry={{
                 sciencePoints:
                   options.sciencePoints ??

@@ -4,7 +4,7 @@
  * y simulador de retraso de señal plegados por defecto, usando iconos SVG de trazo (cero emoji).
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CoreResources,
   Language,
@@ -19,6 +19,8 @@ import {
   AntennaIcon,
   ArrowIcon,
   BatteryIcon,
+  CheckIcon,
+  CloseIcon,
   DropletIcon,
   DustIcon,
   HelmetIcon,
@@ -34,11 +36,17 @@ import { ColonyWorld3D } from '../Three/ColonyWorld3D';
 import {
   type ColonyWorldModuleId,
   type ColonyWorldStateOptions,
+  DEFAULT_TERRAIN_SEED,
+  generateTurnAnomalies,
+  generateTurnSamples,
   getModuleGlossaryTermId,
   getModulesNeedingMaintenance,
+  normalizeTerrainSeed,
+  sampleWorldTerrainHeight,
   type SurfaceSampleSpec,
   type WorldAnomalySpec,
 } from '../Three/proceduralModels';
+import { formatSampleBadge } from '../Three/sampleManager';
 
 export interface OutpostMapProps {
   lang: Language;
@@ -255,11 +263,125 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
     maintainedModuleIds: maintainedModules,
   };
   const pendingMaintenance = getModulesNeedingMaintenance(colonyWorldOptions, maintainedModules);
+  const effectiveSeed = normalizeTerrainSeed(terrainSeed ?? DEFAULT_TERRAIN_SEED);
+  const turnAnomalies = useMemo(
+    () => generateTurnAnomalies(site.id, effectiveSeed, currentDay),
+    [site.id, effectiveSeed, currentDay],
+  );
+  const turnSamples = useMemo(
+    () =>
+      generateTurnSamples(site.id, effectiveSeed, currentDay, {
+        getTerrainHeight: (x, z) => sampleWorldTerrainHeight(x, z, site.id, effectiveSeed),
+        avoidPositions: turnAnomalies.map((a) => ({
+          x: a.position[0],
+          z: a.position[2],
+          minDist: 4.6,
+        })),
+      }),
+    [site.id, effectiveSeed, currentDay, turnAnomalies],
+  );
+  const collectedKey2D = (collectedSampleIds ?? []).join(',');
+  const [localCollected2DIds, setLocalCollected2DIds] = useState<string[]>(
+    collectedSampleIds ?? [],
+  );
+  const [notice2D, setNotice2D] = useState<{
+    id: string;
+    tone: 'ok' | 'warn' | 'info';
+    title?: string;
+    badge: string;
+    text: string;
+    glossaryTermId?: string;
+    autoDismissMs?: number;
+  } | null>(null);
+
+  useEffect(() => {
+    setLocalCollected2DIds(collectedSampleIds ?? []);
+  }, [site.id, effectiveSeed, currentDay, collectedKey2D]);
+
+  useEffect(() => {
+    if (!notice2D?.autoDismissMs) return;
+    const timer = window.setTimeout(() => {
+      setNotice2D((prev) => (prev?.id === notice2D.id ? null : prev));
+    }, notice2D.autoDismissMs);
+    return () => window.clearTimeout(timer);
+  }, [notice2D?.id, notice2D?.autoDismissMs]);
+
+  const collected2DSamplesSet = useMemo(() => {
+    const merged = new Set(collectedSampleIds ?? []);
+    for (const sid of localCollected2DIds) merged.add(sid);
+    return merged;
+  }, [collectedSampleIds, localCollected2DIds]);
+
+  const extraLocal2DSciencePts = useMemo(() => {
+    const propSet = new Set(collectedSampleIds ?? []);
+    let sum = 0;
+    for (const smp of turnSamples) {
+      if (collected2DSamplesSet.has(smp.id) && !propSet.has(smp.id)) {
+        sum += smp.points;
+      }
+    }
+    return sum;
+  }, [turnSamples, collectedSampleIds, collected2DSamplesSet]);
+
+  const displaySciencePoints2D = resources.sciencePoints + extraLocal2DSciencePts;
+  const collected2DCount = turnSamples.filter((smp) => collected2DSamplesSet.has(smp.id)).length;
+
+  const handleCollect2DSample = (smp: SurfaceSampleSpec) => {
+    if (isLowPowerBlackout) {
+      missionAudio.playAlert();
+      setNotice2D({
+        id: `blackout-2d-${smp.id}`,
+        tone: 'warn',
+        badge: lang === 'es' ? 'ROVER SIN ENERGÍA' : 'ROVER OFFLINE',
+        text:
+          lang === 'es'
+            ? 'Batería bajo 15 %. Recarga energía antes de recolectar.'
+            : 'Power below 15%. Recharge battery before collecting.',
+        autoDismissMs: 4000,
+      });
+      return;
+    }
+    if (collected2DSamplesSet.has(smp.id)) {
+      missionAudio.playClick();
+      setNotice2D({
+        id: `revisit-2d-${smp.id}`,
+        tone: 'info',
+        title: smp.title[lang],
+        badge: smp.code,
+        text: smp.finding[lang],
+        glossaryTermId: smp.glossaryTermId,
+        autoDismissMs: 4000,
+      });
+      return;
+    }
+    missionAudio.playSampleCollect();
+    setLocalCollected2DIds((prev) => (prev.includes(smp.id) ? prev : [...prev, smp.id]));
+    onCollectSample?.(smp);
+    onTutorialAction?.('step-outpost-map');
+    setNotice2D({
+      id: `sample-2d-${smp.id}`,
+      tone: 'ok',
+      title: smp.title[lang],
+      badge: formatSampleBadge(smp, lang),
+      text: smp.finding[lang],
+      glossaryTermId: smp.glossaryTermId,
+      autoDismissMs: 4000,
+    });
+  };
+
+  const handle2DSampleKeyDown = (e: React.KeyboardEvent, smp: SurfaceSampleSpec) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      handleCollect2DSample(smp);
+    }
+  };
 
   useEffect(() => {
     clearCommInterval();
     setCommState('idle');
     setCommProgress(0);
+    setNotice2D(null);
     return () => {
       clearCommInterval();
     };
@@ -1501,9 +1623,201 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                     </text>
                   </g>
                 )}
+
+                {/* 12. R08: Marcadores accesibles de muestras científicas del turno en Mapa 2D */}
+                <g className="svg-2d-samples-layer">
+                  {(() => {
+                    const blueprintSlots: ReadonlyArray<{ x: number; y: number }> = [
+                      { x: 56, y: 230 },
+                      { x: 238, y: 224 },
+                      { x: 314, y: 248 },
+                      { x: 415, y: 250 },
+                      { x: 526, y: 224 },
+                      { x: 622, y: 250 },
+                    ];
+                    const ordered = [...turnSamples].sort((a, b) => a.position[0] - b.position[0]);
+                    return ordered.map((smp, idx) => {
+                      const pos = blueprintSlots[idx % blueprintSlots.length];
+                      const collected = collected2DSamplesSet.has(smp.id);
+                      const accent = collected
+                        ? '#2E7D4F'
+                        : smp.accentHex === 0x00e5ff
+                          ? '#00E5FF'
+                          : '#FFB300';
+                      return (
+                        <g
+                          key={smp.id}
+                          transform={`translate(${pos.x}, ${pos.y})`}
+                          className={`svg-sample-node ${collected ? 'svg-sample-collected' : ''}`.trim()}
+                          role="button"
+                          tabIndex={0}
+                          data-testid={`svg-2d-sample-${smp.id}`}
+                          aria-pressed={collected}
+                          aria-label={`${smp.title[lang]}${
+                            collected
+                              ? lang === 'es'
+                                ? ' (recolectada)'
+                                : ' (collected)'
+                              : ` (+${smp.points} pts)`
+                          }`}
+                          onClick={() => handleCollect2DSample(smp)}
+                          onKeyDown={(e) => handle2DSampleKeyDown(e, smp)}
+                        >
+                          <circle cx="0" cy="0" r="18" fill="transparent" />
+                          <circle
+                            cx="0"
+                            cy="0"
+                            r="11.5"
+                            fill="none"
+                            stroke={accent}
+                            strokeWidth="1.4"
+                            strokeDasharray={collected ? undefined : '3 2'}
+                          />
+                          {collected ? (
+                            <path
+                              d="M-4.5,0.5 L-1.2,4 L5,-3.5"
+                              fill="none"
+                              stroke="#4ADE80"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          ) : (
+                            <polygon
+                              points="0,-7.5 6.5,5.5 -6.5,5.5"
+                              fill={accent}
+                              stroke={skyBg}
+                              strokeWidth="1"
+                            />
+                          )}
+                          <text
+                            x="0"
+                            y="21"
+                            textAnchor="middle"
+                            fill={collected ? '#4ADE80' : inkPrimary}
+                            fontSize="8.5"
+                            fontFamily="IBM Plex Mono, monospace"
+                            fontWeight="bold"
+                          >
+                            {collected ? `${smp.code} OK` : `${smp.code} +${smp.points}`}
+                          </text>
+                        </g>
+                      );
+                    });
+                  })()}
+                </g>
               </svg>
             );
           })()}
+
+          <div
+            className="outpost-2d-telemetry-bar"
+            data-testid="outpost-2d-telemetry-bar"
+            role="region"
+            aria-label={
+              lang === 'es'
+                ? 'Telemetría de recolección en mapa 2D'
+                : '2D blueprint sample telemetry'
+            }
+          >
+            <span className="outpost-2d-chip outpost-2d-science" data-testid="outpost-2d-science">
+              {lang === 'es'
+                ? `CIENCIA: ${displaySciencePoints2D} PTS`
+                : `SCIENCE: ${displaySciencePoints2D} PTS`}
+            </span>
+            <span className="outpost-2d-chip" data-testid="outpost-2d-samples-count">
+              {lang === 'es'
+                ? `MUESTRAS: ${collected2DCount}/${turnSamples.length}`
+                : `SAMPLES: ${collected2DCount}/${turnSamples.length}`}
+            </span>
+            <span className="outpost-2d-chip">
+              {lang === 'es'
+                ? 'VISTA 2D // CLICK O ENTER EN MUESTRAS'
+                : '2D VIEW // CLICK OR ENTER SAMPLES'}
+            </span>
+          </div>
+
+          {notice2D && (
+            <div
+              className={`outpost-2d-notice tone-${notice2D.tone}`}
+              role="status"
+              aria-live="polite"
+              data-testid="outpost-2d-sample-notice"
+            >
+              <div className="outpost-2d-notice-copy">
+                <div className="outpost-2d-notice-head">
+                  {notice2D.title && <span className="outpost-2d-notice-title">{notice2D.title}</span>}
+                  <strong className="outpost-2d-notice-badge">{notice2D.badge}</strong>
+                </div>
+                <span>{notice2D.text}</span>
+              </div>
+              <div className="outpost-2d-notice-actions">
+                {notice2D.glossaryTermId && onOpenScienceModal && (
+                  <button
+                    type="button"
+                    className="colony3d-toast-science-btn"
+                    data-testid="outpost-2d-science-link-btn"
+                    onClick={() => {
+                      missionAudio.playClick();
+                      onOpenScienceModal(notice2D.glossaryTermId!);
+                    }}
+                  >
+                    <ScienceIcon size={14} />
+                    <span>{lang === 'es' ? 'Ficha NASA' : 'NASA file'}</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="colony3d-toast-close"
+                  onClick={() => {
+                    missionAudio.playClick();
+                    setNotice2D(null);
+                  }}
+                  aria-label={lang === 'es' ? 'Cerrar aviso científico' : 'Dismiss science notice'}
+                >
+                  <CloseIcon size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div
+            className="colony-samples-bar outpost-2d-samples-bar"
+            data-testid="outpost-2d-samples-bar"
+            role="group"
+            aria-label={
+              lang === 'es'
+                ? 'Muestras científicas recolectables en 2D'
+                : 'Collectible surface samples in 2D view'
+            }
+          >
+            <span className="colony-samples-label">
+              <ScienceIcon size={14} />
+              <span>{lang === 'es' ? 'Muestras del terreno:' : 'Surface samples:'}</span>
+              <span className="colony-samples-counter">
+                {`${collected2DCount}/${turnSamples.length}`}
+              </span>
+            </span>
+            {turnSamples.map((smp) => {
+              const collected = collected2DSamplesSet.has(smp.id);
+              return (
+                <button
+                  key={smp.id}
+                  type="button"
+                  data-testid={`outpost-2d-sample-btn-${smp.id}`}
+                  className={`viewer3d-btn colony-sample-btn ${
+                    collected ? 'colony-sample-collected' : ''
+                  }`.trim()}
+                  onClick={() => handleCollect2DSample(smp)}
+                  aria-pressed={collected}
+                >
+                  {collected ? <CheckIcon size={13} /> : <ScienceIcon size={13} />}
+                  <span>{smp.title[lang]}</span>
+                  <span className="colony-sample-pts">{collected ? 'OK' : `+${smp.points}`}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
         )}
 

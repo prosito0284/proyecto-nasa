@@ -1305,6 +1305,139 @@ body {
   opacity: 0.88;
 }
 
+.svg-sample-node {
+  cursor: pointer;
+}
+
+.svg-sample-node:hover {
+  opacity: 0.9;
+}
+
+.svg-sample-node:focus-visible {
+  outline: 3px solid #FC3D21;
+  outline-offset: 2px;
+}
+
+.outpost-2d-telemetry-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  padding: 0.38rem 0.6rem;
+  background-color: #080E1A;
+  color: #F8F3E8;
+  border-top: 1.5px solid #6794C1;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.svg-env-mars .outpost-2d-telemetry-bar {
+  background-color: #210F09;
+  border-top-color: #C87D52;
+}
+
+.outpost-2d-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.14rem 0.42rem;
+  background-color: #101A2B;
+  color: #B8D8F8;
+  border: 1px solid #486B8F;
+  border-radius: 2px;
+}
+
+.svg-env-mars .outpost-2d-chip {
+  background-color: #34190F;
+  color: #F4C39B;
+  border-color: #9C5B38;
+}
+
+.outpost-2d-science,
+.svg-env-mars .outpost-2d-science {
+  background-color: #0B3D91;
+  color: #FFFFFF;
+  border-color: #38BDF8;
+}
+
+.outpost-2d-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  background-color: #0B121E;
+  color: #F8F3E8;
+  border: 2px solid #2E7D4F;
+  border-radius: 2px;
+}
+
+.svg-env-mars .outpost-2d-notice {
+  background-color: #24110A;
+}
+
+.outpost-2d-notice.tone-warn {
+  border-color: #FFB300;
+}
+
+.outpost-2d-notice.tone-info {
+  border-color: #38BDF8;
+}
+
+.outpost-2d-notice-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.16rem;
+  flex: 1 1 260px;
+}
+
+.outpost-2d-notice-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.outpost-2d-notice-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #F8F3E8;
+}
+
+.outpost-2d-notice-badge {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: #4ADE80;
+  padding: 0.06rem 0.36rem;
+  border: 1px solid #2E7D4F;
+  border-radius: 2px;
+}
+
+.outpost-2d-notice.tone-warn .outpost-2d-notice-badge {
+  color: #FFB300;
+  border-color: #FFB300;
+}
+
+.outpost-2d-notice.tone-info .outpost-2d-notice-badge {
+  color: #38BDF8;
+  border-color: #38BDF8;
+}
+
+.outpost-2d-notice-copy > span {
+  font-size: 1rem;
+  line-height: 1.3;
+  color: #F8F3E8;
+}
+
+.outpost-2d-notice-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 @keyframes pulseSun {
   0%,
   100% {

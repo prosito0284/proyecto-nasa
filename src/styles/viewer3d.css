@@ -810,6 +810,52 @@
   opacity: 0.6;
 }
 
+.rover-return-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.35rem 0.65rem;
+  background-color: #162133;
+  color: #F8F3E8;
+  border: 1.5px solid #6794C1;
+  border-radius: 2px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.viewer3d-mars .rover-return-btn {
+  background-color: #3D1F14;
+  border-color: #C87D52;
+}
+
+.rover-return-btn:hover:not(:disabled) {
+  background-color: #1E3252;
+  border-color: #38BDF8;
+}
+
+.viewer3d-mars .rover-return-btn:hover:not(:disabled) {
+  background-color: #542B1D;
+  border-color: #F4C39B;
+}
+
+.rover-return-btn:focus-visible {
+  outline: 2px solid #38BDF8;
+  outline-offset: 1px;
+}
+
+.rover-return-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 /* R02: Cruceta táctil en pantalla (D-Pad mínimo 44x44px, esquinas 2px, cero sombras difusas) */
 .rover-dpad-overlay {
   position: absolute;
@@ -1084,7 +1130,8 @@
     font-size: 0.68rem;
   }
 
-  .rover-collect-btn {
+  .rover-collect-btn,
+  .rover-return-btn {
     width: 100%;
   }
 
