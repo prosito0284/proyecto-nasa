@@ -31,7 +31,7 @@ export interface OnboardingSpotlightProps {
 }
 
 const CALLOUT_WIDTH = 336;
-const CALLOUT_HEIGHT = 128;
+const CALLOUT_HEIGHT = 150;
 const CALLOUT_GAP = 20;
 const VIEWPORT_MARGIN = 12;
 

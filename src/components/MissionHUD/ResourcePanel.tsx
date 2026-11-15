@@ -52,7 +52,16 @@ export interface ResourcePanelProps {
   crew?: CrewStatus[];
   /** T04: Callback opcional para notificar acciones del entrenamiento guiado */
   onTutorialAction?: (stepId: string) => void;
+  /** F02: Indica si el simulacro de emergencia térmica del Paso 4 de onboarding está activo */
+  isOnboardingEmergency?: boolean;
 }
+
+export const BALANCED_POWER_ALLOCATION: PowerAllocation = {
+  lifeSupportAlloc: 35,
+  shieldingAlloc: 25,
+  greenhouseAlloc: 25,
+  scienceAndCommsAlloc: 15,
+};
 
 const POWER_PRESETS: Array<{
   id: 'balanced' | 'storm' | 'greenhouse' | 'science';
@@ -66,12 +75,7 @@ const POWER_PRESETS: Array<{
     icon: <SlidersIcon size={18} />,
     title: { es: 'Equilibrado', en: 'Balanced' },
     subtitle: { es: 'Estable para días normales', en: 'Steady for normal days' },
-    alloc: {
-      lifeSupportAlloc: 35,
-      shieldingAlloc: 25,
-      greenhouseAlloc: 25,
-      scienceAndCommsAlloc: 15,
-    },
+    alloc: BALANCED_POWER_ALLOCATION,
   },
   {
     id: 'storm',
@@ -120,6 +124,10 @@ function isSameAllocation(a: PowerAllocation, b: PowerAllocation): boolean {
   );
 }
 
+export function shouldCommitPresetChange(presetId?: string, isOnboardingEmergency = false): boolean {
+  return !(isOnboardingEmergency && presetId === 'storm');
+}
+
 export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   lang,
   resources,
@@ -132,6 +140,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   onOpenBadgesModal,
   crew,
   onTutorialAction,
+  isOnboardingEmergency = false,
 }) => {
   const [showAdvancedSliders, setShowAdvancedSliders] = useState(false);
   const [gridIgnited, setGridIgnited] = useState(false);
@@ -152,6 +161,13 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   const applyPreset = (preset: PowerAllocation, presetId?: string) => {
     missionAudio.playClick();
     setGridIgnited(true);
+    if (!shouldCommitPresetChange(presetId, isOnboardingEmergency)) {
+      onTutorialAction?.('step-power-presets');
+      onTutorialAction?.('power-grid');
+      onTutorialAction?.('power-preset-storm');
+      onTutorialAction?.('thermal-stabilizer');
+      return;
+    }
     onChangeAllocation(preset);
     onTutorialAction?.('step-power-presets');
     onTutorialAction?.('power-grid');

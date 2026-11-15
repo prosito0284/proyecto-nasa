@@ -9,9 +9,13 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from '../../App';
+import { App, resolvePostDrillAllocation } from '../../App';
 import { MissionBriefing } from '../../components/MissionHUD/MissionBriefing';
-import { ResourcePanel } from '../../components/MissionHUD/ResourcePanel';
+import {
+  BALANCED_POWER_ALLOCATION,
+  ResourcePanel,
+  shouldCommitPresetChange,
+} from '../../components/MissionHUD/ResourcePanel';
 import {
   computeOnboardingCutout,
   countCommandSentences,
@@ -359,5 +363,53 @@ describe('Interactive Ignition Onboarding (T01–T05)', () => {
     );
     expect(mobileCutout.height).toBe(56);
     expect(mobileCutout.top).toBe(62);
+  });
+
+  it('F02: restaura la asignación de energía tras el Paso 4 sin dejar Escudo Tormenta activo, eleva utilidades y da >=44x44px a Saltar', () => {
+    const stormAlloc = {
+      lifeSupportAlloc: 35,
+      shieldingAlloc: 40,
+      greenhouseAlloc: 15,
+      scienceAndCommsAlloc: 10,
+    };
+    const greenhouseAlloc = {
+      lifeSupportAlloc: 35,
+      shieldingAlloc: 15,
+      greenhouseAlloc: 40,
+      scienceAndCommsAlloc: 10,
+    };
+
+    // Restaura la asignación previa guardada (Balanced / Greenhouse) en lugar de mantener Tormenta
+    expect(resolvePostDrillAllocation(BALANCED_POWER_ALLOCATION, stormAlloc)).toEqual(
+      BALANCED_POWER_ALLOCATION,
+    );
+    expect(resolvePostDrillAllocation(greenhouseAlloc, stormAlloc)).toEqual(greenhouseAlloc);
+    // Si no había asignación válida guardada (o también era Tormenta), vuelve a balanced
+    expect(resolvePostDrillAllocation(null, stormAlloc)).toEqual(BALANCED_POWER_ALLOCATION);
+    expect(resolvePostDrillAllocation(stormAlloc, stormAlloc)).toEqual(BALANCED_POWER_ALLOCATION);
+
+    const weather = selectStartingWeather('moon-shackleton', VERIFIED_NASA_WEATHER_EVENTS, 20260415);
+    const mission = createInitialMissionState('moon-shackleton', weather, 20260415);
+    const balancedHtml = renderToStaticMarkup(
+      React.createElement(ResourcePanel, {
+        lang: 'es',
+        resources: mission.resources,
+        allocation: BALANCED_POWER_ALLOCATION,
+        projection: projectSystemsTurn(mission, BALANCED_POWER_ALLOCATION),
+        hoveredChoice: null,
+        pendingEffects: [],
+        evaluation: evaluateCommanderPerformance(mission),
+        onChangeAllocation: () => {},
+        onOpenBadgesModal: () => {},
+        crew: getCrewStatus(mission),
+        isOnboardingEmergency: true,
+      }),
+    );
+
+    expect(balancedHtml).toMatch(/id="power-preset-balanced-btn"[^>]*aria-pressed="true"/);
+    expect(balancedHtml).toMatch(/id="power-preset-storm-btn"[^>]*aria-pressed="false"/);
+    expect(shouldCommitPresetChange('storm', true)).toBe(false);
+    expect(shouldCommitPresetChange('storm', false)).toBe(true);
+    expect(shouldCommitPresetChange('balanced', true)).toBe(true);
   });
 });

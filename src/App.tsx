@@ -3,7 +3,6 @@ import { Language, OutpostSiteId, PowerAllocation, TradeoffChoice } from './type
 import { OUTPOST_SITES } from './data/scenarios';
 import { KID_SCIENCE_GLOSSARY, getGlossaryTerm } from './data/nasa-datasets';
 import {
-  DEFAULT_POWER_ALLOCATION,
   getCommDelaySeconds,
   getCrewReaction,
   getCrewStatus,
@@ -12,7 +11,7 @@ import { simulateTrainingDrill } from './engine/trainingDrill';
 import { buildChallengeUrl, getDailyChallengeSeed, useMission } from './hooks/useMission';
 import { useClassBoard } from './hooks/useClassBoard';
 import { OutpostMap } from './components/OutpostView/OutpostMap';
-import { ResourcePanel } from './components/MissionHUD/ResourcePanel';
+import { BALANCED_POWER_ALLOCATION, ResourcePanel } from './components/MissionHUD/ResourcePanel';
 import { CommanderCertificate } from './components/MissionHUD/CommanderCertificate';
 import { MissionBriefing } from './components/MissionHUD/MissionBriefing';
 import { TurnReport } from './components/MissionHUD/TurnReport';
@@ -48,6 +47,15 @@ const readQuizAce = () => {
     return false;
   }
 };
+
+export function resolvePostDrillAllocation(
+  saved: PowerAllocation | null,
+  current: PowerAllocation,
+): PowerAllocation {
+  if (saved && saved.shieldingAlloc < 40) return { ...saved };
+  if (current.shieldingAlloc < 40) return { ...current };
+  return { ...BALANCED_POWER_ALLOCATION };
+}
 
 const siteShortName = (siteId: OutpostSiteId, lang: Language) =>
   siteId === 'moon-shackleton'
@@ -146,9 +154,31 @@ export const App: React.FC = () => {
     !isScienceOpen &&
     !isBadgesOpen;
 
+  const savedDrillAllocationRef = useRef<PowerAllocation | null>(null);
+  const emergencyDrillActiveRef = useRef(false);
+  const drillRestoredRef = useRef(false);
+
+  const restorePreDrillAllocation = () => {
+    if (drillRestoredRef.current) return;
+    if (!savedDrillAllocationRef.current && !emergencyDrillActiveRef.current) return;
+    drillRestoredRef.current = true;
+    const restored = resolvePostDrillAllocation(
+      savedDrillAllocationRef.current,
+      mission.powerAllocation,
+    );
+    savedDrillAllocationRef.current = null;
+    setAllocation(restored);
+  };
+
   const onboarding = useOnboarding({
     autoStart: true,
     enabled: tutorialEnabled,
+    recomputeKey: lang,
+    onStepCompleted: (targetId) => {
+      if (targetId === 'thermal-stabilizer') {
+        restorePreDrillAllocation();
+      }
+    },
   });
 
   const tutorial = useTutorial(TUTORIAL_STEPS, {
@@ -160,31 +190,56 @@ export const App: React.FC = () => {
   const handleInteractiveAction = (targetOrStepId: string) => {
     onboarding.completeOnboardingTarget(targetOrStepId);
     tutorial.completeActionTrigger(targetOrStepId);
+    if (
+      targetOrStepId === 'thermal-stabilizer' ||
+      (emergencyDrillActiveRef.current && targetOrStepId === 'power-preset-storm')
+    ) {
+      restorePreDrillAllocation();
+    }
   };
 
-  const savedDrillAllocationRef = useRef<PowerAllocation | null>(null);
+  const isOnboardingVisible = onboarding.isActive && tutorialEnabled;
+  const isOnboardingEmergency = Boolean(
+    isOnboardingVisible && onboarding.currentStep?.isEmergency,
+  );
   const isEmergencyStepActive = Boolean(
-    tutorialEnabled &&
-      ((onboarding.isActive && onboarding.currentStep?.isEmergency) ||
-        (tutorial.isActive && tutorial.currentStep?.drill)),
+    isOnboardingEmergency || (tutorialEnabled && tutorial.isActive && tutorial.currentStep?.drill),
   );
 
   useEffect(() => {
     if (isEmergencyStepActive) {
+      emergencyDrillActiveRef.current = true;
+      drillRestoredRef.current = false;
       if (!savedDrillAllocationRef.current) {
-        savedDrillAllocationRef.current = { ...mission.powerAllocation };
+        savedDrillAllocationRef.current = resolvePostDrillAllocation(
+          null,
+          mission.powerAllocation,
+        );
         if (mission.powerAllocation.shieldingAlloc >= 40) {
-          setAllocation(DEFAULT_POWER_ALLOCATION);
+          setAllocation(BALANCED_POWER_ALLOCATION);
         }
       }
       return;
     }
+    emergencyDrillActiveRef.current = false;
+    drillRestoredRef.current = false;
     if (savedDrillAllocationRef.current) {
-      const restored = savedDrillAllocationRef.current;
+      const restored = resolvePostDrillAllocation(
+        savedDrillAllocationRef.current,
+        mission.powerAllocation,
+      );
       savedDrillAllocationRef.current = null;
       setAllocation(restored);
     }
   }, [isEmergencyStepActive, mission.powerAllocation, setAllocation]);
+
+  const handleAllocationChange = (next: PowerAllocation) => {
+    if ((isEmergencyStepActive || emergencyDrillActiveRef.current) && next.shieldingAlloc >= 40) {
+      restorePreDrillAllocation();
+      return;
+    }
+    setAllocation(next);
+  };
 
   const drillReadout = useMemo(
     () => (isEmergencyStepActive ? simulateTrainingDrill(mission) : null),
@@ -307,7 +362,7 @@ export const App: React.FC = () => {
   })();
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${isOnboardingVisible ? ' is-onboarding-active' : ''}`}>
       <header className="top-nav">
         <div className="brand-block">
           <h1>Junior Astronaut Mission Trainer</h1>
@@ -456,14 +511,15 @@ export const App: React.FC = () => {
               hoveredChoice={previewChoice}
               pendingEffects={mission.pendingDelayedEffects}
               evaluation={evaluation}
-              onChangeAllocation={setAllocation}
+              onChangeAllocation={handleAllocationChange}
               onOpenBadgesModal={() => setIsBadgesOpen(true)}
               crew={crew}
               onTutorialAction={handleInteractiveAction}
+              isOnboardingEmergency={isOnboardingEmergency}
             />
 
             <div className="mission-center-col">
-              {onboarding.isActive && onboarding.currentStep?.isEmergency && (
+              {isOnboardingEmergency && (
                 <div
                   className="onboarding-thermal-alert-banner"
                   data-testid="onboarding-thermal-alert"
@@ -774,7 +830,7 @@ export const App: React.FC = () => {
 
       <OnboardingSpotlight
         lang={lang}
-        isActive={onboarding.isActive && tutorialEnabled}
+        isActive={isOnboardingVisible}
         step={onboarding.currentStep}
         targetRect={onboarding.targetRect}
         onSkip={() => {
