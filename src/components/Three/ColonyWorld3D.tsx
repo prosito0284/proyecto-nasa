@@ -205,9 +205,11 @@ type FloatingTagState =
 interface TacticalNotice {
   id: string;
   tone: 'ok' | 'warn' | 'info';
+  title?: string;
   badge: string;
   text: string;
   glossaryTermId?: string;
+  autoDismissMs?: number;
 }
 
 const SVG_MODULE_COORDS: Record<ColonyWorldModuleId, { x: number; y: number }> = {
@@ -268,6 +270,16 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   const lastReportedSpeedRef = useRef(0);
   const [roverHeadingDeg, setRoverHeadingDeg] = useState(180);
   const lastReportedHeadingRef = useRef(180);
+  const [telemetryHud, setTelemetryHud] = useState<{
+    x: number;
+    z: number;
+    nearestSampleDistance: number | null;
+  }>({ x: 11.4, z: 12.5, nearestSampleDistance: null });
+  const lastTelemetryHudRef = useRef<{
+    x: number;
+    z: number;
+    nearestSampleDistance: number | null;
+  }>({ x: 11.4, z: 12.5, nearestSampleDistance: null });
   const autoScannedIdsRef = useRef<Set<string>>(new Set());
   const collectedLocalIdsRef = useRef<Set<string>>(new Set(options.collectedSampleIds ?? []));
   const [localCollectedIds, setLocalCollectedIds] = useState<string[]>(
@@ -455,6 +467,14 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     }
   }, [options.isLowPowerBlackout, isPaused]);
 
+  useEffect(() => {
+    if (!tacticalNotice?.autoDismissMs) return;
+    const timer = window.setTimeout(() => {
+      setTacticalNotice((prev) => (prev?.id === tacticalNotice.id ? null : prev));
+    }, tacticalNotice.autoDismissMs);
+    return () => window.clearTimeout(timer);
+  }, [tacticalNotice?.id, tacticalNotice?.autoDismissMs]);
+
   const notifySampleCollected = (sampleId: string) => {
     if (collectedLocalIdsRef.current.has(sampleId)) return;
     const curOpts = latestOptionsRef.current;
@@ -469,14 +489,16 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       nearbySampleRef.current = null;
       setNearbySample(null);
     }
-    missionAudio.playSuccess();
+    missionAudio.playSampleCollect();
     onCollectSampleRef.current?.(spec);
     setTacticalNotice({
       id: `sample-${spec.id}`,
       tone: 'ok',
+      title: spec.title[lang],
       badge: formatSampleBadge(spec, lang),
       text: spec.finding[lang],
       glossaryTermId: spec.glossaryTermId,
+      autoDismissMs: 4000,
     });
   };
   const notifySampleCollectedRef = useRef(notifySampleCollected);
@@ -1266,6 +1288,21 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     let lastTagKey = '';
     world.setRoverControlInput(roverDirectionsRef.current);
 
+    const initTele = world.getRoverTelemetry();
+    const initHud = {
+      x: Math.round(initTele.x * 10) / 10,
+      z: Math.round(initTele.z * 10) / 10,
+      nearestSampleDistance:
+        initTele.nearestSampleId &&
+        !initTele.nearestSampleCollected &&
+        !collectedLocalIdsRef.current.has(initTele.nearestSampleId) &&
+        Number.isFinite(initTele.nearestSampleDistance)
+          ? Math.round(initTele.nearestSampleDistance * 10) / 10
+          : null,
+    };
+    lastTelemetryHudRef.current = initHud;
+    setTelemetryHud(initHud);
+
     const tick = (now: number) => {
       const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
       lastTime = now;
@@ -1294,6 +1331,30 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       if (Math.abs(compassDeg - lastReportedHeadingRef.current) >= 2) {
         lastReportedHeadingRef.current = compassDeg;
         setRoverHeadingDeg(compassDeg);
+      }
+
+      const roundedX = Math.round(nextTele.x * 10) / 10;
+      const roundedZ = Math.round(nextTele.z * 10) / 10;
+      const rawNearest =
+        nextTele.nearestSampleId &&
+        !nextTele.nearestSampleCollected &&
+        !collectedLocalIdsRef.current.has(nextTele.nearestSampleId) &&
+        Number.isFinite(nextTele.nearestSampleDistance)
+          ? Math.round(nextTele.nearestSampleDistance * 10) / 10
+          : null;
+      const prevHud = lastTelemetryHudRef.current;
+      if (
+        prevHud.x !== roundedX ||
+        prevHud.z !== roundedZ ||
+        prevHud.nearestSampleDistance !== rawNearest
+      ) {
+        const nextHud = {
+          x: roundedX,
+          z: roundedZ,
+          nearestSampleDistance: rawNearest,
+        };
+        lastTelemetryHudRef.current = nextHud;
+        setTelemetryHud(nextHud);
       }
 
       if (nextTele.collectingSampleId && !latestOptionsRef.current.isLowPowerBlackout) {
@@ -2038,6 +2099,19 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
               onCameraModeChange={selectCameraMode}
               nearbySample={nearbySample}
               onCollectSample={(id) => collectSampleById(id)}
+              telemetry={{
+                sciencePoints:
+                  options.sciencePoints ??
+                  turnSamples.reduce(
+                    (sum, smp) => (collectedSamplesSet.has(smp.id) ? sum + smp.points : sum),
+                    0,
+                  ),
+                collectedCount: collectedSampleCount,
+                totalSamples: turnSamples.length,
+                x: telemetryHud.x,
+                z: telemetryHud.z,
+                nearestSampleDistance: telemetryHud.nearestSampleDistance,
+              }}
               onDirectionChange={handleDpadDirectionChange}
             />
           )}
@@ -2051,7 +2125,12 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
             data-testid="colony3d-tactical-notice"
           >
             <div className="colony3d-tactical-copy">
-              <strong>{tacticalNotice.badge}</strong>
+              <div className="colony3d-tactical-head">
+                {tacticalNotice.title && (
+                  <span className="colony3d-tactical-title">{tacticalNotice.title}</span>
+                )}
+                <strong className="colony3d-tactical-badge">{tacticalNotice.badge}</strong>
+              </div>
               <span>{tacticalNotice.text}</span>
             </div>
             <div className="colony3d-toast-actions">

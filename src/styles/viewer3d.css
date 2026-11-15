@@ -28,6 +28,7 @@
 
 .viewer3d-viewport {
   position: relative;
+  order: 0;
   width: 100%;
   min-height: 160px;
   background-color: #03060C;
@@ -538,54 +539,86 @@
   border-color: rgba(255, 179, 0, 0.72);
 }
 
-/* M03 / R04: Aviso táctico acoplado debajo del lienzo 3D sin tapar botones */
+/* M03 / R07: Banner táctico NASA flotante no bloqueante (borde sólido 2 px; en móvil queda debajo del visor sin tapar botones) */
 .colony3d-tactical-toast {
-  position: static;
-  width: 100%;
+  position: absolute;
+  top: 2.55rem;
+  left: 0.5rem;
+  z-index: 6;
+  max-width: min(500px, calc(100% - 1rem));
+  width: auto;
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.45rem 0.6rem;
-  background-color: rgba(11, 18, 30, 0.98);
+  gap: 0.55rem;
+  padding: 0.48rem 0.65rem;
+  background-color: rgba(11, 18, 30, 0.96);
   color: #F8F3E8;
-  border-top: 1.5px solid #38BDF8;
-  border-radius: 0;
+  border: 2px solid #38BDF8;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.viewer3d-mars .colony3d-tactical-toast {
+  background-color: rgba(36, 17, 10, 0.96);
 }
 
 .colony3d-tactical-toast.tone-ok {
-  border-top-color: #2E7D4F;
+  border-color: #2E7D4F;
 }
 
 .colony3d-tactical-toast.tone-warn {
-  border-top-color: #FFB300;
+  border-color: #FFB300;
 }
 
 .colony3d-tactical-copy {
   display: flex;
   flex-direction: column;
-  gap: 0.14rem;
+  gap: 0.16rem;
   min-width: 0;
 }
 
+.colony3d-tactical-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.colony3d-tactical-title {
+  font-family: var(--font-display, 'Barlow Condensed', sans-serif);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: #F8F3E8;
+}
+
+.colony3d-tactical-badge,
 .colony3d-tactical-copy strong {
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: #38BDF8;
+  padding: 0.06rem 0.36rem;
+  border: 1px solid #38BDF8;
+  border-radius: 2px;
 }
 
+.colony3d-tactical-toast.tone-ok .colony3d-tactical-badge,
 .colony3d-tactical-toast.tone-ok .colony3d-tactical-copy strong {
   color: #4ADE80;
+  border-color: #2E7D4F;
 }
 
+.colony3d-tactical-toast.tone-warn .colony3d-tactical-badge,
 .colony3d-tactical-toast.tone-warn .colony3d-tactical-copy strong {
   color: #FFB300;
+  border-color: #FFB300;
 }
 
-.colony3d-tactical-copy span {
+.colony3d-tactical-copy > span {
   font-size: 1rem;
   line-height: 1.3;
   color: #F8F3E8;
@@ -596,6 +629,7 @@
   align-items: center;
   gap: 0.35rem;
   flex-shrink: 0;
+  pointer-events: auto;
 }
 
 .colony3d-toast-science-btn {
@@ -642,7 +676,9 @@
 .rover-camera-cluster {
   position: absolute;
   left: 0.5rem;
-  bottom: 0.5rem;
+  top: calc(var(--viewer-h, 308px) - 0.5rem);
+  bottom: auto;
+  transform: translateY(-100%);
   z-index: 5;
   max-width: calc(100% - 11.4rem);
   display: flex;
@@ -778,7 +814,9 @@
 .rover-dpad-overlay {
   position: absolute;
   right: 0.5rem;
-  bottom: 0.5rem;
+  top: calc(var(--viewer-h, 308px) - 0.5rem);
+  bottom: auto;
+  transform: translateY(-100%);
   z-index: 5;
   display: flex;
   flex-direction: column;
@@ -906,7 +944,99 @@
   grid-row: 2;
 }
 
+/* R07: Barra compacta de telemetría del Rover debajo del lienzo 3D */
+.rover-telemetry-bar {
+  order: 1;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  padding: 0.36rem 0.55rem;
+  background-color: #080E1A;
+  color: #F8F3E8;
+  border-top: 1.5px solid #6794C1;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.viewer3d-mars .rover-telemetry-bar {
+  background-color: #210F09;
+  border-top-color: #C87D52;
+}
+
+.rover-tel-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.14rem 0.42rem;
+  background-color: #101A2B;
+  color: #B8D8F8;
+  border: 1px solid #486B8F;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.viewer3d-mars .rover-tel-chip {
+  background-color: #34190F;
+  color: #F4C39B;
+  border-color: #9C5B38;
+}
+
+.rover-tel-science,
+.viewer3d-mars .rover-tel-science {
+  background-color: #0B3D91;
+  color: #FFFFFF;
+  border-color: #38BDF8;
+}
+
+.rover-tel-samples,
+.viewer3d-mars .rover-tel-samples {
+  background-color: #132238;
+  color: #E2E8F0;
+  border-color: #6794C1;
+}
+
+.viewer3d-mars .rover-tel-samples {
+  background-color: #3D1F14;
+  color: #F8F3E8;
+  border-color: #C87D52;
+}
+
+.rover-tel-speed {
+  color: #4ADE80;
+}
+
+.rover-tel-radar.is-mid,
+.viewer3d-mars .rover-tel-radar.is-mid {
+  color: #FFB300;
+  border-color: #FFB300;
+}
+
+.rover-tel-radar.is-near,
+.viewer3d-mars .rover-tel-radar.is-near {
+  background-color: #083344;
+  color: #00E5FF;
+  border-color: #00E5FF;
+}
+
+.rover-tel-radar.is-ok,
+.viewer3d-mars .rover-tel-radar.is-ok {
+  background-color: #14532D;
+  color: #4ADE80;
+  border-color: #2E7D4F;
+}
+
 @media (max-width: 720px) {
+  .rover-telemetry-bar {
+    order: 1;
+    padding: 0.34rem 0.45rem;
+    gap: 0.28rem;
+    font-size: 0.68rem;
+  }
+
   .rover-dpad-overlay {
     right: 0.5rem;
     bottom: auto;
@@ -916,6 +1046,10 @@
 
   .rover-camera-cluster {
     position: static;
+    order: 2;
+    transform: none;
+    top: auto;
+    left: auto;
     max-width: 100%;
     width: 100%;
     box-sizing: border-box;
@@ -952,6 +1086,14 @@
 
   .rover-collect-btn {
     width: 100%;
+  }
+
+  .colony3d-tactical-toast {
+    position: static;
+    width: 100%;
+    max-width: 100%;
+    pointer-events: auto;
+    border-radius: 2px;
   }
 }
 

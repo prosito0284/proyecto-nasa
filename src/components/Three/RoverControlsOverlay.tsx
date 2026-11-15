@@ -78,6 +78,15 @@ export interface NearbySamplePrompt {
   distance: number;
 }
 
+export interface RoverTelemetryHudData {
+  sciencePoints: number;
+  collectedCount: number;
+  totalSamples: number;
+  x: number;
+  z: number;
+  nearestSampleDistance: number | null;
+}
+
 export interface RoverControlsOverlayProps {
   lang: Language;
   activeDirections: RoverDirectionState;
@@ -87,6 +96,7 @@ export interface RoverControlsOverlayProps {
   onCameraModeChange?: (mode: ColonyCameraMode) => void;
   nearbySample?: NearbySamplePrompt | null;
   onCollectSample?: (sampleId: string) => void;
+  telemetry?: RoverTelemetryHudData;
   onDirectionChange: (direction: RoverDirectionKey, pressed: boolean) => void;
 }
 
@@ -195,6 +205,7 @@ export const RoverControlsOverlay: React.FC<RoverControlsOverlayProps> = ({
   onCameraModeChange,
   nearbySample = null,
   onCollectSample,
+  telemetry,
   onDirectionChange,
 }) => {
   const es = lang === 'es';
@@ -204,6 +215,9 @@ export const RoverControlsOverlay: React.FC<RoverControlsOverlayProps> = ({
   const showCollectButton = Boolean(nearbySample && onCollectSample);
   const showLeftCluster = showCameraSelector || showCollectButton;
   const activeCamera: ColonyCameraMode = cameraMode ?? 'orbital';
+  const radarDist = telemetry?.nearestSampleDistance ?? null;
+  const radarNear = radarDist !== null && radarDist <= 3.8;
+  const radarMid = radarDist !== null && radarDist > 3.8 && radarDist <= 8.5;
 
   return (
     <div className="rover-hud-layer">
@@ -350,6 +364,50 @@ export const RoverControlsOverlay: React.FC<RoverControlsOverlayProps> = ({
           })}
         </div>
       </div>
+
+      {telemetry && (
+        <div
+          className="rover-telemetry-bar"
+          data-testid="rover-telemetry-bar"
+          role="region"
+          aria-label={es ? 'Telemetría del rover en tiempo real' : 'Live rover telemetry'}
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+        >
+          <span className="rover-tel-chip rover-tel-science" data-testid="rover-telemetry-science">
+            {es ? `CIENCIA: ${telemetry.sciencePoints} PTS` : `SCIENCE: ${telemetry.sciencePoints} PTS`}
+          </span>
+          <span className="rover-tel-chip rover-tel-samples" data-testid="rover-telemetry-samples">
+            {es
+              ? `MUESTRAS: ${telemetry.collectedCount}/${telemetry.totalSamples}`
+              : `SAMPLES: ${telemetry.collectedCount}/${telemetry.totalSamples}`}
+          </span>
+          <span className="rover-tel-chip" data-testid="rover-telemetry-coords">
+            {`X ${telemetry.x.toFixed(1)} / Z ${telemetry.z.toFixed(1)}`}
+          </span>
+          <span className="rover-tel-chip rover-tel-speed" data-testid="rover-telemetry-speed">
+            {statusCode}
+          </span>
+          <span
+            className={`rover-tel-chip rover-tel-radar ${
+              radarDist === null
+                ? 'is-ok'
+                : radarNear
+                  ? 'is-near'
+                  : radarMid
+                    ? 'is-mid'
+                    : ''
+            }`.trim()}
+            data-testid="rover-telemetry-radar"
+          >
+            {radarDist === null
+              ? es
+                ? 'RADAR: OK'
+                : 'RADAR: DONE'
+              : `RADAR: ${radarDist.toFixed(1)} m`}
+          </span>
+        </div>
+      )}
     </div>
   );
 };
