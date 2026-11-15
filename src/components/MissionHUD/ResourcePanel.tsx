@@ -440,37 +440,25 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                       : undefined
                   }
                 >
-                  <div className="vital-checklist-main">
-                    {/* Casilla de checklist con estado (bien / atención / crítico) */}
-                    <span
-                      className={`vital-checkbox-badge vital-check-${statusKey}`}
-                      title={
-                        lang === 'es'
-                          ? `Estado actual: ${statusWord}`
-                          : `Current status: ${statusWord}`
-                      }
-                    >
-                      <span className="vital-checkbox-square" aria-hidden="true">
-                        {isCrit || isWarn ? <AlertIcon size={12} /> : <CheckIcon size={12} />}
+                  <div className="vital-row-top">
+                    <div className="vital-checklist-main">
+                      {/* Casilla de checklist con estado (bien / atención / crítico) */}
+                      <span
+                        className={`vital-checkbox-badge vital-check-${statusKey}`}
+                        title={
+                          lang === 'es'
+                            ? `Estado actual: ${statusWord}`
+                            : `Current status: ${statusWord}`
+                        }
+                      >
+                        <span className="vital-checkbox-square" aria-hidden="true">
+                          {isCrit || isWarn ? <AlertIcon size={12} /> : <CheckIcon size={12} />}
+                        </span>
+                        <span className="vital-status-word">{statusWord}</span>
                       </span>
-                      <span className="vital-status-word">{statusWord}</span>
-                    </span>
 
-                    {/* Retrato pequeño de quien vigila este vital (si `crew` está presente) */}
-                    {watcher && (
-                      <CrewPortrait
-                        memberId={watcher.status.member.id}
-                        mood={watcher.status.mood}
-                        size={30}
-                        title={`${getCrewMemberName(watcher.status.member, lang)} (${(watcher.roleLabel ?? watcher.status.member.role)[lang]}): "${watcher.status.line[lang]}"`}
-                        className="vital-watcher-portrait"
-                      />
-                    )}
-
-                    {/* Nombre del vital + responsable opcional */}
-                    <div className="vital-label-col">
                       <span className="resource-label-inline">
-                        {m.icon} {m.label}
+                        {m.icon} <span>{m.label}</span>
                         {isOxygenRow && (
                           <span className="sr-only">
                             {lang === 'es'
@@ -479,34 +467,44 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                           </span>
                         )}
                       </span>
-                      {watcher && (
-                        <small className="vital-watcher-name">
-                          {getCrewMemberName(watcher.status.member, lang)} ·{' '}
-                          {(watcher.roleLabel ?? watcher.status.member.role)[lang]}
-                        </small>
-                      )}
+                    </div>
+
+                    {/* Valor actual y proyección de mañana */}
+                    <div className="vital-numbers-col">
+                      <strong className="mono-val vital-current-val">
+                        {m.value}
+                        {m.unit}
+                      </strong>
+                      <span
+                        className={`proj-badge ${
+                          delta > 0 ? 'proj-up' : delta < 0 ? 'proj-down' : 'proj-flat'
+                        }`}
+                        title={
+                          lang === 'es'
+                            ? `Proyección mañana: ${projectedVal}% (${delta >= 0 ? '+' + delta : delta}%)`
+                            : `Tomorrow projection: ${projectedVal}% (${delta >= 0 ? '+' + delta : delta}%)`
+                        }
+                      >
+                        → {projectedVal}% ({delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : '±0'})
+                      </span>
                     </div>
                   </div>
 
-                  {/* Valor actual y proyección de mañana */}
-                  <div className="vital-numbers-col">
-                    <strong className="mono-val vital-current-val">
-                      {m.value}
-                      {m.unit}
-                    </strong>
-                    <span
-                      className={`proj-badge ${
-                        delta > 0 ? 'proj-up' : delta < 0 ? 'proj-down' : 'proj-flat'
-                      }`}
-                      title={
-                        lang === 'es'
-                          ? `Proyección mañana: ${projectedVal}% (${delta >= 0 ? '+' + delta : delta}%)`
-                          : `Tomorrow projection: ${projectedVal}% (${delta >= 0 ? '+' + delta : delta}%)`
-                      }
-                    >
-                      → {projectedVal}% ({delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : '±0'})
-                    </span>
-                  </div>
+                  {watcher && (
+                    <div className="vital-watcher-strip">
+                      <CrewPortrait
+                        memberId={watcher.status.member.id}
+                        mood={watcher.status.mood}
+                        size={22}
+                        title={`${getCrewMemberName(watcher.status.member, lang)} (${(watcher.roleLabel ?? watcher.status.member.role)[lang]}): "${watcher.status.line[lang]}"`}
+                        className="vital-watcher-portrait"
+                      />
+                      <small className="vital-watcher-name">
+                        {getCrewMemberName(watcher.status.member, lang)} ·{' '}
+                        {(watcher.roleLabel ?? watcher.status.member.role)[lang]}
+                      </small>
+                    </div>
+                  )}
                 </div>
               );
 
