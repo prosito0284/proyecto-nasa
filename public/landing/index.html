@@ -1,0 +1,2067 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>Junior Astronaut Mission Trainer — Cuaderno de Misión | NASA Space Apps</title>
+    <meta
+      name="description"
+      content="Dirige tu primera base en la Luna o Marte con datos reales de la NASA. Videojuego educativo web para niños de 7 a 12 años, familias y aulas. Cero instalación."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --paper-bg: #F3EFE6;
+        --paper-sheet: #FAF7F0;
+        --paper-aged: #E6DFCE;
+        --mission-navy: #0E1726;
+        --mission-slate: #162238;
+        --mars-terracotta: #C85A32;
+        --mars-terracotta-dark: #A34320;
+        --inst-amber: #D97706;
+        --inst-amber-soft: #FEF3C7;
+        --val-green: #2A6F4E;
+        --val-green-soft: #DCFCE7;
+        --nasa-blue: #0B3D91;
+        --ink: #1B1F2A;
+        --ink-secondary: #333B4D;
+        --ink-muted: #525B70;
+        --rule: #C9C0AE;
+        --border-solid: 2px solid #1B1F2A;
+        --border-thin: 1.5px solid #1B1F2A;
+        --radius: 2px;
+        --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+        --font-body: 'Barlow', system-ui, -apple-system, sans-serif;
+        --font-mono: 'IBM Plex Mono', monospace;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+        font-size: 16px;
+        background-color: var(--paper-bg);
+        color: var(--ink);
+      }
+
+      body {
+        margin: 0;
+        font-family: var(--font-body);
+        font-size: 1rem;
+        line-height: 1.55;
+        background-color: var(--paper-bg);
+        color: var(--ink);
+        overflow-x: hidden;
+      }
+
+      /* Enfoque accesible de alto contraste */
+      a:focus-visible,
+      button:focus-visible,
+      [tabindex='0']:focus-visible {
+        outline: 3px solid var(--nasa-blue);
+        outline-offset: 2px;
+      }
+
+      .dark-surface a:focus-visible,
+      .dark-surface button:focus-visible,
+      .dark-surface [tabindex='0']:focus-visible {
+        outline: 3px solid #FBBF24;
+        outline-offset: 2px;
+      }
+
+      /* Contenedor maestro con marcas de cuaderno técnico */
+      .container {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1.25rem;
+      }
+
+      /* ==========================================================================
+       * CABECERA SUPERIOR (STICKY FLIGHT LOG HEADER)
+       * ========================================================================== */
+      .site-header {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background-color: var(--paper-sheet);
+        border-bottom: var(--border-solid);
+      }
+
+      .header-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        min-height: 70px;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+        flex-wrap: wrap;
+      }
+
+      .brand-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        text-decoration: none;
+        color: var(--ink);
+      }
+
+      .brand-emblem {
+        width: 44px;
+        height: 44px;
+        flex-shrink: 0;
+        border: var(--border-thin);
+        border-radius: var(--radius);
+        background-color: var(--mission-navy);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .brand-text {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .brand-kicker {
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        color: var(--mars-terracotta);
+        text-transform: uppercase;
+      }
+
+      .brand-name {
+        font-family: var(--font-display);
+        font-size: 1.35rem;
+        font-weight: 700;
+        line-height: 1.05;
+        letter-spacing: 0.01em;
+        color: var(--ink);
+      }
+
+      .header-nav {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+      }
+
+      .nav-anchor {
+        font-family: var(--font-display);
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: var(--ink-secondary);
+        text-decoration: none;
+        padding: 0.45rem 0.65rem;
+        border-radius: var(--radius);
+        border: 1.5px solid transparent;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        transition: background-color 140ms ease, border-color 140ms ease;
+      }
+
+      .nav-anchor:hover {
+        background-color: var(--paper-aged);
+        border-color: var(--ink);
+        color: var(--ink);
+      }
+
+      .lang-switch-btn {
+        font-family: var(--font-mono);
+        font-size: 0.82rem;
+        font-weight: 700;
+        min-height: 44px;
+        min-width: 88px;
+        padding: 0.45rem 0.75rem;
+        background-color: var(--paper-bg);
+        color: var(--ink);
+        border: var(--border-thin);
+        border-bottom-width: 3px;
+        border-radius: var(--radius);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        transition: background-color 120ms ease, transform 120ms ease;
+      }
+
+      .lang-switch-btn:hover {
+        background-color: var(--paper-aged);
+      }
+
+      .btn-header-cta {
+        font-family: var(--font-display);
+        font-size: 1.05rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        min-height: 44px;
+        padding: 0.45rem 1rem;
+        background-color: var(--mars-terracotta);
+        color: #FFFFFF;
+        border: var(--border-thin);
+        border-bottom-width: 3px;
+        border-radius: var(--radius);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        transition: background-color 140ms ease;
+      }
+
+      .btn-header-cta:hover {
+        background-color: var(--ink);
+        color: var(--paper-sheet);
+      }
+
+      /* ==========================================================================
+       * SECCIÓN 1: HERO CERCANO Y CON PERSONALIDAD
+       * ========================================================================== */
+      .hero-section {
+        padding: 2.75rem 0 3.25rem;
+        border-bottom: var(--border-solid);
+        position: relative;
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1.08fr 0.92fr;
+        gap: 2.25rem;
+        align-items: center;
+      }
+
+      .hero-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 1.15rem;
+        align-items: flex-start;
+      }
+
+      .stamp-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .postal-stamp {
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 0.22rem 0.6rem;
+        border: 1.5px solid var(--ink);
+        border-radius: var(--radius);
+        background-color: var(--paper-sheet);
+        color: var(--nasa-blue);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+
+      .postal-stamp--amber {
+        background-color: var(--inst-amber-soft);
+        color: #92400E;
+        border-color: #92400E;
+      }
+
+      .hero-title {
+        font-family: var(--font-display);
+        font-size: clamp(2.25rem, 4.2vw, 3.45rem);
+        font-weight: 700;
+        line-height: 1.06;
+        letter-spacing: 0.01em;
+        margin: 0;
+        color: var(--ink);
+      }
+
+      .hero-title-highlight {
+        color: var(--mars-terracotta);
+        text-decoration: underline;
+        text-decoration-thickness: 3px;
+        text-underline-offset: 5px;
+      }
+
+      .hero-subtitle {
+        font-size: 1.15rem;
+        line-height: 1.5;
+        color: var(--ink-secondary);
+        margin: 0;
+        max-width: 56ch;
+      }
+
+      .hero-audience-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.65rem 0.85rem;
+        background-color: var(--paper-sheet);
+        border: var(--border-thin);
+        border-left: 5px solid var(--val-green);
+        border-radius: var(--radius);
+        font-size: 1rem;
+        color: var(--ink);
+      }
+
+      .hero-cta-group {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.85rem;
+        margin-top: 0.25rem;
+        width: 100%;
+      }
+
+      .btn-hero-primary {
+        font-family: var(--font-display);
+        font-size: 1.22rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        min-height: 52px;
+        padding: 0.65rem 1.4rem;
+        background-color: var(--mars-terracotta);
+        color: #FFFFFF;
+        border: var(--border-solid);
+        border-bottom-width: 4px;
+        border-radius: var(--radius);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.55rem;
+        cursor: pointer;
+        transition: background-color 140ms ease, transform 120ms ease;
+      }
+
+      .btn-hero-primary:hover {
+        background-color: var(--mission-navy);
+        color: #FFFFFF;
+        transform: translateY(-1px);
+      }
+
+      .btn-hero-secondary {
+        font-family: var(--font-display);
+        font-size: 1.15rem;
+        font-weight: 700;
+        letter-spacing: 0.015em;
+        min-height: 52px;
+        padding: 0.65rem 1.2rem;
+        background-color: var(--paper-sheet);
+        color: var(--ink);
+        border: var(--border-solid);
+        border-bottom-width: 4px;
+        border-radius: var(--radius);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        transition: background-color 140ms ease;
+      }
+
+      .btn-hero-secondary:hover {
+        background-color: var(--paper-aged);
+      }
+
+      /* Ficha de Vuelo Ilustrada (Derecha en Hero) */
+      .flight-dossier-card {
+        background-color: var(--paper-sheet);
+        border: var(--border-solid);
+        border-top: 5px solid var(--nasa-blue);
+        border-left: 6px double var(--ink);
+        border-radius: var(--radius);
+        padding: 1rem 1.1rem 1.15rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+      }
+
+      .dossier-top-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1.5px dashed var(--rule);
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: var(--ink-secondary);
+      }
+
+      .dossier-status-tag {
+        background-color: var(--val-green);
+        color: #FFFFFF;
+        padding: 0.12rem 0.48rem;
+        border-radius: var(--radius);
+        text-transform: uppercase;
+      }
+
+      .dossier-viewport {
+        background-color: var(--mission-navy);
+        border: var(--border-thin);
+        border-radius: var(--radius);
+        overflow: hidden;
+        position: relative;
+      }
+
+      .dossier-svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .dossier-stamps-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.55rem;
+      }
+
+      .tech-stamp-box {
+        background-color: var(--paper-bg);
+        border: var(--border-thin);
+        border-radius: var(--radius);
+        padding: 0.45rem 0.55rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+      }
+
+      .tech-stamp-code {
+        font-family: var(--font-mono);
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: var(--nasa-blue);
+      }
+
+      .tech-stamp-box--mars .tech-stamp-code {
+        color: var(--mars-terracotta);
+      }
+
+      .tech-stamp-box--green .tech-stamp-code {
+        color: var(--val-green);
+      }
+
+      .tech-stamp-desc {
+        font-size: 0.86rem;
+        line-height: 1.25;
+        color: var(--ink-secondary);
+      }
+
+      /* ==========================================================================
+       * SECCIÓN 2: DOS MUNDOS, UNA TRIPULACIÓN HUMANA (3 PILARES)
+       * ========================================================================== */
+      .pillars-section {
+        padding: 3.5rem 0;
+        border-bottom: var(--border-solid);
+        background-color: var(--paper-bg);
+      }
+
+      .section-header {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        margin-bottom: 2rem;
+        max-width: 72ch;
+      }
+
+      .section-kicker {
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--mars-terracotta);
+      }
+
+      .section-title {
+        font-family: var(--font-display);
+        font-size: clamp(1.85rem, 3vw, 2.5rem);
+        font-weight: 700;
+        line-height: 1.1;
+        margin: 0;
+        color: var(--ink);
+      }
+
+      .section-lead {
+        font-size: 1.08rem;
+        color: var(--ink-secondary);
+        margin: 0;
+      }
+
+      .pillars-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.25rem;
+        align-items: stretch;
+      }
+
+      .pillar-card {
+        background-color: var(--paper-sheet);
+        border: var(--border-solid);
+        border-radius: var(--radius);
+        padding: 1.2rem 1.2rem 1.35rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+        transition: transform 150ms ease, background-color 150ms ease;
+      }
+
+      .pillar-card:hover {
+        transform: translateY(-3px);
+      }
+
+      .pillar-card--colony {
+        border-top: 5px solid var(--nasa-blue);
+      }
+
+      .pillar-card--rover {
+        border-top: 5px solid var(--mars-terracotta);
+      }
+
+      .pillar-card--crew {
+        border-top: 5px solid var(--val-green);
+      }
+
+      .pillar-meta-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: var(--ink-muted);
+        padding-bottom: 0.45rem;
+        border-bottom: 1px dashed var(--rule);
+      }
+
+      .pillar-tag {
+        padding: 0.1rem 0.45rem;
+        border: 1px solid var(--ink);
+        border-radius: var(--radius);
+        background-color: var(--paper-bg);
+        color: var(--ink);
+        text-transform: uppercase;
+      }
+
+      .pillar-illustration {
+        background-color: var(--paper-bg);
+        border: var(--border-thin);
+        border-radius: var(--radius);
+        padding: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .pillar-illustration--dark {
+        background-color: var(--mission-navy);
+      }
+
+      .pillar-title {
+        font-family: var(--font-display);
+        font-size: 1.45rem;
+        font-weight: 700;
+        line-height: 1.15;
+        margin: 0;
+        color: var(--ink);
+      }
+
+      .pillar-body {
+        font-size: 1rem;
+        line-height: 1.5;
+        color: var(--ink-secondary);
+        margin: 0;
+      }
+
+      .crew-mini-roster {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.45rem;
+        margin-top: auto;
+        padding-top: 0.4rem;
+      }
+
+      .crew-mini-chip {
+        background-color: var(--paper-bg);
+        border: 1px solid var(--ink);
+        border-radius: var(--radius);
+        padding: 0.35rem 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+
+      .crew-mini-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        border: 1.5px solid var(--ink);
+        flex-shrink: 0;
+      }
+
+      .crew-mini-info {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.15;
+      }
+
+      .crew-mini-info strong {
+        font-family: var(--font-display);
+        font-size: 0.96rem;
+        color: var(--ink);
+      }
+
+      .crew-mini-info span {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        color: var(--ink-muted);
+      }
+
+      .pillar-tradeoff-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: auto;
+        padding-top: 0.4rem;
+      }
+
+      .tradeoff-pill {
+        font-family: var(--font-mono);
+        font-size: 0.73rem;
+        font-weight: 700;
+        padding: 0.2rem 0.5rem;
+        border: 1px solid var(--ink);
+        border-radius: var(--radius);
+        background-color: var(--paper-bg);
+        color: var(--ink);
+      }
+
+      /* ==========================================================================
+       * SECCIÓN 3: VITRINA INTERACTIVA DE PARCHES Y CIENCIA NASA (BLOQUE AZUL PROFUNDO)
+       * ========================================================================== */
+      .patches-section {
+        padding: 3.5rem 0;
+        background-color: var(--mission-navy);
+        color: var(--paper-sheet);
+        border-bottom: var(--border-solid);
+      }
+
+      .patches-section .section-kicker {
+        color: #FBBF24;
+      }
+
+      .patches-section .section-title {
+        color: var(--paper-sheet);
+      }
+
+      .patches-section .section-lead {
+        color: #CBD5E1;
+      }
+
+      .patches-vitrine-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.1rem;
+        margin-bottom: 2rem;
+      }
+
+      .patch-vitrine-card {
+        background-color: var(--mission-slate);
+        border: 2px solid #475569;
+        border-radius: var(--radius);
+        padding: 1.15rem 1rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 0.75rem;
+        cursor: pointer;
+        transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+      }
+
+      .patch-vitrine-card:hover,
+      .patch-vitrine-card:focus-visible,
+      .patch-vitrine-card.is-active {
+        border-color: #FBBF24;
+        background-color: #1E2D4A;
+        transform: translateY(-3px);
+      }
+
+      .patch-svg-wrap {
+        width: 108px;
+        height: 108px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .patch-vitrine-card:hover .patch-svg-wrap,
+      .patch-vitrine-card:focus-visible .patch-svg-wrap,
+      .patch-vitrine-card.is-active .patch-svg-wrap {
+        transform: rotate(-7deg) scale(1.07);
+      }
+
+      .patch-code-tag {
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 0.12rem 0.48rem;
+        border: 1px solid #94A3B8;
+        border-radius: var(--radius);
+        color: #E2E8F0;
+      }
+
+      .patch-vitrine-card.is-active .patch-code-tag,
+      .patch-vitrine-card:hover .patch-code-tag {
+        border-color: #FBBF24;
+        color: #FBBF24;
+      }
+
+      .patch-name {
+        font-family: var(--font-display);
+        font-size: 1.32rem;
+        font-weight: 700;
+        margin: 0;
+        color: #FFFFFF;
+      }
+
+      .patch-unlock-desc {
+        font-size: 1rem;
+        line-height: 1.42;
+        color: #E2E8F0;
+        margin: 0;
+        padding-top: 0.45rem;
+        border-top: 1px dashed #475569;
+      }
+
+      /* Sello de Verificación Científica NASA */
+      .science-verification-seal {
+        background-color: var(--paper-sheet);
+        color: var(--ink);
+        border: var(--border-solid);
+        border-left: 6px solid var(--inst-amber);
+        border-radius: var(--radius);
+        padding: 1.25rem 1.35rem;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 1.25rem;
+        align-items: center;
+      }
+
+      .seal-badge-emblem {
+        width: 76px;
+        height: 76px;
+        border: var(--border-solid);
+        border-radius: var(--radius);
+        background-color: var(--paper-bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .seal-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+      }
+
+      .seal-header-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.55rem;
+      }
+
+      .seal-title {
+        font-family: var(--font-display);
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin: 0;
+        color: var(--ink);
+      }
+
+      .seal-stamp-pill {
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 0.14rem 0.5rem;
+        background-color: var(--val-green);
+        color: #FFFFFF;
+        border-radius: var(--radius);
+      }
+
+      .seal-text {
+        font-size: 1rem;
+        line-height: 1.48;
+        color: var(--ink-secondary);
+        margin: 0;
+      }
+
+      .nasa-instruments-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 0.15rem;
+      }
+
+      .instrument-chip {
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0.22rem 0.55rem;
+        background-color: var(--paper-bg);
+        border: 1.5px solid var(--ink);
+        border-radius: var(--radius);
+        color: var(--nasa-blue);
+      }
+
+      /* ==========================================================================
+       * SECCIÓN 4: PASE DE ABORDAJE / ORDEN DE DESPEGUE Y PIE DE PÁGINA
+       * ========================================================================== */
+      .boarding-section {
+        padding: 3.5rem 0 2.5rem;
+        background-color: var(--paper-bg);
+      }
+
+      .boarding-pass {
+        background-color: var(--paper-sheet);
+        border: var(--border-solid);
+        border-top: 5px solid var(--mars-terracotta);
+        border-radius: var(--radius);
+        display: grid;
+        grid-template-columns: 1.25fr 0.75fr;
+        overflow: hidden;
+      }
+
+      .boarding-main {
+        padding: 1.5rem 1.65rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.1rem;
+        border-right: 2px dashed var(--ink);
+      }
+
+      .boarding-stub {
+        padding: 1.5rem 1.4rem;
+        background-color: var(--paper-aged);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .destination-selector {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+      }
+
+      .dest-option-btn {
+        background-color: var(--paper-bg);
+        border: var(--border-solid);
+        border-radius: var(--radius);
+        padding: 0.85rem 0.95rem;
+        min-height: 64px;
+        text-align: left;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        transition: background-color 140ms ease, border-color 140ms ease;
+      }
+
+      .dest-option-btn:hover {
+        background-color: #FFFFFF;
+      }
+
+      .dest-option-btn.is-selected {
+        background-color: var(--mission-navy);
+        color: #FFFFFF;
+        border-color: var(--ink);
+      }
+
+      .dest-option-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.4rem;
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: var(--mars-terracotta);
+      }
+
+      .dest-option-btn.is-selected .dest-option-top {
+        color: #FBBF24;
+      }
+
+      .dest-option-name {
+        font-family: var(--font-display);
+        font-size: 1.28rem;
+        font-weight: 700;
+        color: inherit;
+      }
+
+      .dest-option-sub {
+        font-size: 1rem;
+        line-height: 1.3;
+        color: var(--ink-secondary);
+      }
+
+      .dest-option-btn.is-selected .dest-option-sub {
+        color: #E2E8F0;
+      }
+
+      .stub-telemetry-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        padding: 0.75rem 0.85rem;
+        background-color: var(--paper-sheet);
+        border: var(--border-thin);
+        border-radius: var(--radius);
+      }
+
+      .stub-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.5rem;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        border-bottom: 1px dashed var(--rule);
+        padding-bottom: 0.35rem;
+      }
+
+      .stub-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+
+      .stub-row span {
+        color: var(--ink-muted);
+      }
+
+      .stub-row strong {
+        color: var(--ink);
+        text-align: right;
+      }
+
+      .btn-boarding-launch {
+        font-family: var(--font-display);
+        font-size: 1.28rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        min-height: 54px;
+        width: 100%;
+        padding: 0.75rem 1.2rem;
+        background-color: var(--mars-terracotta);
+        color: #FFFFFF;
+        border: var(--border-solid);
+        border-bottom-width: 4px;
+        border-radius: var(--radius);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.55rem;
+        transition: background-color 140ms ease;
+      }
+
+      .btn-boarding-launch:hover {
+        background-color: var(--mission-navy);
+      }
+
+      /* Pie de Página Cálido */
+      .site-footer {
+        margin-top: 2.5rem;
+        padding-top: 1.5rem;
+        border-top: var(--border-thin);
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        font-size: 1rem;
+        color: var(--ink-secondary);
+      }
+
+      .footer-links {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .footer-link {
+        font-family: var(--font-mono);
+        font-size: 0.84rem;
+        font-weight: 700;
+        color: var(--nasa-blue);
+        text-decoration: none;
+        padding: 0.45rem 0.75rem;
+        border: var(--border-thin);
+        border-radius: var(--radius);
+        background-color: var(--paper-sheet);
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+
+      .footer-link:hover {
+        background-color: var(--paper-aged);
+      }
+
+      /* ==========================================================================
+       * RESPONSIVE (TABLET 768x1024 Y MÓVIL 360x640)
+       * ========================================================================== */
+      @media (max-width: 980px) {
+        .hero-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .pillars-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .patches-vitrine-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .boarding-pass {
+          grid-template-columns: 1fr;
+        }
+
+        .boarding-main {
+          border-right: none;
+          border-bottom: 2px dashed var(--ink);
+        }
+      }
+
+      @media (max-width: 600px) {
+        .container {
+          padding: 0 0.85rem;
+        }
+
+        .header-inner {
+          gap: 0.55rem;
+        }
+
+        .nav-anchor {
+          display: none;
+        }
+
+        .dossier-stamps-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .patches-vitrine-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .science-verification-seal {
+          grid-template-columns: 1fr;
+        }
+
+        .destination-selector {
+          grid-template-columns: 1fr;
+        }
+
+        .btn-hero-primary,
+        .btn-hero-secondary {
+          width: 100%;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- CABECERA SUPERIOR -->
+    <header class="site-header">
+      <div class="container header-inner">
+        <a href="https://prosito0284.github.io/proyecto-nasa/" class="brand-link" id="header-brand-link">
+          <div class="brand-emblem" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+              <circle cx="16" cy="16" r="12" stroke="#FAF7F0" stroke-width="1.8" stroke-dasharray="4 2" />
+              <path d="M16 5L22 24L16 20L10 24L16 5Z" fill="#C85A32" stroke="#FAF7F0" stroke-width="1.5" stroke-linejoin="round" />
+              <circle cx="24" cy="9" r="2.2" fill="#FBBF24" />
+            </svg>
+          </div>
+          <div class="brand-text">
+            <span class="brand-kicker" data-i18n="headerKicker">NASA SPACE APPS 2026</span>
+            <span class="brand-name">Junior Astronaut Mission Trainer</span>
+          </div>
+        </a>
+
+        <nav class="header-nav" aria-label="Navegación principal">
+          <a href="#sec-pillars" class="nav-anchor" id="nav-pillars-link" data-i18n="navPillars">
+            La experiencia
+          </a>
+          <a href="#sec-patches" class="nav-anchor" id="nav-patches-link" data-i18n="navPatches">
+            Parches y ciencia
+          </a>
+          <a href="#sec-boarding" class="nav-anchor" id="nav-boarding-link" data-i18n="navBoarding">
+            Pase de abordaje
+          </a>
+          <button
+            type="button"
+            id="lang-toggle-btn"
+            class="lang-switch-btn"
+            aria-label="Cambiar idioma a Inglés / Switch language to English"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+            </svg>
+            <span id="lang-toggle-label">ES / EN</span>
+          </button>
+          <a
+            href="https://prosito0284.github.io/proyecto-nasa/"
+            id="header-launch-btn"
+            class="btn-header-cta"
+          >
+            <span data-i18n="headerCta">Entrar a la Misión</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+              <path d="M5 12h14M13 5l7 7-7 7" />
+            </svg>
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <!-- SECCIÓN 1: HERO CERCANO Y CON PERSONALIDAD -->
+      <section class="hero-section" id="sec-hero">
+        <div class="container hero-grid">
+          <div class="hero-copy">
+            <div class="stamp-row">
+              <span class="postal-stamp">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                  <path d="M12 2L15 8l6 1-4.5 4.2L17.5 20 12 16.8 6.5 20l1-6.8L3 9l6-1 3-6z" />
+                </svg>
+                <span data-i18n="heroStamp1">CUADERNO DE VUELO INTERACTIVO</span>
+              </span>
+              <span class="postal-stamp postal-stamp--amber" data-i18n="heroStamp2">
+                100% WEB · CERO INSTALACIÓN
+              </span>
+            </div>
+
+            <h1 class="hero-title">
+              <span data-i18n="heroTitlePart1">Dirige tu primera base espacial en la</span>
+              <span class="hero-title-highlight" data-i18n="heroTitleHighlight">Luna o en Marte</span>
+            </h1>
+
+            <p class="hero-subtitle" data-i18n="heroSubtitle">
+              Un simulador táctil donde niños de 7 a 12 años, familias y aulas equilibran energía, oxígeno y cosechas frente a tormentas solares reales medidas por la NASA.
+            </p>
+
+            <div class="hero-audience-strip">
+              <strong data-i18n="heroAudienceStrong">Para jóvenes comandantes (7–12 años), docentes y familias:</strong>
+              <span data-i18n="heroAudienceSpan">
+                Aprende tomando decisiones reales donde cada acción tiene un costo y una recompensa científica.
+              </span>
+            </div>
+
+            <div class="hero-cta-group">
+              <a
+                href="https://prosito0284.github.io/proyecto-nasa/"
+                id="hero-launch-btn"
+                class="btn-hero-primary"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                  <path d="M12 2L19 21l-7-4-7 4 7-19z" />
+                </svg>
+                <span data-i18n="heroPrimaryBtn">Lanzar Simulador Interactivo</span>
+              </a>
+              <a href="#sec-pillars" id="hero-explore-btn" class="btn-hero-secondary">
+                <span data-i18n="heroSecondaryBtn">Explorar cómo funciona</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                  <path d="M12 5v14M5 12l7 7 7-7" />
+                </svg>
+              </a>
+            </div>
+          </div>
+
+          <!-- FICHA DE VUELO ILUSTRADA EN SVG -->
+          <aside class="flight-dossier-card" aria-label="Ficha de vuelo técnica de la misión">
+            <div class="dossier-top-bar">
+              <span data-i18n="dossierDocCode">EXP-NASA // ARTEMIS-SHACKLETON &amp; JEZERO</span>
+              <span class="dossier-status-tag" data-i18n="dossierLiveTag">DATOS NASA VERIFICADOS</span>
+            </div>
+
+            <div class="dossier-viewport">
+              <svg
+                viewBox="0 0 540 270"
+                class="dossier-svg"
+                role="img"
+                aria-label="Ilustración técnica de la Luna, Marte y el Rover explorador recolectando muestras"
+              >
+                <!-- Fondo espacial azul profundo y cuadrícula de telemetría -->
+                <rect width="540" height="270" fill="#0E1726" />
+                <g stroke="#1E293B" stroke-width="1">
+                  <line x1="0" y1="54" x2="540" y2="54" />
+                  <line x1="0" y1="108" x2="540" y2="108" />
+                  <line x1="0" y1="162" x2="540" y2="162" />
+                  <line x1="0" y1="216" x2="540" y2="216" />
+                  <line x1="108" y1="0" x2="108" y2="270" />
+                  <line x1="216" y1="0" x2="216" y2="270" />
+                  <line x1="324" y1="0" x2="324" y2="270" />
+                  <line x1="432" y1="0" x2="432" y2="270" />
+                </g>
+
+                <!-- Estrellas técnicas -->
+                <g fill="#FAF7F0" opacity="0.75">
+                  <circle cx="42" cy="34" r="1.5" />
+                  <circle cx="155" cy="24" r="1.2" />
+                  <circle cx="268" cy="40" r="1.6" />
+                  <circle cx="352" cy="22" r="1.3" />
+                  <circle cx="496" cy="32" r="1.5" />
+                </g>
+
+                <!-- Astro 1: Polo Sur Lunar (Shackleton) -->
+                <g transform="translate(96, 68)">
+                  <circle cx="0" cy="0" r="36" fill="#1E293B" stroke="#93C5FD" stroke-width="2" />
+                  <circle cx="-10" cy="-8" r="7" fill="none" stroke="#60A5FA" stroke-width="1.3" />
+                  <circle cx="12" cy="10" r="9" fill="none" stroke="#60A5FA" stroke-width="1.3" />
+                  <circle cx="0" cy="0" r="42" fill="none" stroke="#60A5FA" stroke-width="1" stroke-dasharray="4 3" />
+                  <text x="0" y="55" text-anchor="middle" fill="#93C5FD" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="bold">
+                    LUNA · 89.9°S
+                  </text>
+                </g>
+
+                <!-- Arco de trayectoria interplanetaria -->
+                <path d="M144 62 Q270 14 394 62" fill="none" stroke="#FBBF24" stroke-width="1.6" stroke-dasharray="5 4" />
+                <circle cx="270" cy="38" r="4" fill="#FBBF24" />
+                <text x="270" y="25" text-anchor="middle" fill="#FBBF24" font-family="IBM Plex Mono, monospace" font-size="9.5" font-weight="bold">
+                  1.3s vs 4–24m
+                </text>
+
+                <!-- Astro 2: Marte (Cráter Jezero) -->
+                <g transform="translate(442, 68)">
+                  <circle cx="0" cy="0" r="36" fill="#431407" stroke="#C85A32" stroke-width="2" />
+                  <path d="M-22 -6 Q-4 -14 18 -4 M-16 12 Q4 6 22 14" fill="none" stroke="#FDBA74" stroke-width="1.5" />
+                  <circle cx="0" cy="0" r="42" fill="none" stroke="#C85A32" stroke-width="1" stroke-dasharray="4 3" />
+                  <text x="0" y="55" text-anchor="middle" fill="#FDBA74" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="bold">
+                    MARTE · 18.3°N
+                  </text>
+                </g>
+
+                <!-- Superficie Planetaria Bicolor -->
+                <path d="M0 198 L160 184 L290 194 L420 180 L540 192 L540 270 L0 270 Z" fill="#162238" stroke="#93C5FD" stroke-width="1.5" />
+                <path d="M270 193 L420 180 L540 192 L540 270 L270 270 Z" fill="#3B180E" stroke="#C85A32" stroke-width="1.5" />
+
+                <!-- Domo Hábitat Presurizado + Invernadero (Izquierda) -->
+                <g transform="translate(112, 192)">
+                  <path d="M-48 0 A48 40 0 0 1 48 0 Z" fill="#1E293B" stroke="#FAF7F0" stroke-width="2" />
+                  <path d="M-55 0 A55 46 0 0 1 55 0" fill="none" stroke="#38BDF8" stroke-width="2" stroke-dasharray="5 3" />
+                  <rect x="-12" y="-18" width="24" height="18" fill="#0E1726" stroke="#FAF7F0" stroke-width="1.5" />
+                  <rect x="-32" y="-14" width="12" height="9" fill="#FBBF24" />
+                  <rect x="20" y="-14" width="12" height="9" fill="#FBBF24" />
+                  <text x="0" y="18" text-anchor="middle" fill="#FAF7F0" font-family="IBM Plex Mono, monospace" font-size="9.5" font-weight="bold">
+                    DOMO ECLSS + VEGGIE
+                  </text>
+                </g>
+
+                <!-- Rover 3D en Superficie con Mastcam y Láser de Muestras (Centro-Derecha) -->
+                <g transform="translate(318, 178)">
+                  <!-- Chasis y suspensión Rocker-Bogie -->
+                  <rect x="-28" y="-14" width="56" height="16" rx="2" fill="#FAF7F0" stroke="#1B1F2A" stroke-width="1.8" />
+                  <rect x="-18" y="-20" width="36" height="6" fill="#0B3D91" stroke="#FAF7F0" stroke-width="1.2" />
+                  <!-- Mástil Mastcam-Z -->
+                  <line x1="16" y1="-14" x2="16" y2="-36" stroke="#FAF7F0" stroke-width="2.5" />
+                  <rect x="9" y="-42" width="14" height="8" rx="1" fill="#FBBF24" stroke="#1B1F2A" stroke-width="1.4" />
+                  <!-- Brazo robótico y haz láser hacia muestra geológica -->
+                  <polyline points="28,-8 46,-12 54,4" fill="none" stroke="#FAF7F0" stroke-width="2.2" />
+                  <line x1="54" y1="4" x2="72" y2="16" stroke="#38BDF8" stroke-width="2" stroke-dasharray="3 2" />
+                  <!-- Muestra geológica con baliza -->
+                  <polygon points="72,10 82,18 64,18" fill="#2A6F4E" stroke="#FAF7F0" stroke-width="1.4" />
+                  <circle cx="73" cy="14" r="11" fill="none" stroke="#4ADE80" stroke-width="1.2" stroke-dasharray="2 2" />
+                  <!-- 3 Ruedas visibles con rines técnicos -->
+                  <circle cx="-20" cy="8" r="8" fill="#1B1F2A" stroke="#FAF7F0" stroke-width="1.8" />
+                  <circle cx="0" cy="8" r="8" fill="#1B1F2A" stroke="#FAF7F0" stroke-width="1.8" />
+                  <circle cx="20" cy="8" r="8" fill="#1B1F2A" stroke="#FAF7F0" stroke-width="1.8" />
+                  <text x="10" y="30" text-anchor="middle" fill="#FBBF24" font-family="IBM Plex Mono, monospace" font-size="9.5" font-weight="bold">
+                    ROVER 3D // +15 PTS CIENCIA
+                  </text>
+                </g>
+              </svg>
+            </div>
+
+            <div class="dossier-stamps-grid">
+              <div class="tech-stamp-box tech-stamp-box--mars">
+                <span class="tech-stamp-code">0.67 mSv/sol</span>
+                <span class="tech-stamp-desc" data-i18n="stampRadDesc">
+                  Radiación real en Marte medida por Curiosity RAD
+                </span>
+              </div>
+              <div class="tech-stamp-box tech-stamp-box--green">
+                <span class="tech-stamp-code">98% H₂O</span>
+                <span class="tech-stamp-desc" data-i18n="stampWaterDesc">
+                  Reciclaje real de agua del sistema ISS ECLSS
+                </span>
+              </div>
+              <div class="tech-stamp-box">
+                <span class="tech-stamp-code">MOXIE O₂</span>
+                <span class="tech-stamp-desc" data-i18n="stampMoxieDesc">
+                  Oxígeno extraído del CO₂ marciano a 800 °C
+                </span>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 2: DOS MUNDOS, UNA TRIPULACIÓN HUMANA (3 PILARES) -->
+      <section class="pillars-section" id="sec-pillars">
+        <div class="container">
+          <div class="section-header">
+            <span class="section-kicker" data-i18n="pillarsKicker">SECCIÓN 02 // QUÉ VAS A VIVIR ADENTRO</span>
+            <h2 class="section-title" data-i18n="pillarsTitle">
+              Dos mundos extremos, una tripulación humana y decisiones de verdad
+            </h2>
+            <p class="section-lead" data-i18n="pillarsLead">
+              Olvida los cuestionarios aburridos: aquí llevas el cuaderno de mando de una colonia viva donde cada kilovatio cuenta.
+            </p>
+          </div>
+
+          <div class="pillars-grid">
+            <!-- PILAR A: GESTIÓN DE COLONIA -->
+            <article class="pillar-card pillar-card--colony" id="pillar-card-colony">
+              <div class="pillar-meta-row">
+                <span>PILAR 01 // ECLSS &amp; ISRU</span>
+                <span class="pillar-tag" data-i18n="pillar1Tag">Supervivencia Real</span>
+              </div>
+
+              <div class="pillar-illustration">
+                <svg width="240" height="96" viewBox="0 0 240 96" fill="none" aria-hidden="true">
+                  <rect x="8" y="14" width="64" height="68" rx="2" fill="#FAF7F0" stroke="#1B1F2A" stroke-width="1.8" />
+                  <rect x="16" y="34" width="48" height="10" fill="#0B3D91" />
+                  <rect x="16" y="50" width="38" height="10" fill="#2A6F4E" />
+                  <rect x="16" y="66" width="44" height="10" fill="#C85A32" />
+                  <text x="40" y="27" text-anchor="middle" fill="#1B1F2A" font-family="IBM Plex Mono, monospace" font-size="8.5" font-weight="bold">kWh / O2</text>
+                  <path d="M84 48h26M102 41l8 7-8 7" stroke="#1B1F2A" stroke-width="2" />
+                  <path d="M124 76 A48 42 0 0 1 220 76 Z" fill="#E6DFCE" stroke="#1B1F2A" stroke-width="2" />
+                  <path d="M118 76 A54 48 0 0 1 226 76" fill="none" stroke="#0B3D91" stroke-width="2.2" stroke-dasharray="5 3" />
+                  <circle cx="172" cy="54" r="11" fill="#2A6F4E" stroke="#1B1F2A" stroke-width="1.5" />
+                  <path d="M172 60V47M172 53l-4-4M172 52l4-4" stroke="#FAF7F0" stroke-width="1.8" stroke-linecap="round" />
+                </svg>
+              </div>
+
+              <h3 class="pillar-title" data-i18n="pillar1Title">
+                Gestión de Colonia y Supervivencia Real
+              </h3>
+              <p class="pillar-body" data-i18n="pillar1Body">
+                Divide tu energía entre soporte vital, calefacción, invernadero hidropónico y blindaje. Ahorrar electricidad hoy puede reducir el oxígeno o las cosechas de mañana.
+              </p>
+
+              <div class="pillar-tradeoff-pills">
+                <span class="tradeoff-pill" data-i18n="pillar1Pill1">Energía kWh</span>
+                <span class="tradeoff-pill" data-i18n="pillar1Pill2">Agua 98% ECLSS</span>
+                <span class="tradeoff-pill" data-i18n="pillar1Pill3">Escudo mSv</span>
+              </div>
+            </article>
+
+            <!-- PILAR B: ROVER 3D JUGABLE -->
+            <article class="pillar-card pillar-card--rover" id="pillar-card-rover">
+              <div class="pillar-meta-row">
+                <span>PILAR 02 // WEBGL 3D &amp; MASTCAM</span>
+                <span class="pillar-tag" data-i18n="pillar2Tag">Exploración Activa</span>
+              </div>
+
+              <div class="pillar-illustration pillar-illustration--dark">
+                <svg width="240" height="96" viewBox="0 0 240 96" fill="none" aria-hidden="true">
+                  <path d="M0 72 Q60 58 120 70 T240 64 L240 96 L0 96 Z" fill="#3B180E" stroke="#C85A32" stroke-width="1.5" />
+                  <rect x="58" y="42" width="54" height="16" rx="2" fill="#FAF7F0" stroke="#1B1F2A" stroke-width="1.5" />
+                  <line x1="100" y1="42" x2="100" y2="22" stroke="#FAF7F0" stroke-width="2.2" />
+                  <rect x="93" y="16" width="14" height="7" fill="#FBBF24" />
+                  <circle cx="68" cy="64" r="7.5" fill="#1B1F2A" stroke="#FAF7F0" stroke-width="1.6" />
+                  <circle cx="85" cy="64" r="7.5" fill="#1B1F2A" stroke="#FAF7F0" stroke-width="1.6" />
+                  <circle cx="102" cy="64" r="7.5" fill="#1B1F2A" stroke="#FAF7F0" stroke-width="1.6" />
+                  <line x1="107" y1="20" x2="178" y2="54" stroke="#38BDF8" stroke-width="1.8" stroke-dasharray="4 3" />
+                  <polygon points="184,44 196,62 172,62" fill="#FBBF24" stroke="#FAF7F0" stroke-width="1.4" />
+                  <circle cx="184" cy="55" r="14" fill="none" stroke="#38BDF8" stroke-width="1.2" stroke-dasharray="3 2" />
+                </svg>
+              </div>
+
+              <h3 class="pillar-title" data-i18n="pillar2Title">
+                Rover 3D Jugable en Superficie
+              </h3>
+              <p class="pillar-body" data-i18n="pillar2Body">
+                Toma el volante con teclado o cruceta táctil, alterna a la cámara en primera persona Mastcam y recolecta muestras de hielo polar o sílice marciana para sumar Puntos de Ciencia.
+              </p>
+
+              <div class="pillar-tradeoff-pills">
+                <span class="tradeoff-pill" data-i18n="pillar2Pill1">3 Cámaras 3D</span>
+                <span class="tradeoff-pill" data-i18n="pillar2Pill2">Láser Espectrómetro</span>
+                <span class="tradeoff-pill" data-i18n="pillar2Pill3">Muestras Reales</span>
+              </div>
+            </article>
+
+            <!-- PILAR C: TRIPULACIÓN HUMANA -->
+            <article class="pillar-card pillar-card--crew" id="pillar-card-crew">
+              <div class="pillar-meta-row">
+                <span>PILAR 03 // 4 ESPECIALISTAS</span>
+                <span class="pillar-tag" data-i18n="pillar3Tag">Ciencia Cercana</span>
+              </div>
+
+              <div class="pillar-illustration">
+                <svg width="240" height="96" viewBox="0 0 240 96" fill="none" aria-hidden="true">
+                  <!-- 4 retratos técnicos de trazo -->
+                  <g transform="translate(36, 48)">
+                    <circle cx="0" cy="0" r="22" fill="#FAF7F0" stroke="#1B1F2A" stroke-width="1.8" />
+                    <circle cx="0" cy="-4" r="9" stroke="#0B3D91" stroke-width="1.6" />
+                    <path d="M-12 15 C-10 7 10 7 12 15" stroke="#1B1F2A" stroke-width="1.8" />
+                  </g>
+                  <g transform="translate(92, 48)">
+                    <circle cx="0" cy="0" r="22" fill="#FAF7F0" stroke="#1B1F2A" stroke-width="1.8" />
+                    <circle cx="0" cy="-4" r="9" stroke="#C85A32" stroke-width="1.6" />
+                    <path d="M-12 15 C-10 7 10 7 12 15" stroke="#1B1F2A" stroke-width="1.8" />
+                  </g>
+                  <g transform="translate(148, 48)">
+                    <circle cx="0" cy="0" r="22" fill="#FAF7F0" stroke="#1B1F2A" stroke-width="1.8" />
+                    <circle cx="0" cy="-4" r="9" stroke="#2A6F4E" stroke-width="1.6" />
+                    <path d="M-12 15 C-10 7 10 7 12 15" stroke="#1B1F2A" stroke-width="1.8" />
+                  </g>
+                  <g transform="translate(204, 48)">
+                    <circle cx="0" cy="0" r="22" fill="#FAF7F0" stroke="#1B1F2A" stroke-width="1.8" />
+                    <circle cx="0" cy="-4" r="9" stroke="#D97706" stroke-width="1.6" />
+                    <path d="M-12 15 C-10 7 10 7 12 15" stroke="#1B1F2A" stroke-width="1.8" />
+                  </g>
+                </svg>
+              </div>
+
+              <h3 class="pillar-title" data-i18n="pillar3Title">
+                Aprendizaje sin Frustración
+              </h3>
+              <p class="pillar-body" data-i18n="pillar3Body">
+                Tu tripulación te acompaña con consejos claros en globos de diálogo y un anexo científico que explica cada término (Sol, mSv, CME, Regolito) en lenguaje sencillo.
+              </p>
+
+              <div class="crew-mini-roster">
+                <div class="crew-mini-chip">
+                  <span class="crew-mini-dot" style="background-color: #0B3D91"></span>
+                  <div class="crew-mini-info">
+                    <strong data-i18n="crew1Name">Cmdt. Vega</strong>
+                    <span data-i18n="crew1Role">Mando y Salud</span>
+                  </div>
+                </div>
+                <div class="crew-mini-chip">
+                  <span class="crew-mini-dot" style="background-color: #D97706"></span>
+                  <div class="crew-mini-info">
+                    <strong data-i18n="crew2Name">Ing. Sato</strong>
+                    <span data-i18n="crew2Role">Red Eléctrica</span>
+                  </div>
+                </div>
+                <div class="crew-mini-chip">
+                  <span class="crew-mini-dot" style="background-color: #2A6F4E"></span>
+                  <div class="crew-mini-info">
+                    <strong data-i18n="crew3Name">Dra. Okafor</strong>
+                    <span data-i18n="crew3Role">Botánica Veggie</span>
+                  </div>
+                </div>
+                <div class="crew-mini-chip">
+                  <span class="crew-mini-dot" style="background-color: #C85A32"></span>
+                  <div class="crew-mini-info">
+                    <strong data-i18n="crew4Name">Esp. Morales</strong>
+                    <span data-i18n="crew4Role">Escudo y RAD</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 3: VITRINA INTERACTIVA DE PARCHES Y CIENCIA NASA -->
+      <section class="patches-section dark-surface" id="sec-patches">
+        <div class="container">
+          <div class="section-header">
+            <span class="section-kicker" data-i18n="patchesKicker">SECCIÓN 03 // VITRINA TÁCTIL DE INSIGNIAS</span>
+            <h2 class="section-title" data-i18n="patchesTitle">
+              Colecciona parches bordados de misión respaldados por ciencia real
+            </h2>
+            <p class="section-lead" data-i18n="patchesLead">
+              Pasa el cursor o toca cada parche para descubrir cómo se gana dentro del simulador.
+            </p>
+          </div>
+
+          <div class="patches-vitrine-grid" role="list">
+            <!-- Parche 1: Pionero ISRU -->
+            <div
+              class="patch-vitrine-card is-active"
+              role="listitem"
+              tabindex="0"
+              id="patch-card-isru"
+              data-patch-card
+            >
+              <div class="patch-svg-wrap" aria-hidden="true">
+                <svg width="104" height="104" viewBox="0 0 104 104" fill="none">
+                  <circle cx="52" cy="52" r="48" fill="#0B3D91" stroke="#FBBF24" stroke-width="3" />
+                  <circle cx="52" cy="52" r="43" stroke="#FAF7F0" stroke-width="1.5" stroke-dasharray="4 3" />
+                  <polygon points="52,22 76,68 28,68" fill="#C85A32" stroke="#FAF7F0" stroke-width="2" />
+                  <circle cx="52" cy="54" r="9" fill="#38BDF8" stroke="#0E1726" stroke-width="1.8" />
+                </svg>
+              </div>
+              <span class="patch-code-tag">PATCH 01 // ISRU</span>
+              <h3 class="patch-name" data-i18n="patch1Name">Pionero ISRU</h3>
+              <p class="patch-unlock-desc" data-i18n="patch1Desc">
+                Se consigue al extraer hielo polar lunar o producir oxígeno con MOXIE en Marte para abastecer la colonia.
+              </p>
+            </div>
+
+            <!-- Parche 2: Guardián Solar -->
+            <div
+              class="patch-vitrine-card"
+              role="listitem"
+              tabindex="0"
+              id="patch-card-solar"
+              data-patch-card
+            >
+              <div class="patch-svg-wrap" aria-hidden="true">
+                <svg width="104" height="104" viewBox="0 0 104 104" fill="none">
+                  <circle cx="52" cy="52" r="48" fill="#3B180E" stroke="#C85A32" stroke-width="3" />
+                  <circle cx="52" cy="52" r="43" stroke="#FBBF24" stroke-width="1.5" stroke-dasharray="4 3" />
+                  <path d="M52 20L76 32V54C76 69 65 80 52 85C39 80 28 69 28 54V32L52 20Z" fill="#0E1726" stroke="#FAF7F0" stroke-width="2" />
+                  <circle cx="52" cy="52" r="11" fill="#FBBF24" />
+                </svg>
+              </div>
+              <span class="patch-code-tag">PATCH 02 // DONKI</span>
+              <h3 class="patch-name" data-i18n="patch2Name">Guardián Solar</h3>
+              <p class="patch-unlock-desc" data-i18n="patch2Desc">
+                Se consigue al proteger a la tripulación con el escudo de agua durante una tormenta solar real de NASA DONKI.
+              </p>
+            </div>
+
+            <!-- Parche 3: Maestro ECLSS -->
+            <div
+              class="patch-vitrine-card"
+              role="listitem"
+              tabindex="0"
+              id="patch-card-eclss"
+              data-patch-card
+            >
+              <div class="patch-svg-wrap" aria-hidden="true">
+                <svg width="104" height="104" viewBox="0 0 104 104" fill="none">
+                  <circle cx="52" cy="52" r="48" fill="#14532D" stroke="#4ADE80" stroke-width="3" />
+                  <circle cx="52" cy="52" r="43" stroke="#FAF7F0" stroke-width="1.5" stroke-dasharray="4 3" />
+                  <path d="M52 24C64 40 70 50 70 61C70 71 62 79 52 79C42 79 34 71 34 61C34 50 40 40 52 24Z" fill="#38BDF8" stroke="#FAF7F0" stroke-width="2" />
+                  <path d="M52 70V46M52 56L45 49M52 54L59 47" stroke="#14532D" stroke-width="2.2" stroke-linecap="round" />
+                </svg>
+              </div>
+              <span class="patch-code-tag">PATCH 03 // ECLSS</span>
+              <h3 class="patch-name" data-i18n="patch3Name">Maestro ECLSS</h3>
+              <p class="patch-unlock-desc" data-i18n="patch3Desc">
+                Se consigue al mantener el aire, el reciclaje de agua al 98% y el invernadero Veggie por encima del nivel seguro.
+              </p>
+            </div>
+
+            <!-- Parche 4: As del Quiz -->
+            <div
+              class="patch-vitrine-card"
+              role="listitem"
+              tabindex="0"
+              id="patch-card-quiz"
+              data-patch-card
+            >
+              <div class="patch-svg-wrap" aria-hidden="true">
+                <svg width="104" height="104" viewBox="0 0 104 104" fill="none">
+                  <circle cx="52" cy="52" r="48" fill="#1E293B" stroke="#38BDF8" stroke-width="3" />
+                  <circle cx="52" cy="52" r="43" stroke="#FBBF24" stroke-width="1.5" stroke-dasharray="4 3" />
+                  <polygon points="52,21 60,39 80,41 65,55 69,75 52,65 35,75 39,55 24,41 44,39" fill="#FBBF24" stroke="#FAF7F0" stroke-width="1.8" />
+                </svg>
+              </div>
+              <span class="patch-code-tag">PATCH 04 // OSDR</span>
+              <h3 class="patch-name" data-i18n="patch4Name">As del Quiz</h3>
+              <p class="patch-unlock-desc" data-i18n="patch4Desc">
+                Se consigue al responder con 100% de aciertos el desafío de verificación científica en el Anexo del Cuaderno.
+              </p>
+            </div>
+          </div>
+
+          <!-- Sello de Verificación Científica -->
+          <div class="science-verification-seal">
+            <div class="seal-badge-emblem" aria-hidden="true">
+              <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+                <circle cx="26" cy="26" r="22" stroke="#1B1F2A" stroke-width="2" stroke-dasharray="4 2" />
+                <path d="M16 27l7 7 13-15" stroke="#2A6F4E" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </div>
+            <div class="seal-copy">
+              <div class="seal-header-row">
+                <h3 class="seal-title" data-i18n="sealTitle">
+                  Sello de Trazabilidad Científica Abierta de la NASA
+                </h3>
+                <span class="seal-stamp-pill" data-i18n="sealPill">0% DATOS INVENTADOS</span>
+              </div>
+              <p class="seal-text" data-i18n="sealText">
+                Cada tormenta solar, dosis de radiación y cosecha espacial del simulador proviene de instrumentos reales y repositorios abiertos de la NASA, con respaldo automático si juegas sin conexión.
+              </p>
+              <div class="nasa-instruments-row">
+                <span class="instrument-chip">Curiosity RAD (0.67 mSv/sol)</span>
+                <span class="instrument-chip">Perseverance MOXIE (122 g O₂)</span>
+                <span class="instrument-chip">LCROSS &amp; LRO (Hielo Lunar)</span>
+                <span class="instrument-chip">ISS ECLSS (98% Agua)</span>
+                <span class="instrument-chip">NASA DONKI &amp; OSDR</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 4: LLAMADO FINAL A LA MISIÓN (PASE DE ABORDAJE) -->
+      <section class="boarding-section" id="sec-boarding">
+        <div class="container">
+          <div class="boarding-pass">
+            <div class="boarding-main">
+              <span class="section-kicker" data-i18n="boardingKicker">
+                SECCIÓN 04 // ORDEN DE DESPEGUE · PASE DE ABORDAJE
+              </span>
+              <h2 class="section-title" data-i18n="boardingTitle">
+                Elige tu destino y toma el mando de la base
+              </h2>
+              <p class="section-lead" data-i18n="boardingLead">
+                Selecciona tu sitio de aterrizaje para revisar los parámetros de misión antes de abrir el simulador:
+              </p>
+
+              <div class="destination-selector" role="group" aria-label="Selector de destino de misión">
+                <button
+                  type="button"
+                  id="dest-btn-moon"
+                  class="dest-option-btn is-selected"
+                  aria-pressed="true"
+                  data-dest="moon"
+                >
+                  <div class="dest-option-top">
+                    <span>ARTEMIS // 89.9°S</span>
+                    <span data-i18n="destMoonTag">LUNA</span>
+                  </div>
+                  <span class="dest-option-name" data-i18n="destMoonName">Polo Sur Lunar</span>
+                  <span class="dest-option-sub" data-i18n="destMoonSub">
+                    Cráter Shackleton · Luz solar rasante y hielo en sombra perpetua.
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  id="dest-btn-mars"
+                  class="dest-option-btn"
+                  aria-pressed="false"
+                  data-dest="mars"
+                >
+                  <div class="dest-option-top">
+                    <span>MARS 2020 // 18.3°N</span>
+                    <span data-i18n="destMarsTag">MARTE</span>
+                  </div>
+                  <span class="dest-option-name" data-i18n="destMarsName">Cráter Jezero en Marte</span>
+                  <span class="dest-option-sub" data-i18n="destMarsSub">
+                    Antiguo delta lacustre · Velo de polvo global y generador MOXIE.
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <div class="boarding-stub">
+              <div class="stub-telemetry-list" aria-live="polite">
+                <div class="stub-row">
+                  <span data-i18n="stubLabelSite">DESTINO ACTIVO</span>
+                  <strong id="stub-val-site">Shackleton (89.9°S)</strong>
+                </div>
+                <div class="stub-row">
+                  <span data-i18n="stubLabelGravity">GRAVEDAD</span>
+                  <strong id="stub-val-gravity">1.62 m/s² (0.16 g)</strong>
+                </div>
+                <div class="stub-row">
+                  <span data-i18n="stubLabelDelay">RETRASO DE RADIO</span>
+                  <strong id="stub-val-delay">~1.3 seg (Tierra-Luna)</strong>
+                </div>
+                <div class="stub-row">
+                  <span data-i18n="stubLabelRad">DOSIS BASE</span>
+                  <strong id="stub-val-rad">1.37 mSv/día (LND)</strong>
+                </div>
+              </div>
+
+              <a
+                href="https://prosito0284.github.io/proyecto-nasa/"
+                id="boarding-launch-btn"
+                class="btn-boarding-launch"
+              >
+                <span id="boarding-launch-label" data-i18n="boardingLaunchMoon">
+                  Despegar hacia el Polo Sur Lunar
+                </span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                  <path d="M5 12h14M13 5l7 7-7 7" />
+                </svg>
+              </a>
+            </div>
+          </div>
+
+          <footer class="site-footer">
+            <div>
+              <strong data-i18n="footerCreditsTitle">
+                NASA Space Apps Challenge 2026 — Reto: Build a Junior Astronaut Mission Trainer
+              </strong>
+              <div data-i18n="footerCreditsSub">
+                Diseñado con cariño humano, ciencia abierta de la NASA (DONKI, OSDR, Artemis, Mars) y acceso libre para escuelas y familias.
+              </div>
+            </div>
+
+            <div class="footer-links">
+              <a
+                href="https://prosito0284.github.io/proyecto-nasa/"
+                id="footer-sim-link"
+                class="footer-link"
+              >
+                <span data-i18n="footerSimBtn">Abrir Simulador Web</span>
+              </a>
+              <a
+                href="https://github.com/prosito0284/proyecto-nasa"
+                id="footer-github-link"
+                class="footer-link"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+                </svg>
+                <span data-i18n="footerRepoBtn">Repositorio GitHub</span>
+              </a>
+            </div>
+          </footer>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        var I18N = {
+          es: {
+            headerKicker: 'NASA SPACE APPS 2026',
+            navPillars: 'La experiencia',
+            navPatches: 'Parches y ciencia',
+            navBoarding: 'Pase de abordaje',
+            headerCta: 'Entrar a la Misión',
+            heroStamp1: 'CUADERNO DE VUELO INTERACTIVO',
+            heroStamp2: '100% WEB · CERO INSTALACIÓN',
+            heroTitlePart1: 'Dirige tu primera base espacial en la ',
+            heroTitleHighlight: 'Luna o en Marte',
+            heroSubtitle:
+              'Un simulador táctil donde niños de 7 a 12 años, familias y aulas equilibran energía, oxígeno y cosechas frente a tormentas solares reales medidas por la NASA.',
+            heroAudienceStrong: 'Para jóvenes comandantes (7–12 años), docentes y familias:',
+            heroAudienceSpan:
+              'Aprende tomando decisiones reales donde cada acción tiene un costo y una recompensa científica.',
+            heroPrimaryBtn: 'Lanzar Simulador Interactivo',
+            heroSecondaryBtn: 'Explorar cómo funciona',
+            dossierDocCode: 'EXP-NASA // ARTEMIS-SHACKLETON & JEZERO',
+            dossierLiveTag: 'DATOS NASA VERIFICADOS',
+            stampRadDesc: 'Radiación real en Marte medida por Curiosity RAD',
+            stampWaterDesc: 'Reciclaje real de agua del sistema ISS ECLSS',
+            stampMoxieDesc: 'Oxígeno extraído del CO₂ marciano a 800 °C',
+            pillarsKicker: 'SECCIÓN 02 // QUÉ VAS A VIVIR ADENTRO',
+            pillarsTitle: 'Dos mundos extremos, una tripulación humana y decisiones de verdad',
+            pillarsLead:
+              'Olvida los cuestionarios aburridos: aquí llevas el cuaderno de mando de una colonia viva donde cada kilovatio cuenta.',
+            pillar1Tag: 'Supervivencia Real',
+            pillar1Title: 'Gestión de Colonia y Supervivencia Real',
+            pillar1Body:
+              'Divide tu energía entre soporte vital, calefacción, invernadero hidropónico y blindaje. Ahorrar electricidad hoy puede reducir el oxígeno o las cosechas de mañana.',
+            pillar1Pill1: 'Energía kWh',
+            pillar1Pill2: 'Agua 98% ECLSS',
+            pillar1Pill3: 'Escudo mSv',
+            pillar2Tag: 'Exploración Activa',
+            pillar2Title: 'Rover 3D Jugable en Superficie',
+            pillar2Body:
+              'Toma el volante con teclado o cruceta táctil, alterna a la cámara en primera persona Mastcam y recolecta muestras de hielo polar o sílice marciana para sumar Puntos de Ciencia.',
+            pillar2Pill1: '3 Cámaras 3D',
+            pillar2Pill2: 'Láser Espectrómetro',
+            pillar2Pill3: 'Muestras Reales',
+            pillar3Tag: 'Ciencia Cercana',
+            pillar3Title: 'Aprendizaje sin Frustración',
+            pillar3Body:
+              'Tu tripulación te acompaña con consejos claros en globos de diálogo y un anexo científico que explica cada término (Sol, mSv, CME, Regolito) en lenguaje sencillo.',
+            crew1Name: 'Cmdt. Vega',
+            crew1Role: 'Mando y Salud',
+            crew2Name: 'Ing. Sato',
+            crew2Role: 'Red Eléctrica',
+            crew3Name: 'Dra. Okafor',
+            crew3Role: 'Botánica Veggie',
+            crew4Name: 'Esp. Morales',
+            crew4Role: 'Escudo y RAD',
+            patchesKicker: 'SECCIÓN 03 // VITRINA TÁCTIL DE INSIGNIAS',
+            patchesTitle: 'Colecciona parches bordados de misión respaldados por ciencia real',
+            patchesLead:
+              'Pasa el cursor o toca cada parche para descubrir cómo se gana dentro del simulador.',
+            patch1Name: 'Pionero ISRU',
+            patch1Desc:
+              'Se consigue al extraer hielo polar lunar o producir oxígeno con MOXIE en Marte para abastecer la colonia.',
+            patch2Name: 'Guardián Solar',
+            patch2Desc:
+              'Se consigue al proteger a la tripulación con el escudo de agua durante una tormenta solar real de NASA DONKI.',
+            patch3Name: 'Maestro ECLSS',
+            patch3Desc:
+              'Se consigue al mantener el aire, el reciclaje de agua al 98% y el invernadero Veggie por encima del nivel seguro.',
+            patch4Name: 'As del Quiz',
+            patch4Desc:
+              'Se consigue al responder con 100% de aciertos el desafío de verificación científica en el Anexo del Cuaderno.',
+            sealTitle: 'Sello de Trazabilidad Científica Abierta de la NASA',
+            sealPill: '0% DATOS INVENTADOS',
+            sealText:
+              'Cada tormenta solar, dosis de radiación y cosecha espacial del simulador proviene de instrumentos reales y repositorios abiertos de la NASA, con respaldo automático si juegas sin conexión.',
+            boardingKicker: 'SECCIÓN 04 // ORDEN DE DESPEGUE · PASE DE ABORDAJE',
+            boardingTitle: 'Elige tu destino y toma el mando de la base',
+            boardingLead:
+              'Selecciona tu sitio de aterrizaje para revisar los parámetros de misión antes de abrir el simulador:',
+            destMoonTag: 'LUNA',
+            destMoonName: 'Polo Sur Lunar',
+            destMoonSub: 'Cráter Shackleton · Luz solar rasante y hielo en sombra perpetua.',
+            destMarsTag: 'MARTE',
+            destMarsName: 'Cráter Jezero en Marte',
+            destMarsSub: 'Antiguo delta lacustre · Velo de polvo global y generador MOXIE.',
+            stubLabelSite: 'DESTINO ACTIVO',
+            stubLabelGravity: 'GRAVEDAD',
+            stubLabelDelay: 'RETRASO DE RADIO',
+            stubLabelRad: 'DOSIS BASE',
+            boardingLaunchMoon: 'Despegar hacia el Polo Sur Lunar',
+            boardingLaunchMars: 'Despegar hacia el Cráter Jezero',
+            footerCreditsTitle:
+              'NASA Space Apps Challenge 2026 — Reto: Build a Junior Astronaut Mission Trainer',
+            footerCreditsSub:
+              'Diseñado con cariño humano, ciencia abierta de la NASA (DONKI, OSDR, Artemis, Mars) y acceso libre para escuelas y familias.',
+            footerSimBtn: 'Abrir Simulador Web',
+            footerRepoBtn: 'Repositorio GitHub',
+          },
+          en: {
+            headerKicker: 'NASA SPACE APPS 2026',
+            navPillars: 'The Experience',
+            navPatches: 'Patches & Science',
+            navBoarding: 'Boarding Pass',
+            headerCta: 'Enter Mission',
+            heroStamp1: 'INTERACTIVE FLIGHT NOTEBOOK',
+            heroStamp2: '100% WEB · ZERO INSTALL',
+            heroTitlePart1: 'Command your first space outpost on the ',
+            heroTitleHighlight: 'Moon or Mars',
+            heroSubtitle:
+              'A tactile mission simulator where kids ages 7–12, families, and classrooms balance power, oxygen, and crops against real solar storms measured by NASA.',
+            heroAudienceStrong: 'For young commanders (ages 7–12), teachers, and families:',
+            heroAudienceSpan:
+              'Learn by making real engineering trade-offs where every choice carries a cost and a scientific reward.',
+            heroPrimaryBtn: 'Launch Interactive Simulator',
+            heroSecondaryBtn: 'Explore how it works',
+            dossierDocCode: 'EXP-NASA // ARTEMIS-SHACKLETON & JEZERO',
+            dossierLiveTag: 'VERIFIED NASA DATA',
+            stampRadDesc: 'Real Martian radiation measured by Curiosity RAD',
+            stampWaterDesc: 'Real water recovery rate from ISS ECLSS',
+            stampMoxieDesc: 'Oxygen extracted from Martian CO₂ at 800 °C',
+            pillarsKicker: 'SECTION 02 // WHAT YOU WILL EXPERIENCE INSIDE',
+            pillarsTitle: 'Two extreme worlds, a human crew, and real engineering trade-offs',
+            pillarsLead:
+              'Forget dry quizzes: here you keep the flight notebook of a living colony where every kilowatt-hour counts.',
+            pillar1Tag: 'Real Survival',
+            pillar1Title: 'Colony Management & Real Survival',
+            pillar1Body:
+              'Split limited power between life support, heating, the hydroponic greenhouse, and shielding. Saving electricity today can reduce oxygen or harvests tomorrow.',
+            pillar1Pill1: 'Power kWh',
+            pillar1Pill2: '98% Water ECLSS',
+            pillar1Pill3: 'mSv Shielding',
+            pillar2Tag: 'Active Exploration',
+            pillar2Title: 'Playable 3D Surface Rover',
+            pillar2Body:
+              'Drive across lunar craters and Martian dunes using keyboard or touch D-pad, switch to first-person Mastcam view, and collect polar ice or silica samples for Science Points.',
+            pillar2Pill1: '3 Camera Views',
+            pillar2Pill2: 'Laser Spectrometer',
+            pillar2Pill3: 'Real Samples',
+            pillar3Tag: 'Approachable Science',
+            pillar3Title: 'Frustration-Free Learning',
+            pillar3Body:
+              'Your crew guides you with clear comic-style speech bubbles and a field notebook annex that explains every scientific term (Sol, mSv, CME, Regolith) in plain language.',
+            crew1Name: 'Cmdr. Vega',
+            crew1Role: 'Command & Health',
+            crew2Name: 'Eng. Sato',
+            crew2Role: 'Power Grid',
+            crew3Name: 'Dr. Okafor',
+            crew3Role: 'Veggie Botany',
+            crew4Name: 'Spec. Morales',
+            crew4Role: 'Shield & RAD',
+            patchesKicker: 'SECTION 03 // TACTILE MISSION PATCH VITRINE',
+            patchesTitle: 'Collect embroidered mission patches backed by real NASA science',
+            patchesLead:
+              'Hover or tap each mission patch to see how you earn it inside the simulator.',
+            patch1Name: 'ISRU Pioneer',
+            patch1Desc:
+              'Earned by harvesting lunar polar ice or producing oxygen with MOXIE on Mars to supply the outpost.',
+            patch2Name: 'Solar Guardian',
+            patch2Desc:
+              'Earned by protecting the crew with the water wall during a real solar particle storm from NASA DONKI.',
+            patch3Name: 'ECLSS Master',
+            patch3Desc:
+              'Earned by keeping oxygen, 98% water recycling, and the Veggie greenhouse above safe thresholds.',
+            patch4Name: 'Quiz Ace',
+            patch4Desc:
+              'Earned by achieving a 100% score on the scientific verification challenge in the Flight Notebook Annex.',
+            sealTitle: 'NASA Open Science Traceability Seal',
+            sealPill: '0% INVENTED DATA',
+            sealText:
+              'Every solar storm, radiation dose, and space crop in the simulator comes from real NASA instruments and open repositories, with curated offline fallback built in.',
+            boardingKicker: 'SECTION 04 // LAUNCH ORDER · BOARDING PASS',
+            boardingTitle: 'Choose your destination and take command of the outpost',
+            boardingLead:
+              'Select your landing site to inspect its mission telemetry before launching the simulator:',
+            destMoonTag: 'MOON',
+            destMoonName: 'Lunar South Pole',
+            destMoonSub: 'Shackleton Crater · Grazing sunlight and permanently shadowed water ice.',
+            destMarsTag: 'MARS',
+            destMarsName: 'Jezero Crater on Mars',
+            destMarsSub: 'Ancient lake delta · Global dust veil and MOXIE oxygen generator.',
+            stubLabelSite: 'ACTIVE TARGET',
+            stubLabelGravity: 'GRAVITY',
+            stubLabelDelay: 'RADIO DELAY',
+            stubLabelRad: 'BASELINE DOSE',
+            boardingLaunchMoon: 'Launch to the Lunar South Pole',
+            boardingLaunchMars: 'Launch to Jezero Crater on Mars',
+            footerCreditsTitle:
+              'NASA Space Apps Challenge 2026 — Challenge: Build a Junior Astronaut Mission Trainer',
+            footerCreditsSub:
+              'Crafted with human warmth, open NASA science (DONKI, OSDR, Artemis, Mars), and free web access for schools and families.',
+            footerSimBtn: 'Open Web Simulator',
+            footerRepoBtn: 'GitHub Repository',
+          },
+        };
+
+        var DEST_DATA = {
+          moon: {
+            es: {
+              site: 'Shackleton (89.9°S)',
+              gravity: '1.62 m/s² (0.16 g)',
+              delay: '~1.3 seg (Tierra-Luna)',
+              rad: '1.37 mSv/día (Chang’e-4 LND)',
+              ctaKey: 'boardingLaunchMoon',
+            },
+            en: {
+              site: 'Shackleton (89.9°S)',
+              gravity: '1.62 m/s² (0.16 g)',
+              delay: '~1.3 sec (Earth-Moon)',
+              rad: '1.37 mSv/day (Chang’e-4 LND)',
+              ctaKey: 'boardingLaunchMoon',
+            },
+          },
+          mars: {
+            es: {
+              site: 'Cráter Jezero (18.3°N)',
+              gravity: '3.72 m/s² (0.38 g)',
+              delay: '4 a 24 min (Tierra-Marte)',
+              rad: '0.67 mSv/sol (Curiosity RAD)',
+              ctaKey: 'boardingLaunchMars',
+            },
+            en: {
+              site: 'Jezero Crater (18.3°N)',
+              gravity: '3.72 m/s² (0.38 g)',
+              delay: '4 to 24 min (Earth-Mars)',
+              rad: '0.67 mSv/sol (Curiosity RAD)',
+              ctaKey: 'boardingLaunchMars',
+            },
+          },
+        };
+
+        var currentLang = 'es';
+        var currentDest = 'moon';
+
+        function renderPage() {
+          var dict = I18N[currentLang];
+          document.documentElement.lang = currentLang;
+
+          var nodes = document.querySelectorAll('[data-i18n]');
+          for (var i = 0; i < nodes.length; i++) {
+            var el = nodes[i];
+            var key = el.getAttribute('data-i18n');
+            if (key && dict[key]) {
+              el.textContent = dict[key];
+            }
+          }
+
+          var langLabel = document.getElementById('lang-toggle-label');
+          if (langLabel) {
+            langLabel.textContent = currentLang === 'es' ? 'ES · Cambiar a EN' : 'EN · Switch to ES';
+          }
+
+          var destInfo = DEST_DATA[currentDest][currentLang];
+          document.getElementById('stub-val-site').textContent = destInfo.site;
+          document.getElementById('stub-val-gravity').textContent = destInfo.gravity;
+          document.getElementById('stub-val-delay').textContent = destInfo.delay;
+          document.getElementById('stub-val-rad').textContent = destInfo.rad;
+          document.getElementById('boarding-launch-label').textContent = dict[destInfo.ctaKey];
+        }
+
+        document.getElementById('lang-toggle-btn').addEventListener('click', function () {
+          currentLang = currentLang === 'es' ? 'en' : 'es';
+          renderPage();
+        });
+
+        var destBtns = document.querySelectorAll('[data-dest]');
+        for (var j = 0; j < destBtns.length; j++) {
+          destBtns[j].addEventListener('click', function () {
+            var targetDest = this.getAttribute('data-dest');
+            if (!targetDest) return;
+            currentDest = targetDest;
+            for (var k = 0; k < destBtns.length; k++) {
+              var active = destBtns[k].getAttribute('data-dest') === currentDest;
+              destBtns[k].classList.toggle('is-selected', active);
+              destBtns[k].setAttribute('aria-pressed', active ? 'true' : 'false');
+            }
+            renderPage();
+          });
+        }
+
+        var patchCards = document.querySelectorAll('[data-patch-card]');
+        for (var p = 0; p < patchCards.length; p++) {
+          patchCards[p].addEventListener('click', function () {
+            for (var q = 0; q < patchCards.length; q++) {
+              patchCards[q].classList.remove('is-active');
+            }
+            this.classList.add('is-active');
+          });
+          patchCards[p].addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              this.click();
+            }
+          });
+        }
+
+        renderPage();
+      })();
+    </script>
+  </body>
+</html>
