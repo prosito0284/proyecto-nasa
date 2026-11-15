@@ -17,6 +17,7 @@ import type {
   TurnProjection,
 } from '../../engine/simulationEngine';
 import type { UnlockedPatchRecord } from '../../services/patchStorage';
+import { findCrewWatcherForVital, getCrewMemberName } from '../../data/crew';
 import { missionAudio } from '../../utils/sound';
 import {
   AlertIcon,
@@ -55,7 +56,16 @@ export interface ResourcePanelProps {
   onTutorialAction?: (stepId: string) => void;
   /** P03: Registros persistidos de parches desbloqueados */
   unlockedRecords?: Record<string, UnlockedPatchRecord>;
+  /** F02: Indica si el simulacro de emergencia térmica del Paso 4 de onboarding está activo */
+  isOnboardingEmergency?: boolean;
 }
+
+export const BALANCED_POWER_ALLOCATION: PowerAllocation = {
+  lifeSupportAlloc: 35,
+  shieldingAlloc: 25,
+  greenhouseAlloc: 25,
+  scienceAndCommsAlloc: 15,
+};
 
 const POWER_PRESETS: Array<{
   id: 'balanced' | 'storm' | 'greenhouse' | 'science';
@@ -69,12 +79,7 @@ const POWER_PRESETS: Array<{
     icon: <SlidersIcon size={18} />,
     title: { es: 'Equilibrado', en: 'Balanced' },
     subtitle: { es: 'Estable para días normales', en: 'Steady for normal days' },
-    alloc: {
-      lifeSupportAlloc: 35,
-      shieldingAlloc: 25,
-      greenhouseAlloc: 25,
-      scienceAndCommsAlloc: 15,
-    },
+    alloc: BALANCED_POWER_ALLOCATION,
   },
   {
     id: 'storm',
@@ -123,6 +128,10 @@ function isSameAllocation(a: PowerAllocation, b: PowerAllocation): boolean {
   );
 }
 
+export function shouldCommitPresetChange(presetId?: string, isOnboardingEmergency = false): boolean {
+  return !(isOnboardingEmergency && presetId === 'storm');
+}
+
 export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   lang,
   resources,
@@ -136,6 +145,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   crew,
   onTutorialAction,
   unlockedRecords,
+  isOnboardingEmergency = false,
 }) => {
   const [showAdvancedSliders, setShowAdvancedSliders] = useState(false);
   const [gridIgnited, setGridIgnited] = useState(false);
@@ -156,6 +166,13 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   const applyPreset = (preset: PowerAllocation, presetId?: string) => {
     missionAudio.playClick();
     setGridIgnited(true);
+    if (!shouldCommitPresetChange(presetId, isOnboardingEmergency)) {
+      onTutorialAction?.('step-power-presets');
+      onTutorialAction?.('power-grid');
+      onTutorialAction?.('power-preset-storm');
+      onTutorialAction?.('thermal-stabilizer');
+      return;
+    }
     onChangeAllocation(preset);
     onTutorialAction?.('step-power-presets');
     onTutorialAction?.('power-grid');
@@ -386,24 +403,42 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                     ? 'BIEN'
                     : 'OK';
 
-              const watcher = crew?.find((c) => c.member.watches === m.id);
+              const watcher = findCrewWatcherForVital(crew, m.id);
               const isOxygenRow = m.id === 'lifeSupport';
 
-              return (
+              const activateOxygenModule = () => {
+                missionAudio.playClick();
+                setOxygenPressurized(true);
+                onTutorialAction?.('oxygen-module');
+              };
+
+              const rowContent = (
                 <div
-                  key={m.id}
-                  role="listitem"
+                  key={isOxygenRow ? undefined : m.id}
+                  role={isOxygenRow ? 'button' : 'listitem'}
+                  tabIndex={isOxygenRow ? 0 : undefined}
                   data-onboarding-id={isOxygenRow ? 'oxygen-module' : `vital-${m.id}`}
+                  style={isOxygenRow ? { cursor: 'pointer' } : undefined}
                   className={`vital-checklist-row vital-row-${statusKey} ${
                     isOxygenRow && oxygenPressurized ? 'onboarding-oxygen-pressurized' : ''
                   }`}
-                  onClick={() => {
-                    if (isOxygenRow) {
-                      missionAudio.playClick();
-                      setOxygenPressurized(true);
-                      onTutorialAction?.('oxygen-module');
-                    }
-                  }}
+                  onClick={
+                    isOxygenRow
+                      ? () => {
+                          activateOxygenModule();
+                        }
+                      : undefined
+                  }
+                  onKeyDown={
+                    isOxygenRow
+                      ? (e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            activateOxygenModule();
+                          }
+                        }
+                      : undefined
+                  }
                 >
                   <div className="vital-checklist-main">
                     {/* Casilla de checklist con estado (bien / atención / crítico) */}
@@ -424,10 +459,10 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                     {/* Retrato pequeño de quien vigila este vital (si `crew` está presente) */}
                     {watcher && (
                       <CrewPortrait
-                        memberId={watcher.member.id}
-                        mood={watcher.mood}
+                        memberId={watcher.status.member.id}
+                        mood={watcher.status.mood}
                         size={30}
-                        title={`${watcher.member.name} (${watcher.member.role[lang]}): "${watcher.line[lang]}"`}
+                        title={`${getCrewMemberName(watcher.status.member, lang)} (${(watcher.roleLabel ?? watcher.status.member.role)[lang]}): "${watcher.status.line[lang]}"`}
                         className="vital-watcher-portrait"
                       />
                     )}
@@ -436,10 +471,18 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                     <div className="vital-label-col">
                       <span className="resource-label-inline">
                         {m.icon} {m.label}
+                        {isOxygenRow && (
+                          <span className="sr-only">
+                            {lang === 'es'
+                              ? ' — presurizar módulo de oxígeno'
+                              : ' — pressurize oxygen module'}
+                          </span>
+                        )}
                       </span>
                       {watcher && (
                         <small className="vital-watcher-name">
-                          {watcher.member.name} · {watcher.member.role[lang]}
+                          {getCrewMemberName(watcher.status.member, lang)} ·{' '}
+                          {(watcher.roleLabel ?? watcher.status.member.role)[lang]}
                         </small>
                       )}
                     </div>
@@ -465,6 +508,18 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                     </span>
                   </div>
                 </div>
+              );
+
+              return isOxygenRow ? (
+                <div
+                  key={m.id}
+                  role="listitem"
+                  style={{ borderBottom: '1px solid var(--rule)' }}
+                >
+                  {rowContent}
+                </div>
+              ) : (
+                rowContent
               );
             })}
           </div>

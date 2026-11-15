@@ -3,7 +3,6 @@ import { Language, OutpostSiteId, PowerAllocation, TradeoffChoice } from './type
 import { OUTPOST_SITES } from './data/scenarios';
 import { KID_SCIENCE_GLOSSARY, getGlossaryTerm } from './data/nasa-datasets';
 import {
-  DEFAULT_POWER_ALLOCATION,
   getCommDelaySeconds,
   getCrewReaction,
   getCrewStatus,
@@ -12,7 +11,7 @@ import { simulateTrainingDrill } from './engine/trainingDrill';
 import { buildChallengeUrl, getDailyChallengeSeed, useMission } from './hooks/useMission';
 import { useClassBoard } from './hooks/useClassBoard';
 import { OutpostMap } from './components/OutpostView/OutpostMap';
-import { ResourcePanel } from './components/MissionHUD/ResourcePanel';
+import { BALANCED_POWER_ALLOCATION, ResourcePanel } from './components/MissionHUD/ResourcePanel';
 import { CommanderCertificate } from './components/MissionHUD/CommanderCertificate';
 import { PatchShowcaseModal } from './components/MissionHUD/PatchShowcaseModal';
 import { PatchUnlockBanner } from './components/MissionHUD/PatchUnlockBanner';
@@ -43,6 +42,29 @@ const SOLAR_STORM_TYPES = ['FLR', 'SEP', 'CME'];
 /** Tiempo que el sello "EJECUTADA" queda a la vista antes de avanzar el día. */
 const STAMP_MS = 650;
 
+export function resolvePostDrillAllocation(
+  saved: PowerAllocation | null,
+  current: PowerAllocation,
+): PowerAllocation {
+  if (saved && saved.shieldingAlloc < 40) return { ...saved };
+  if (current.shieldingAlloc < 40) return { ...current };
+  return { ...BALANCED_POWER_ALLOCATION };
+}
+
+export function isExecutionLocked(
+  executingId: string | null,
+  hasPendingStamp = false,
+): boolean {
+  return executingId !== null || hasPendingStamp;
+}
+
+export function computeOutcomeFlagsAfterTutorialLaunch(
+  status: 'briefing' | 'playing' | 'won' | 'failed',
+  current: { linkCopied: boolean; boardSaved: boolean },
+): { linkCopied: boolean; boardSaved: boolean } {
+  if (status !== 'playing') return { linkCopied: false, boardSaved: false };
+  return current;
+}
 const siteShortName = (siteId: OutpostSiteId, lang: Language) =>
   siteId === 'moon-shackleton'
     ? lang === 'es'
@@ -88,9 +110,16 @@ export const App: React.FC = () => {
   const patches = usePatches();
   const { unlockPatch, unlockPatches, isUnlocked } = patches;
 
+  const clearStampTimer = () => {
+    if (stampTimer.current !== null) {
+      window.clearTimeout(stampTimer.current);
+      stampTimer.current = null;
+    }
+  };
+
   useEffect(
     () => () => {
-      if (stampTimer.current !== null) window.clearTimeout(stampTimer.current);
+      clearStampTimer();
     },
     [],
   );
@@ -150,9 +179,31 @@ export const App: React.FC = () => {
     !isBadgesOpen &&
     !isShowcaseOpen;
 
+  const savedDrillAllocationRef = useRef<PowerAllocation | null>(null);
+  const emergencyDrillActiveRef = useRef(false);
+  const drillRestoredRef = useRef(false);
+
+  const restorePreDrillAllocation = () => {
+    if (drillRestoredRef.current) return;
+    if (!savedDrillAllocationRef.current && !emergencyDrillActiveRef.current) return;
+    drillRestoredRef.current = true;
+    const restored = resolvePostDrillAllocation(
+      savedDrillAllocationRef.current,
+      mission.powerAllocation,
+    );
+    savedDrillAllocationRef.current = null;
+    setAllocation(restored);
+  };
+
   const onboarding = useOnboarding({
     autoStart: true,
     enabled: tutorialEnabled,
+    recomputeKey: lang,
+    onStepCompleted: (targetId) => {
+      if (targetId === 'thermal-stabilizer') {
+        restorePreDrillAllocation();
+      }
+    },
     onCompleteTraining: () => {
       unlockPatch('training-graduate', mission.siteId);
     },
@@ -167,31 +218,57 @@ export const App: React.FC = () => {
   const handleInteractiveAction = (targetOrStepId: string) => {
     onboarding.completeOnboardingTarget(targetOrStepId);
     tutorial.completeActionTrigger(targetOrStepId);
+    if (
+      targetOrStepId === 'thermal-stabilizer' ||
+      (emergencyDrillActiveRef.current && targetOrStepId === 'power-preset-storm')
+    ) {
+      restorePreDrillAllocation();
+    }
   };
 
-  const savedDrillAllocationRef = useRef<PowerAllocation | null>(null);
+  const isOnboardingVisible = onboarding.isActive && tutorialEnabled;
+  const isOnboardingEmergency = Boolean(
+    isOnboardingVisible && onboarding.currentStep?.isEmergency,
+  );
   const isEmergencyStepActive = Boolean(
-    tutorialEnabled &&
-      ((onboarding.isActive && onboarding.currentStep?.isEmergency) ||
-        (tutorial.isActive && tutorial.currentStep?.drill)),
+    isOnboardingEmergency || (tutorialEnabled && tutorial.isActive && tutorial.currentStep?.drill),
   );
 
   useEffect(() => {
     if (isEmergencyStepActive) {
+      emergencyDrillActiveRef.current = true;
+      drillRestoredRef.current = false;
       if (!savedDrillAllocationRef.current) {
-        savedDrillAllocationRef.current = { ...mission.powerAllocation };
+        savedDrillAllocationRef.current = resolvePostDrillAllocation(
+          null,
+          mission.powerAllocation,
+        );
         if (mission.powerAllocation.shieldingAlloc >= 40) {
-          setAllocation(DEFAULT_POWER_ALLOCATION);
+          setAllocation(BALANCED_POWER_ALLOCATION);
         }
       }
       return;
     }
+    emergencyDrillActiveRef.current = false;
+    drillRestoredRef.current = false;
     if (savedDrillAllocationRef.current) {
-      const restored = savedDrillAllocationRef.current;
+      const restored = resolvePostDrillAllocation(
+        savedDrillAllocationRef.current,
+        mission.powerAllocation,
+      );
       savedDrillAllocationRef.current = null;
       setAllocation(restored);
     }
   }, [isEmergencyStepActive, mission.powerAllocation, setAllocation]);
+
+  const handleAllocationChange = (next: PowerAllocation) => {
+    if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
+    if ((isEmergencyStepActive || emergencyDrillActiveRef.current) && next.shieldingAlloc >= 40) {
+      restorePreDrillAllocation();
+      return;
+    }
+    setAllocation(next);
+  };
 
   const drillReadout = useMemo(
     () => (isEmergencyStepActive ? simulateTrainingDrill(mission) : null),
@@ -199,6 +276,7 @@ export const App: React.FC = () => {
   );
 
   const openScience = (termId?: string) => {
+    if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
     missionAudio.playClick();
     onboarding.completeOnboardingTarget('nasa-telemetry');
     tutorial.completeActionTrigger('step-science-button');
@@ -206,11 +284,28 @@ export const App: React.FC = () => {
     setIsScienceOpen(true);
   };
 
-  const handleLaunchTutorial = () => {
+  const handleOpenBriefing = () => {
+    if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
     missionAudio.playClick();
+    clearStampTimer();
+    setExecutingId(null);
+    openBriefing();
+  };
+
+  const handleLaunchTutorial = () => {
+    if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
+    missionAudio.playClick();
+    clearStampTimer();
+    setExecutingId(null);
     setIsScienceOpen(false);
     setIsBadgesOpen(false);
     setIsShowcaseOpen(false);
+    const nextFlags = computeOutcomeFlagsAfterTutorialLaunch(mission.status, {
+      linkCopied,
+      boardSaved,
+    });
+    setLinkCopied(nextFlags.linkCopied);
+    setBoardSaved(nextFlags.boardSaved);
     if (mission.status !== 'playing') {
       startMission(mission.siteId, challengeSeed);
       window.scrollTo({ top: 0 });
@@ -224,6 +319,8 @@ export const App: React.FC = () => {
 
   const handleStart = (siteId: OutpostSiteId, seed: number | null = null) => {
     missionAudio.playClick();
+    clearStampTimer();
+    setExecutingId(null);
     setLinkCopied(false);
     setBoardSaved(false);
     startMission(siteId, seed);
@@ -231,6 +328,9 @@ export const App: React.FC = () => {
   };
 
   const applyDecision = (choice: TradeoffChoice) => {
+    clearStampTimer();
+    setIsScienceOpen(false);
+    setIsBadgesOpen(false);
     const updated = decide(choice);
     setExecutingId(null);
     if (updated.status === 'won') missionAudio.playSuccess();
@@ -242,7 +342,7 @@ export const App: React.FC = () => {
 
   /** Firma la orden: muestra el sello un instante y luego avanza el día. */
   const handleExecute = (choice: TradeoffChoice) => {
-    if (executingId) return;
+    if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
     missionAudio.playClick();
     tutorial.completeActionTrigger('step-work-orders');
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -251,7 +351,10 @@ export const App: React.FC = () => {
       return;
     }
     setExecutingId(choice.id);
-    stampTimer.current = window.setTimeout(() => applyDecision(choice), STAMP_MS);
+    stampTimer.current = window.setTimeout(() => {
+      stampTimer.current = null;
+      applyDecision(choice);
+    }, STAMP_MS);
   };
 
   /** Cierra el informe del día; si la misión terminó, abre el certificado. */
@@ -263,6 +366,8 @@ export const App: React.FC = () => {
 
   const handleResetMission = () => {
     missionAudio.playClick();
+    clearStampTimer();
+    setExecutingId(null);
     setLinkCopied(false);
     setBoardSaved(false);
     restartMission();
@@ -315,7 +420,7 @@ export const App: React.FC = () => {
   })();
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${isOnboardingVisible ? ' is-onboarding-active' : ''}`}>
       <header className="top-nav">
         <div className="brand-block">
           <h1>Junior Astronaut Mission Trainer</h1>
@@ -331,10 +436,8 @@ export const App: React.FC = () => {
             <button
               id="new-mission-btn"
               className="btn-secondary"
-              onClick={() => {
-                missionAudio.playClick();
-                openBriefing();
-              }}
+              disabled={executingId !== null}
+              onClick={handleOpenBriefing}
             >
               {es ? 'Cambiar de base' : 'Change outpost'}
             </button>
@@ -343,6 +446,7 @@ export const App: React.FC = () => {
             id="start-tutorial-btn"
             data-onboarding-id="training-button"
             className="btn-secondary tutorial-launch-btn"
+            disabled={executingId !== null}
             onClick={handleLaunchTutorial}
           >
             <HelmetIcon size={16} />{' '}
@@ -353,6 +457,7 @@ export const App: React.FC = () => {
             data-tutorial-id="science-button"
             data-onboarding-id="nasa-telemetry"
             className="btn-secondary"
+            disabled={executingId !== null}
             onClick={() => openScience()}
           >
             <ScienceIcon size={16} /> {es ? 'Ciencia NASA y quiz' : 'NASA science & quiz'}
@@ -479,15 +584,19 @@ export const App: React.FC = () => {
               hoveredChoice={previewChoice}
               pendingEffects={mission.pendingDelayedEffects}
               evaluation={evaluation}
-              onChangeAllocation={setAllocation}
-              onOpenBadgesModal={() => setIsBadgesOpen(true)}
+              onChangeAllocation={handleAllocationChange}
+              onOpenBadgesModal={() => {
+                if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
+                setIsBadgesOpen(true);
+              }}
               crew={crew}
               onTutorialAction={handleInteractiveAction}
               unlockedRecords={patches.unlockedById}
+              isOnboardingEmergency={isOnboardingEmergency}
             />
 
             <div className="mission-center-col">
-              {onboarding.isActive && onboarding.currentStep?.isEmergency && (
+              {isOnboardingEmergency && (
                 <div
                   className="onboarding-thermal-alert-banner"
                   data-testid="onboarding-thermal-alert"
@@ -544,6 +653,7 @@ export const App: React.FC = () => {
                       <button
                         type="button"
                         className="term-link-btn"
+                        disabled={executingId !== null}
                         onClick={() => openScience(mission.currentDilemma?.highlightedTermId)}
                       >
                         {es ? '¿Qué es' : 'What is'}{' '}
@@ -829,7 +939,7 @@ export const App: React.FC = () => {
 
       <OnboardingSpotlight
         lang={lang}
-        isActive={onboarding.isActive && tutorialEnabled}
+        isActive={isOnboardingVisible}
         step={onboarding.currentStep}
         targetRect={onboarding.targetRect}
         onSkip={() => {

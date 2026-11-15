@@ -520,54 +520,48 @@ export const MissionPatch: React.FC<MissionPatchProps> = ({
         );
 
       case 'quiz-ace':
-        // Hoja de verificación científica + sello check de aprobación
+        // Hoja técnica de verificación científica + sello de calificación perfecta
         return (
           <g>
-            {/* Carpeta / hoja de examen */}
-            <rect
-              x="19"
-              y="16"
-              width="26"
-              height="32"
-              rx="2"
+            {/* Ficha técnica de laboratorio con esquina doblada */}
+            <polygon
+              points="18,17 34,17 40,23 40,45 18,45"
               fill={primaryFill}
               stroke={strokeColor}
-              strokeWidth="1.7"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
               strokeDasharray={dashPattern}
             />
-            {/* Pinza superior */}
-            <rect
-              x="26"
-              y="14"
-              width="12"
-              height="4"
-              rx="1"
-              fill={accentFill}
+            <polyline
+              points="34,17 34,23 40,23"
+              fill="none"
               stroke={strokeColor}
               strokeWidth="1.4"
+              strokeLinejoin="round"
               strokeDasharray={dashPattern}
             />
-            {/* Líneas de ficha + sello de acierto */}
+            {/* Líneas de evaluación científica */}
             <path
-              d="M24 24h16M24 29h10"
+              d="M22.5 26h10M22.5 31h12.5M22.5 36h8"
               stroke={strokeColor}
-              strokeWidth="1.6"
+              strokeWidth="1.5"
               strokeLinecap="round"
               strokeDasharray={dashPattern}
             />
+            {/* Sello circular de acierto perfecto */}
             <circle
-              cx="33"
+              cx="39"
               cy="39"
-              r="6.5"
+              r="7.5"
               fill={greenFill}
               stroke={strokeColor}
               strokeWidth="1.6"
               strokeDasharray={dashPattern}
             />
             <path
-              d="M29.8 39l2.3 2.3 4.3-4.3"
+              d="M35.5 39l2.3 2.4 4.7-4.8"
               fill="none"
-              stroke={strokeColor}
+              stroke={earned ? PAPER : INK}
               strokeWidth="1.8"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -611,7 +605,6 @@ export const MissionPatch: React.FC<MissionPatchProps> = ({
             />
           </g>
         );
-
       default:
         return (
           <polygon

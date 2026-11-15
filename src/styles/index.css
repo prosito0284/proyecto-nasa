@@ -149,6 +149,18 @@ body {
   }
 }
 
+/* F01: Margen de scroll seguro para evitar recortes contra el borde superior o barra móvil fija */
+[data-onboarding-id] {
+  scroll-margin-top: 84px;
+  scroll-margin-bottom: 24px;
+}
+
+.top-nav .btn-secondary,
+.top-nav [data-onboarding-id] {
+  scroll-margin-top: 24px;
+  scroll-margin-bottom: 24px;
+}
+
 /* Línea de Tiempo / Registro de Soles de Misión */
 .timeline-bar {
   background: var(--paper-sheet);
@@ -331,7 +343,7 @@ body {
     gap: 0.45rem;
   }
 
-  .timeline-label span {
+  .timeline-label span:not(.challenge-tag) {
     display: none;
   }
 
@@ -1709,16 +1721,16 @@ body {
   gap: 0.6rem;
 }
 
-/* C1 & C17: Pantalla de Briefing / Portada del Plan de Vuelo (cabe en 1440x900 sin scroll) */
+/* C1, C17 & F06: Pantalla de Briefing / Portada del Plan de Vuelo (cabe en 1280x800 sin scroll) */
 .briefing-screen {
   background: var(--paper-sheet);
   border: var(--border);
   border-top: 4px solid var(--nasa-blue);
   border-radius: var(--radius);
-  padding: 0.45rem 0.85rem;
+  padding: 0.55rem 0.85rem;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.35rem;
 }
 
 .briefing-hero {
@@ -1726,8 +1738,8 @@ body {
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.2rem 1rem;
-  padding-bottom: 0.22rem;
+  gap: 0.15rem 0.85rem;
+  padding-bottom: 0.25rem;
   border-bottom: 1.5px solid var(--ink);
 }
 
@@ -1735,12 +1747,12 @@ body {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.45rem;
 }
 
 .briefing-title {
   font-family: var(--font-display);
-  font-size: clamp(1.15rem, 1.5vw, 1.35rem);
+  font-size: clamp(1.18rem, 1.45vw, 1.34rem);
   font-weight: 700;
   letter-spacing: 0.015em;
   display: inline-flex;
@@ -1750,14 +1762,14 @@ body {
 
 .briefing-lead {
   color: var(--ink-secondary);
-  font-size: 0.96rem;
+  font-size: 1rem;
   max-width: 68ch;
-  line-height: 1.2;
+  line-height: 1.22;
 }
 
 .briefing-section-heading {
   font-family: var(--font-display);
-  font-size: 0.92rem;
+  font-size: 0.94rem;
   letter-spacing: 0.015em;
   margin-bottom: 0.15rem;
   color: var(--nasa-blue);
@@ -1773,7 +1785,7 @@ body {
   background: var(--paper);
   border: var(--border);
   border-radius: var(--radius);
-  padding: 0.28rem 0.5rem;
+  padding: 0.3rem 0.5rem;
   display: flex;
   align-items: center;
   gap: 0.45rem;
@@ -1794,15 +1806,15 @@ body {
 
 .tutorial-step-body h4 {
   font-family: var(--font-display);
-  font-size: 0.94rem;
+  font-size: 0.96rem;
   margin-bottom: 0.02rem;
 }
 
 .tutorial-step-body p {
-  font-size: 0.88rem;
+  font-size: 1rem;
   color: var(--ink-secondary);
   max-width: 58ch;
-  line-height: 1.2;
+  line-height: 1.22;
 }
 
 .briefing-sites-grid {
@@ -1815,11 +1827,11 @@ body {
   background: var(--paper);
   border-radius: var(--radius);
   border: var(--border);
-  padding: 0.48rem 0.75rem;
+  padding: 0.45rem 0.7rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 0.3rem;
+  gap: 0.28rem;
   cursor: pointer;
 }
 
@@ -1843,9 +1855,21 @@ body {
   gap: 0.45rem;
 }
 
+.site-card-header-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.site-card-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.45rem;
+}
+
 .site-planet-badge {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border: var(--border);
   border-radius: var(--radius);
   background: var(--paper-sheet);
@@ -1873,10 +1897,10 @@ body {
 }
 
 .site-card-desc {
-  font-size: 0.95rem;
+  font-size: 1rem;
   color: var(--ink);
   max-width: 65ch;
-  line-height: 1.2;
+  line-height: 1.22;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -1893,10 +1917,10 @@ body {
   background: var(--paper-sheet);
   border: 1.5px solid var(--ink);
   border-radius: var(--radius);
-  padding: 0.25rem 0.45rem;
+  padding: 0.22rem 0.42rem;
   display: flex;
   flex-direction: column;
-  gap: 0.14rem;
+  gap: 0.1rem;
   font-size: 0.76rem;
   text-align: left;
   color: var(--ink);
@@ -1917,7 +1941,7 @@ body {
 .telemetry-meter-track {
   display: block;
   width: 100%;
-  height: 5px;
+  height: 4px;
   background: #D6CEBA;
   border: 1px solid var(--ink);
   border-radius: 2px;
@@ -1945,11 +1969,11 @@ body {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.28rem 0.5rem;
+  padding: 0.26rem 0.5rem;
   background: var(--paper-sheet);
   border: 1.5px solid var(--nasa-blue);
   border-radius: 2px;
-  font-size: 0.82rem;
+  font-size: 1rem;
   line-height: 1.25;
   color: var(--ink);
 }
@@ -1958,7 +1982,7 @@ body {
   font-family: var(--font-mono);
   font-size: 0.68rem;
   font-weight: 700;
-  padding: 0.08rem 0.35rem;
+  padding: 0.08rem 0.34rem;
   background: var(--nasa-blue);
   color: #FFFFFF;
   border-radius: 2px;
@@ -1968,7 +1992,7 @@ body {
 .spec-label {
   color: var(--ink-muted);
   font-family: var(--font-mono);
-  font-size: 0.64rem;
+  font-size: 0.63rem;
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
@@ -1977,7 +2001,7 @@ body {
 .site-card-footer {
   display: flex;
   flex-direction: column;
-  gap: 0.22rem;
+  gap: 0.18rem;
 }
 
 .site-nasa-ref {
@@ -1990,7 +2014,62 @@ body {
   min-height: 44px;
   width: 100%;
   font-size: 0.98rem;
-  padding: 0.4rem 0.8rem;
+  padding: 0.35rem 0.8rem;
+}
+
+@media (min-width: 901px) {
+  .app-shell:has(.briefing-screen) {
+    padding: 0.55rem 0.9rem 0.6rem;
+    gap: 0.5rem;
+  }
+
+  .app-shell:has(.briefing-screen) .top-nav {
+    padding: 0.45rem 0.85rem;
+    gap: 0.45rem;
+  }
+
+  .app-shell:has(.briefing-screen) .brand-block h1 {
+    font-size: 1.42rem;
+    line-height: 1.1;
+  }
+
+  .app-shell:has(.briefing-screen) .brand-subtitle {
+    font-size: 0.74rem;
+    line-height: 1.2;
+  }
+
+  .app-shell:has(.briefing-screen) .nav-controls {
+    gap: 0.35rem;
+  }
+
+  .app-shell:has(.briefing-screen) .nav-controls .btn-secondary {
+    padding: 0.35rem 0.68rem;
+    font-size: 0.9rem;
+  }
+
+  .app-shell:has(.briefing-screen) .daily-challenge-strip {
+    margin: 0 auto;
+    padding: 0.48rem 0.85rem;
+    gap: 0.55rem;
+  }
+
+  .app-shell:has(.briefing-screen) > .class-board {
+    margin: 0 auto;
+    padding: 0.48rem 0.85rem;
+  }
+
+  .app-shell:has(.briefing-screen) > .class-board .class-board-head {
+    margin-bottom: 3px;
+  }
+
+  .app-shell:has(.briefing-screen) > .class-board .class-board-head h3 {
+    font-size: 1.08rem;
+  }
+
+  .app-shell:has(.briefing-screen) > .class-board .class-board-empty {
+    font-size: 1rem;
+    line-height: 1.28;
+  }
 }
 
 /* C4: TurnReport / Informe de Cierre de Turno */
@@ -2913,6 +2992,28 @@ button:active,
   display: flex;
   align-items: center;
   gap: 0.65rem;
+}
+
+.crew-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.crew-card-meta .crew-name {
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.15;
+}
+
+.crew-card-meta .crew-role {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink-secondary);
+  line-height: 1.25;
 }
 
 /* ============================================================================

@@ -191,7 +191,9 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
     >
       <div className="briefing-hero">
         <div className="briefing-hero-title-row">
-          <span className="nasa-badge">PLAN DE VUELO</span>
+          <span className="nasa-badge">
+            {lang === 'es' ? 'PLAN DE VUELO' : 'FLIGHT PLAN'}
+          </span>
           <h2 id="briefing-main-title" className="briefing-title">
             <HelmetIcon size={22} />{' '}
             {lang === 'es'
@@ -264,9 +266,11 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
                   <span className="site-planet-badge" aria-hidden="true">
                     <LanguageIcon size={20} />
                   </span>
-                  <div>
-                    <span className="coord-pill">{site.coordinates}</span>
-                    <h4>{site.name[lang]}</h4>
+                  <div className="site-card-header-meta">
+                    <div className="site-card-title-row">
+                      <h4>{site.name[lang]}</h4>
+                      <span className="coord-pill">{site.coordinates}</span>
+                    </div>
                     <p className="site-location-sub">{site.locationName[lang]}</p>
                   </div>
                 </div>
@@ -325,7 +329,7 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
                 >
                   <span className="telemetry-readout-tag">
                     {activeIndicator.label[lang]}
-                  </span>
+                  </span>{' '}
                   <span>{activeIndicator.insight[lang]}</span>
                 </div>
 
