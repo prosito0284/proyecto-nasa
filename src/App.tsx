@@ -370,8 +370,8 @@ export const App: React.FC = () => {
               <strong>{es ? 'Reto del día' : 'Daily challenge'}</strong>
               <span>
                 {es
-                  ? 'Hoy todos juegan la misma misión: mismo clima espacial, mismos dilemas. Gana quien logre el mejor rango.'
-                  : 'Today everyone plays the same mission: same space weather, same dilemmas. Best rank wins.'}
+                  ? 'Compite hoy con la misma semilla de clima espacial por el mejor rango.'
+                  : 'Compete today with the exact same space weather seed for top rank.'}
               </span>
             </div>
             <div className="daily-challenge-actions">

@@ -1,20 +1,21 @@
 /**
- * BLOQUE C (Asignado a: Antigravity Principal - Rama: feat/outpost-ui)
- * C1 & C9 — Portada del Cuaderno de Vuelo (MissionBriefing.tsx)
- * Explica el ciclo operativo en 3 pasos y permite elegir entre
- * Luna (Cráter Shackleton - Artemis) o Marte (Cráter Jezero - Perseverance).
+ * Portada del Cuaderno de Vuelo (MissionBriefing.tsx) — T01 Dieta radical de texto
+ *
+ * - Cero muros de texto: cada bloque tiene como máximo 1 frase de impacto (<= 15 palabras).
+ * - Reemplaza explicaciones largas por indicadores visuales de telemetría (Gravedad,
+ *   Temperatura, Radiación) con barra medidora que responden al pasar el cursor o hacer clic.
  */
 
 import React, { useState } from 'react';
 import { Language, OutpostSiteConfig, OutpostSiteId } from '../../types/mission';
 import { missionAudio } from '../../utils/sound';
 import {
-  AntennaIcon,
   ArrowIcon,
   BatteryIcon,
   ClockIcon,
   HelmetIcon,
   LanguageIcon,
+  RadiationIcon,
   SlidersIcon,
   SunIcon,
 } from '../icons';
@@ -27,6 +28,91 @@ export interface MissionBriefingProps {
   selectedSiteId?: OutpostSiteId;
 }
 
+export type TelemetryMetricKey = 'gravity' | 'temperature' | 'radiation';
+
+interface TelemetryIndicatorSpec {
+  key: TelemetryMetricKey;
+  label: { es: string; en: string };
+  value: { es: string; en: string };
+  /** Porcentaje visual de la barra técnica (0-100) */
+  levelPercent: number;
+  tone: 'blue' | 'amber' | 'red';
+  insight: { es: string; en: string };
+}
+
+const SITE_TELEMETRY_INDICATORS: Record<OutpostSiteId, TelemetryIndicatorSpec[]> = {
+  'moon-shackleton': [
+    {
+      key: 'gravity',
+      label: { es: 'GRAVEDAD', en: 'GRAVITY' },
+      value: { es: '0.166 g', en: '0.166 g' },
+      levelPercent: 17,
+      tone: 'blue',
+      insight: {
+        es: 'Un sexto de gravedad terrestre: exige dos horas diarias de ejercicio.',
+        en: 'One-sixth Earth gravity: requires two hours of daily crew exercise.',
+      },
+    },
+    {
+      key: 'temperature',
+      label: { es: 'TEMPERATURA', en: 'TEMPERATURE' },
+      value: { es: '-180 °C / -50 °C', en: '-180 °C / -50 °C' },
+      levelPercent: 88,
+      tone: 'amber',
+      insight: {
+        es: 'Sombra lunar helada: la calefacción consume gran parte de tu batería.',
+        en: 'Freezing lunar shadow: heating consumes a major share of battery power.',
+      },
+    },
+    {
+      key: 'radiation',
+      label: { es: 'RADIACIÓN', en: 'RADIATION' },
+      value: { es: '1.37 mSv/día', en: '1.37 mSv/day' },
+      levelPercent: 92,
+      tone: 'red',
+      insight: {
+        es: 'Medido por Chang’e-4 LND: activa el refugio de agua en tormentas solares.',
+        en: 'Measured by Chang’e-4 LND: activate the water shelter during solar storms.',
+      },
+    },
+  ],
+  'mars-jezero': [
+    {
+      key: 'gravity',
+      label: { es: 'GRAVEDAD', en: 'GRAVITY' },
+      value: { es: '0.378 g', en: '0.378 g' },
+      levelPercent: 38,
+      tone: 'blue',
+      insight: {
+        es: 'Un tercio de gravedad terrestre: facilita caminar con trajes presurizados.',
+        en: 'One-third Earth gravity: makes walking in pressurized suits easier.',
+      },
+    },
+    {
+      key: 'temperature',
+      label: { es: 'TEMPERATURA', en: 'TEMPERATURE' },
+      value: { es: '-65 °C prom.', en: '-65 °C avg.' },
+      levelPercent: 58,
+      tone: 'amber',
+      insight: {
+        es: 'Noches marcianas bajo cero: mantén encendidos los calefactores del hábitat.',
+        en: 'Subzero Martian nights: keep the habitat heaters running.',
+      },
+    },
+    {
+      key: 'radiation',
+      label: { es: 'RADIACIÓN', en: 'RADIATION' },
+      value: { es: '0.67 mSv/sol', en: '0.67 mSv/sol' },
+      levelPercent: 52,
+      tone: 'red',
+      insight: {
+        es: 'Medido por Curiosity RAD: la delgada atmósfera filtra parte del flujo.',
+        en: 'Measured by Curiosity RAD: the thin atmosphere blocks part of radiation.',
+      },
+    },
+  ],
+};
+
 export const MissionBriefing: React.FC<MissionBriefingProps> = ({
   lang,
   sites,
@@ -34,6 +120,12 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
   selectedSiteId = 'moon-shackleton',
 }) => {
   const [activeSiteId, setActiveSiteId] = useState<OutpostSiteId>(selectedSiteId);
+  const [activeMetricBySite, setActiveMetricBySite] = useState<
+    Record<OutpostSiteId, TelemetryMetricKey>
+  >({
+    'moon-shackleton': 'radiation',
+    'mars-jezero': 'radiation',
+  });
 
   const tutorialSteps = [
     {
@@ -44,8 +136,8 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
         en: '1. Budget your power',
       },
       desc: {
-        es: 'Divide la electricidad entre oxígeno, escudo solar e invernadero.',
-        en: 'Split power across oxygen, solar shielding, and the greenhouse.',
+        es: 'Divide electricidad entre oxígeno, escudo solar e invernadero.',
+        en: 'Split power across oxygen, solar shielding, and greenhouse.',
       },
     },
     {
@@ -56,20 +148,20 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
         en: '2. Sign the daily work order',
       },
       desc: {
-        es: 'Ninguna decisión es gratis: proteger un sistema hoy cuesta otro recurso.',
-        en: 'No decision is free: protecting one system today costs another resource.',
+        es: 'Cada decisión protege un sistema a cambio de otro recurso.',
+        en: 'Every decision protects one system at the cost of another.',
       },
     },
     {
       step: '3',
       icon: <ClockIcon size={20} />,
       title: {
-        es: '3. Cuida a tu tripulación 8 días',
-        en: '3. Keep your crew safe for 8 days',
+        es: '3. Sobrevive 8 días',
+        en: '3. Survive 8 days',
       },
       desc: {
-        es: 'Revisa las consecuencias de cada turno y mantén la base a salvo.',
-        en: 'Review each turn’s consequences and keep the outpost operational.',
+        es: 'Mantén todos los vitales sobre cero hasta completar la misión.',
+        en: 'Keep every vital above zero until mission completion.',
       },
     },
   ];
@@ -77,6 +169,18 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
   const handleLaunch = (siteId: OutpostSiteId) => {
     missionAudio.playSuccess();
     onStart(siteId);
+  };
+
+  const selectTelemetryMetric = (siteId: OutpostSiteId, metric: TelemetryMetricKey) => {
+    setActiveMetricBySite((prev) =>
+      prev[siteId] === metric ? prev : { ...prev, [siteId]: metric },
+    );
+  };
+
+  const renderMetricIcon = (key: TelemetryMetricKey) => {
+    if (key === 'gravity') return <LanguageIcon size={13} />;
+    if (key === 'temperature') return <SunIcon size={13} />;
+    return <RadiationIcon size={13} />;
   };
 
   return (
@@ -97,12 +201,12 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
         </div>
         <p className="briefing-lead">
           {lang === 'es'
-            ? 'Dirige una base de la NASA durante 8 días con datos reales de clima espacial y recursos limitados.'
-            : 'Command a NASA outpost for 8 days using real space weather telemetry and limited resources.'}
+            ? 'Mantén viva tu base espacial 8 días equilibrando energía, oxígeno y escudo.'
+            : 'Keep your space outpost alive for 8 days balancing power, oxygen, and shielding.'}
         </p>
       </div>
 
-      {/* Procedimiento Operativo de 3 Pasos */}
+      {/* Procedimiento Operativo Compacto */}
       <div
         className="briefing-tutorial"
         role="region"
@@ -110,8 +214,8 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
       >
         <h3 className="briefing-section-heading">
           {lang === 'es'
-            ? 'Procedimiento de control de misión (3 pasos)'
-            : 'Mission control procedure (3 steps)'}
+            ? 'Procedimiento de control de misión'
+            : 'Mission control procedure'}
         </h3>
         <div className="tutorial-steps-grid">
           {tutorialSteps.map((st) => (
@@ -128,7 +232,7 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
         </div>
       </div>
 
-      {/* Selección de Destino con Fichas Técnicas (máximo 3 datos por base) */}
+      {/* Selección de Destino con Indicadores Visuales Interactivos de Telemetría (T01) */}
       <div className="briefing-sites-section">
         <h3 className="briefing-section-heading">
           {lang === 'es'
@@ -140,6 +244,10 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
           {sites.map((site) => {
             const isLunar = site.id === 'moon-shackleton';
             const isSelected = activeSiteId === site.id;
+            const indicators = SITE_TELEMETRY_INDICATORS[site.id];
+            const activeMetricKey = activeMetricBySite[site.id] ?? 'radiation';
+            const activeIndicator =
+              indicators.find((ind) => ind.key === activeMetricKey) ?? indicators[0];
 
             return (
               <article
@@ -165,29 +273,60 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
 
                 <p className="site-card-desc">{site.description[lang]}</p>
 
-                {/* C17: Máximo 3 datos físicos reales por base */}
-                <div className="site-specs-grid">
-                  <div className="site-spec-pill">
-                    <span className="spec-label">
-                      <AntennaIcon size={13} />{' '}
-                      {lang === 'es' ? 'Señal a Tierra' : 'Signal delay'}
-                    </span>
-                    <strong>{site.commDelayDisplay[lang]}</strong>
-                  </div>
-                  <div className="site-spec-pill">
-                    <span className="spec-label">
-                      <SunIcon size={13} />{' '}
-                      {lang === 'es' ? 'Temperatura' : 'Temperature'}
-                    </span>
-                    <strong>{site.avgTempCelsius}</strong>
-                  </div>
-                  <div className="site-spec-pill">
-                    <span className="spec-label">
-                      <LanguageIcon size={13} />{' '}
-                      {lang === 'es' ? 'Gravedad' : 'Gravity'}
-                    </span>
-                    <strong>{site.gravityG}g</strong>
-                  </div>
+                {/* T01: Indicadores visuales interactivos (Gravedad, Temperatura, Radiación) */}
+                <div
+                  className="site-specs-grid"
+                  role="group"
+                  aria-label={
+                    lang === 'es'
+                      ? 'Indicadores de telemetría ambiental'
+                      : 'Environmental telemetry indicators'
+                  }
+                >
+                  {indicators.map((ind) => {
+                    const isMetricActive = ind.key === activeIndicator.key;
+                    return (
+                      <button
+                        key={ind.key}
+                        type="button"
+                        data-telemetry-metric={ind.key}
+                        aria-pressed={isMetricActive}
+                        className={`site-spec-pill site-spec-interactive ${
+                          isMetricActive ? 'site-spec-active' : ''
+                        }`}
+                        onMouseEnter={() => selectTelemetryMetric(site.id, ind.key)}
+                        onFocus={() => selectTelemetryMetric(site.id, ind.key)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          missionAudio.playClick();
+                          selectTelemetryMetric(site.id, ind.key);
+                        }}
+                      >
+                        <span className="spec-label">
+                          {renderMetricIcon(ind.key)} {ind.label[lang]}
+                        </span>
+                        <strong>{ind.value[lang]}</strong>
+                        <span className="telemetry-meter-track" aria-hidden="true">
+                          <span
+                            className={`telemetry-meter-fill telemetry-meter-${ind.tone}`}
+                            style={{ width: `${ind.levelPercent}%` }}
+                          />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Lectura instantánea de 1 frase al pasar el cursor o hacer clic */}
+                <div
+                  className="site-telemetry-readout"
+                  data-testid={`telemetry-readout-${site.id}`}
+                  aria-live="polite"
+                >
+                  <span className="telemetry-readout-tag">
+                    {activeIndicator.label[lang]}
+                  </span>
+                  <span>{activeIndicator.insight[lang]}</span>
                 </div>
 
                 <div className="site-card-footer">

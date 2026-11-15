@@ -1891,13 +1891,78 @@ body {
 
 .site-spec-pill {
   background: var(--paper-sheet);
-  border: 1px solid var(--ink);
+  border: 1.5px solid var(--ink);
   border-radius: var(--radius);
-  padding: 0.2rem 0.4rem;
+  padding: 0.25rem 0.45rem;
   display: flex;
   flex-direction: column;
-  gap: 0.02rem;
+  gap: 0.14rem;
   font-size: 0.76rem;
+  text-align: left;
+  color: var(--ink);
+}
+
+.site-spec-interactive {
+  cursor: pointer;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out;
+}
+
+.site-spec-interactive:hover,
+.site-spec-interactive:focus-visible,
+.site-spec-interactive.site-spec-active {
+  background: var(--paper-inset, #E6DEC8);
+  border-color: var(--nasa-blue);
+}
+
+.telemetry-meter-track {
+  display: block;
+  width: 100%;
+  height: 5px;
+  background: #D6CEBA;
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.telemetry-meter-fill {
+  display: block;
+  height: 100%;
+}
+
+.telemetry-meter-blue {
+  background: var(--nasa-blue);
+}
+
+.telemetry-meter-amber {
+  background: #D97706;
+}
+
+.telemetry-meter-red {
+  background: var(--nasa-red);
+}
+
+.site-telemetry-readout {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.5rem;
+  background: var(--paper-sheet);
+  border: 1.5px solid var(--nasa-blue);
+  border-radius: 2px;
+  font-size: 0.82rem;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.telemetry-readout-tag {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.08rem 0.35rem;
+  background: var(--nasa-blue);
+  color: #FFFFFF;
+  border-radius: 2px;
+  white-space: nowrap;
 }
 
 .spec-label {
