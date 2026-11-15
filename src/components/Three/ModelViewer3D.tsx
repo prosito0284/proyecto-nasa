@@ -60,6 +60,40 @@ export function isWebGLAvailable(): boolean {
   }
 }
 
+export type ViewerKeyAction =
+  | { type: 'orbit'; dTheta: number; dPhi: number; zoomScale: number }
+  | { type: 'reset' }
+  | { type: 'toggle-pause' };
+
+/**
+ * M04: Traduce atajos de teclado estándar del visor 3D (flechas, +/-, R, Espacio).
+ */
+export function resolveViewerKeyCommand(key: string): ViewerKeyAction | null {
+  switch (key) {
+    case 'ArrowLeft':
+      return { type: 'orbit', dTheta: 0.16, dPhi: 0, zoomScale: 1 };
+    case 'ArrowRight':
+      return { type: 'orbit', dTheta: -0.16, dPhi: 0, zoomScale: 1 };
+    case 'ArrowUp':
+      return { type: 'orbit', dTheta: 0, dPhi: -0.1, zoomScale: 1 };
+    case 'ArrowDown':
+      return { type: 'orbit', dTheta: 0, dPhi: 0.1, zoomScale: 1 };
+    case '+':
+    case '=':
+      return { type: 'orbit', dTheta: 0, dPhi: 0, zoomScale: 0.88 };
+    case '-':
+    case '_':
+      return { type: 'orbit', dTheta: 0, dPhi: 0, zoomScale: 1.14 };
+    case 'r':
+    case 'R':
+      return { type: 'reset' };
+    case ' ':
+      return { type: 'toggle-pause' };
+    default:
+      return null;
+  }
+}
+
 export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   lang,
   modelId,
@@ -101,8 +135,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   const computedAriaLabel =
     ariaLabel ??
     (es
-      ? `Visor 3D interactivo: ${modelTitle}. Usa flechas para rotar y + o - para acercar.`
-      : `Interactive 3D viewer: ${modelTitle}. Use arrow keys to rotate and + or - to zoom.`);
+      ? `Visor 3D interactivo: ${modelTitle}. Usa flechas para rotar, + o - para acercar y R para centrar.`
+      : `Interactive 3D viewer: ${modelTitle}. Use arrow keys to rotate, + or - to zoom, and R to reset.`);
 
   const resetCamera = () => {
     missionAudio.playClick();
@@ -131,7 +165,9 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
         setSvgRotationDeg((prev) => (prev + Math.sign(dTheta) * 15 + 360) % 360);
       }
       if (zoomScale !== 1) {
-        setSvgZoom((prev) => Math.max(0.75, Math.min(1.45, Number((prev * (zoomScale < 1 ? 1.12 : 0.9)).toFixed(2)))));
+        setSvgZoom((prev) =>
+          Math.max(0.75, Math.min(1.45, Number((prev * (zoomScale < 1 ? 1.12 : 0.9)).toFixed(2)))),
+        );
       }
       return;
     }
@@ -152,32 +188,17 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   };
 
   const handleViewerKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'ArrowLeft') {
+    const cmd = resolveViewerKeyCommand(e.key);
+    if (!cmd) return;
+    if (cmd.type === 'orbit') {
       e.preventDefault();
-      stepOrbitCamera(0.16, 0, 1);
-    } else if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      stepOrbitCamera(-0.16, 0, 1);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      stepOrbitCamera(0, -0.1, 1);
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      stepOrbitCamera(0, 0.1, 1);
-    } else if (e.key === '+' || e.key === '=') {
-      e.preventDefault();
-      stepOrbitCamera(0, 0, 0.88);
-    } else if (e.key === '-' || e.key === '_') {
-      e.preventDefault();
-      stepOrbitCamera(0, 0, 1.14);
-    } else if (e.key === 'r' || e.key === 'R') {
+      stepOrbitCamera(cmd.dTheta, cmd.dPhi, cmd.zoomScale);
+    } else if (cmd.type === 'reset') {
       e.preventDefault();
       resetCamera();
-    } else if (e.key === ' ') {
-      if (e.target === e.currentTarget) {
-        e.preventDefault();
-        handleTogglePause();
-      }
+    } else if (cmd.type === 'toggle-pause' && e.target === e.currentTarget) {
+      e.preventDefault();
+      handleTogglePause();
     }
   };
 
@@ -555,8 +576,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
                   ? 'GLB // 3D CAD'
                   : 'CAD // WEBGL'
                 : es
-                  ? 'PLANO SVG (SIN WEBGL)'
-                  : 'SVG BLUEPRINT (NO WEBGL)'}
+                  ? 'SVG // SIN WEBGL'
+                  : 'SVG // NO WEBGL'}
             </span>
           </span>
         </div>
@@ -606,8 +627,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
         {!compact && (
           <span className="viewer3d-hint">
             {es
-              ? 'Arrastra / flechas para rotar · +/- zoom'
-              : 'Drag / arrows to orbit · +/- zoom'}
+              ? 'Arrastra / flechas para rotar · +/- zoom · R centrar'
+              : 'Drag / arrows to orbit · +/- zoom · R reset'}
           </span>
         )}
       </div>

@@ -65,6 +65,13 @@ import { ModelFocusPose, ModelViewer3D } from '../Three/ModelViewer3D';
 import { HARDWARE_MODEL_HOTSPOTS } from '../Three/proceduralModels';
 import './science.css';
 
+export type ScienceModalTab =
+  | 'donki-glossary'
+  | 'osdr-studies'
+  | 'nasa-photos'
+  | 'mini-quiz'
+  | 'model-3d';
+
 export interface ScienceModalProps {
   lang: Language;
   isOpen: boolean;
@@ -79,9 +86,11 @@ export interface ScienceModalProps {
   onQuizComplete?: (correct: number, total: number) => void;
   /** T08: Callback opcional para notificar interacción con el anexo de ciencia durante el tutorial */
   onTutorialAction?: (stepId: string) => void;
+  /** M04: Pestaña inicial opcional (por defecto 'donki-glossary') */
+  initialTab?: ScienceModalTab;
 }
 
-type ModalTab = 'donki-glossary' | 'osdr-studies' | 'nasa-photos' | 'mini-quiz' | 'model-3d';
+type ModalTab = ScienceModalTab;
 
 const TAB_ORDER: ModalTab[] = [
   'donki-glossary',
@@ -123,8 +132,9 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
   siteId,
   onQuizComplete,
   onTutorialAction,
+  initialTab = 'donki-glossary',
 }) => {
-  const [activeTab, setActiveTab] = useState<ModalTab>('donki-glossary');
+  const [activeTab, setActiveTab] = useState<ModalTab>(initialTab);
   const [glossarySearch, setGlossarySearch] = useState('');
   const [glossarySourceFilter, setGlossarySourceFilter] = useState<
     'ALL' | GlossaryTerm['nasaSource']
