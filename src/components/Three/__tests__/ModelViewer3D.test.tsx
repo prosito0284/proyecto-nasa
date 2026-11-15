@@ -222,7 +222,7 @@ describe('NASA 3D Models & CAD Viewer (M01–M04)', () => {
     expect(html2D).toContain('VISTA 3D');
     expect(html2D).toContain('class="outpost-svg"');
 
-    // En vista 3D muestra el visor 3D (o su respaldo SVG limpio sin WebGL) y los 5 botones de módulos
+    // En vista 3D muestra el entorno interactivo ColonyWorld3D (o su respaldo SVG limpio sin WebGL) y los 5 botones de módulos
     const html3D = renderToStaticMarkup(
       React.createElement(OutpostMap, {
         lang: 'en',
@@ -238,12 +238,15 @@ describe('NASA 3D Models & CAD Viewer (M01–M04)', () => {
     expect(html3D).toContain('data-tutorial-id="outpost-map"');
     expect(html3D).toContain('2D VIEW');
     expect(html3D).toContain('3D VIEW');
+    expect(html3D).toContain('Inspect 5 Outpost Modules');
     expect(html3D).toContain('data-testid="outpost-3d-stage"');
-    expect(html3D).toContain('id="colony-3d-btn-solar"');
-    expect(html3D).toContain('id="colony-3d-btn-eclss"');
-    expect(html3D).toContain('id="colony-3d-btn-shielding"');
+    expect(html3D).toContain('data-testid="colony-world-3d"');
+    expect(html3D).toContain('data-testid="colony-world-svg-fallback"');
+    expect(html3D).toContain('id="colony-3d-btn-power-grid"');
+    expect(html3D).toContain('id="colony-3d-btn-oxygen-module"');
     expect(html3D).toContain('id="colony-3d-btn-greenhouse"');
-    expect(html3D).toContain('id="colony-3d-btn-comms"');
+    expect(html3D).toContain('id="colony-3d-btn-comms-array"');
+    expect(html3D).toContain('id="colony-3d-btn-rover-moxie"');
     expect(html3D).toContain('data-testid="viewer3d-svg-fallback-colony-base"');
   });
 

@@ -29,8 +29,9 @@ import {
   SlidersIcon,
   SunIcon,
 } from '../icons';
-import { isWebGLAvailable, ModelViewer3D } from '../Three/ModelViewer3D';
-import type { ColonyModule3DId } from '../Three/proceduralModels';
+import { isWebGLAvailable } from '../Three/ModelViewer3D';
+import { ColonyWorld3D } from '../Three/ColonyWorld3D';
+import type { ColonyWorldModuleId } from '../Three/proceduralModels';
 
 export interface OutpostMapProps {
   lang: Language;
@@ -47,9 +48,25 @@ export interface OutpostMapProps {
   onTutorialAction?: (stepId: string) => void;
   /** M02: Modo inicial opcional ('2d' | '3d'); por defecto usa '3d' si WebGL está disponible */
   defaultViewMode?: '2d' | '3d';
+  /** M02: Marca si hay alerta ambiental de entrenamiento (ej. caída térmica nocturna) */
+  isEnvironmentalAlert?: boolean;
 }
 
-type ModuleKey = 'solar' | 'eclss' | 'shielding' | 'greenhouse';
+type ModuleKey = 'solar' | 'eclss' | 'shielding' | 'greenhouse' | 'rover';
+
+function moduleKeyToWorldId(key: ModuleKey): ColonyWorldModuleId {
+  switch (key) {
+    case 'solar':
+      return 'power-grid';
+    case 'greenhouse':
+      return 'greenhouse';
+    case 'rover':
+      return 'rover-moxie';
+    case 'eclss':
+    case 'shielding':
+      return 'oxygen-module';
+  }
+}
 
 interface RadioMessagePreset {
   id: string;
@@ -128,9 +145,11 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   commDelaySeconds,
   onTutorialAction,
   defaultViewMode,
+  isEnvironmentalAlert = false,
 }) => {
   const [selectedModule, setSelectedModule] = useState<ModuleKey>('shielding');
-  const [selected3DModule, setSelected3DModule] = useState<ColonyModule3DId>('shielding');
+  const [selectedWorldModule, setSelectedWorldModule] =
+    useState<ColonyWorldModuleId>('oxygen-module');
   const [viewMode, setViewMode] = useState<'2d' | '3d'>(
     () => defaultViewMode ?? (isWebGLAvailable() ? '3d' : '2d'),
   );
@@ -169,33 +188,6 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
     };
   }, [site.id, currentDay]);
 
-  const handleSelectModuleFromSvg = (mod: ModuleKey) => {
-    missionAudio.playClick();
-    setSelectedModule(mod);
-    setSelected3DModule(mod);
-    setShowSystemDetails(true);
-    onTutorialAction?.('step-outpost-map');
-  };
-
-  const handleSelect3DModule = (mod: ColonyModule3DId) => {
-    missionAudio.playClick();
-    setSelected3DModule(mod);
-    if (mod === 'comms') {
-      setShowCommSimulator(true);
-    } else {
-      setSelectedModule(mod);
-      setShowSystemDetails(true);
-    }
-    onTutorialAction?.('step-outpost-map');
-  };
-
-  const handleSvgKeyDown = (e: React.KeyboardEvent, mod: ModuleKey) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      handleSelectModuleFromSvg(mod);
-    }
-  };
-
   const handleTestComms = () => {
     if (commState === 'transmitting' || commIntervalRef.current !== null) return;
     missionAudio.playCommPing(true);
@@ -218,6 +210,49 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
         setCommState('received');
       }
     }, stepMs);
+  };
+
+  const handleSelectModuleFromSvg = (mod: 'solar' | 'eclss' | 'shielding' | 'greenhouse') => {
+    missionAudio.playClick();
+    setSelectedModule(mod);
+    setSelectedWorldModule(moduleKeyToWorldId(mod));
+    setShowSystemDetails(true);
+    onTutorialAction?.('step-outpost-map');
+    onTutorialAction?.(moduleKeyToWorldId(mod));
+  };
+
+  const handleSelect3DModule = (mod: ColonyWorldModuleId) => {
+    missionAudio.playClick();
+    setSelectedWorldModule(mod);
+    if (mod === 'comms-array') {
+      setShowCommSimulator(true);
+      handleTestComms();
+    } else {
+      const nextKey: ModuleKey =
+        mod === 'power-grid'
+          ? 'solar'
+          : mod === 'greenhouse'
+            ? 'greenhouse'
+            : mod === 'rover-moxie'
+              ? 'rover'
+              : allocation.shieldingAlloc >= 35 || isSolarStorm || isEnvironmentalAlert
+                ? 'shielding'
+                : 'eclss';
+      setSelectedModule(nextKey);
+      setShowSystemDetails(true);
+    }
+    onTutorialAction?.('step-outpost-map');
+    onTutorialAction?.(mod);
+  };
+
+  const handleSvgKeyDown = (
+    e: React.KeyboardEvent,
+    mod: 'solar' | 'eclss' | 'shielding' | 'greenhouse',
+  ) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleSelectModuleFromSvg(mod);
+    }
   };
 
   const formatDelta = (val: number, suffix = '%') => {
@@ -316,6 +351,36 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
       },
       deltaLabel: `${formatDelta(projection.delta.food)} / +${projection.delta.sciencePoints} PTS`,
       isPositive: projection.delta.food >= 0,
+    },
+    rover: {
+      icon: <ScienceIcon size={18} />,
+      title: {
+        es: isLunar ? 'Rover de Prospección Artemis' : 'Rover Perseverance + Unidad MOXIE',
+        en: isLunar ? 'Artemis Regolith Prospecting Rover' : 'Perseverance Rover + MOXIE Unit',
+      },
+      allocLabel: `${allocation.scienceAndCommsAlloc}% Watts`,
+      statusText: {
+        es: isLowPowerBlackout
+          ? 'Rover en reposo (Energía crítica < 15%)'
+          : isLunar
+            ? `Exploración lunar activa | Ciencia hoy: +${projection.delta.sciencePoints} pts`
+            : `MOXIE sintetizando O₂ | Ciencia hoy: +${projection.delta.sciencePoints} pts`,
+        en: isLowPowerBlackout
+          ? 'Rover parked (Critical power < 15%)'
+          : isLunar
+            ? `Lunar survey active | Science today: +${projection.delta.sciencePoints} pts`
+            : `MOXIE producing O₂ | Science today: +${projection.delta.sciencePoints} pts`,
+      },
+      nasaEngineeringNote: {
+        es: isLunar
+          ? 'Los rovers autónomos inspeccionan hielo de agua en cráteres en sombra permanente del Polo Sur lunar y alimentan experimentos científicos.'
+          : 'En Perseverance, MOXIE produjo 122 g de oxígeno en Marte rompiendo moléculas de CO₂ con electrólisis cerámica de óxido sólido.',
+        en: isLunar
+          ? 'Autonomous rovers prospect water ice inside permanently shadowed Lunar South Pole craters and power science payloads.'
+          : 'On Perseverance, MOXIE generated 122 g of Mars oxygen by splitting CO₂ molecules via solid-oxide electrolysis.',
+      },
+      deltaLabel: `+${projection.delta.sciencePoints} PTS`,
+      isPositive: !isLowPowerBlackout,
     },
   };
 
@@ -449,13 +514,13 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
           </div>
         )}
 
-        {/* M02: Vista 3D reactiva por defecto si WebGL está disponible + acceso rápido a módulos */}
+        {/* M02: Mundo 3D interactivo de horizonte infinito por defecto + acceso rápido a módulos */}
         {viewMode === '3d' ? (
           <div className="outpost-3d-stage" data-testid="outpost-3d-stage">
-            <ModelViewer3D
+            <ColonyWorld3D
               lang={lang}
-              modelId="colony-base"
-              height={286}
+              height={308}
+              selectedModule={selectedWorldModule}
               onSelectModule={handleSelect3DModule}
               options={{
                 siteId: site.id,
@@ -478,7 +543,9 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 isRimShadowPass,
                 isLowPowerBlackout,
                 isGreenhouseWilted,
-                selectedModule: selected3DModule,
+                isEnvironmentalAlert,
+                commsActive: commState === 'transmitting',
+                commDelaySeconds: realDelaySec,
               }}
             />
 
@@ -494,22 +561,16 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
               {(
                 [
                   {
-                    id: 'solar',
+                    id: 'power-grid',
                     icon: <SunIcon size={15} />,
-                    es: 'Energía',
-                    en: 'Power',
+                    es: 'Paneles Solares',
+                    en: 'Solar Array',
                   },
                   {
-                    id: 'eclss',
-                    icon: <DropletIcon size={15} />,
-                    es: 'Soporte Vital',
-                    en: 'Life Support',
-                  },
-                  {
-                    id: 'shielding',
+                    id: 'oxygen-module',
                     icon: <ShieldIcon size={15} />,
-                    es: 'Blindaje',
-                    en: 'Shielding',
+                    es: 'Hábitat ECLSS',
+                    en: 'Habitat ECLSS',
                   },
                   {
                     id: 'greenhouse',
@@ -518,13 +579,19 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                     en: 'Greenhouse',
                   },
                   {
-                    id: 'comms',
+                    id: 'comms-array',
                     icon: <AntennaIcon size={15} />,
                     es: 'Antena',
                     en: 'Antenna',
                   },
+                  {
+                    id: 'rover-moxie',
+                    icon: <ScienceIcon size={15} />,
+                    es: 'Rover MOXIE',
+                    en: 'Rover MOXIE',
+                  },
                 ] as Array<{
-                  id: ColonyModule3DId;
+                  id: ColonyWorldModuleId;
                   icon: React.ReactNode;
                   es: string;
                   en: string;
@@ -535,7 +602,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   type="button"
                   id={`colony-3d-btn-${item.id}`}
                   className="colony-3d-module-btn"
-                  aria-pressed={selected3DModule === item.id}
+                  aria-pressed={selectedWorldModule === item.id}
                   onClick={() => handleSelect3DModule(item.id)}
                 >
                   {item.icon}
@@ -1362,8 +1429,8 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 ? 'Ocultar Detalles de Sistemas'
                 : 'Hide System Details'
               : lang === 'es'
-                ? 'Ver Detalles de los 4 Módulos'
-                : 'Inspect 4 Outpost Modules'}
+                ? 'Ver Detalles de los 5 Módulos'
+                : 'Inspect 5 Outpost Modules'}
             <ArrowIcon size={14} direction={showSystemDetails ? 'up' : 'down'} />
           </button>
 
@@ -1391,7 +1458,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
           </button>
         </div>
 
-        {/* Cajón Plegable 1: Tarjetas de los 4 Módulos + Inspector de Ingeniería */}
+        {/* Cajón Plegable 1: Tarjetas de los 5 Módulos + Inspector de Ingeniería */}
         {showSystemDetails && (
           <div className="system-details-drawer">
             <div className="modules-grid">
@@ -1407,7 +1474,10 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                     onClick={() => {
                       missionAudio.playClick();
                       setSelectedModule(key);
-                      setSelected3DModule(key);
+                      const worldModId = moduleKeyToWorldId(key);
+                      setSelectedWorldModule(worldModId);
+                      onTutorialAction?.('step-outpost-map');
+                      onTutorialAction?.(worldModId);
                     }}
                   >
                     <div className="module-top">
