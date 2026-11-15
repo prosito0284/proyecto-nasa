@@ -131,6 +131,7 @@ export const WorkOrder: React.FC<WorkOrderProps> = ({
     <article
       className={`work-order ${executed ? 'work-order-executed' : ''}`}
       data-tutorial-id={tutorialId}
+      data-onboarding-id={tutorialId}
       onMouseEnter={() => onPreview(choice)}
       onMouseLeave={() => onPreview(null)}
       onFocus={() => onPreview(choice)}
@@ -165,6 +166,7 @@ export const WorkOrder: React.FC<WorkOrderProps> = ({
         <button
           id={`choice-btn-${choice.id}`}
           data-tutorial-id={tutorialId ? `${tutorialId}-sign-btn` : undefined}
+          data-onboarding-id={tutorialId ? `${tutorialId}-sign-btn` : undefined}
           className="btn-primary wo-sign-btn"
           disabled={disabled}
           onClick={() => {

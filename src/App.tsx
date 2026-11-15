@@ -22,8 +22,10 @@ import { CrewRoster } from './components/crew';
 import { WorkOrder, inferSource } from './components/Mission/WorkOrder';
 import { ClassBoard } from './components/Mission/ClassBoard';
 import { TutorialSpotlight } from './components/Tutorial/TutorialSpotlight';
+import { OnboardingSpotlight } from './components/Tutorial/OnboardingSpotlight';
 import { TUTORIAL_STEPS } from './data/tutorial-steps';
 import { useTutorial } from './hooks/useTutorial';
+import { useOnboarding } from './hooks/useOnboarding';
 import {
   ArrowIcon,
   HelmetIcon,
@@ -144,19 +146,31 @@ export const App: React.FC = () => {
     !isScienceOpen &&
     !isBadgesOpen;
 
-  const tutorial = useTutorial(TUTORIAL_STEPS, {
+  const onboarding = useOnboarding({
     autoStart: true,
+    enabled: tutorialEnabled,
+  });
+
+  const tutorial = useTutorial(TUTORIAL_STEPS, {
+    autoStart: false,
     enabled: tutorialEnabled,
     siteId: mission.siteId,
   });
 
+  const handleInteractiveAction = (targetOrStepId: string) => {
+    onboarding.completeOnboardingTarget(targetOrStepId);
+    tutorial.completeActionTrigger(targetOrStepId);
+  };
+
   const savedDrillAllocationRef = useRef<PowerAllocation | null>(null);
-  const isDrillStepActive = Boolean(
-    tutorial.isActive && tutorialEnabled && tutorial.currentStep?.drill,
+  const isEmergencyStepActive = Boolean(
+    tutorialEnabled &&
+      ((onboarding.isActive && onboarding.currentStep?.isEmergency) ||
+        (tutorial.isActive && tutorial.currentStep?.drill)),
   );
 
   useEffect(() => {
-    if (isDrillStepActive) {
+    if (isEmergencyStepActive) {
       if (!savedDrillAllocationRef.current) {
         savedDrillAllocationRef.current = { ...mission.powerAllocation };
         if (mission.powerAllocation.shieldingAlloc >= 40) {
@@ -170,15 +184,16 @@ export const App: React.FC = () => {
       savedDrillAllocationRef.current = null;
       setAllocation(restored);
     }
-  }, [isDrillStepActive, mission.powerAllocation, setAllocation]);
+  }, [isEmergencyStepActive, mission.powerAllocation, setAllocation]);
 
   const drillReadout = useMemo(
-    () => (isDrillStepActive ? simulateTrainingDrill(mission) : null),
-    [isDrillStepActive, mission],
+    () => (isEmergencyStepActive ? simulateTrainingDrill(mission) : null),
+    [isEmergencyStepActive, mission],
   );
 
   const openScience = (termId?: string) => {
     missionAudio.playClick();
+    onboarding.completeOnboardingTarget('nasa-telemetry');
     tutorial.completeActionTrigger('step-science-button');
     setFocusTermId(termId);
     setIsScienceOpen(true);
@@ -196,7 +211,7 @@ export const App: React.FC = () => {
     } else if (lastTurn) {
       dismissTurnReport();
     }
-    tutorial.startTutorial();
+    onboarding.startOnboarding();
   };
 
   const handleStart = (siteId: OutpostSiteId, seed: number | null = null) => {
@@ -318,6 +333,7 @@ export const App: React.FC = () => {
           )}
           <button
             id="start-tutorial-btn"
+            data-onboarding-id="training-button"
             className="btn-secondary tutorial-launch-btn"
             onClick={handleLaunchTutorial}
           >
@@ -327,6 +343,7 @@ export const App: React.FC = () => {
           <button
             id="open-science-modal-btn"
             data-tutorial-id="science-button"
+            data-onboarding-id="nasa-telemetry"
             className="btn-secondary"
             onClick={() => openScience()}
           >
@@ -370,8 +387,8 @@ export const App: React.FC = () => {
               <strong>{es ? 'Reto del día' : 'Daily challenge'}</strong>
               <span>
                 {es
-                  ? 'Hoy todos juegan la misma misión: mismo clima espacial, mismos dilemas. Gana quien logre el mejor rango.'
-                  : 'Today everyone plays the same mission: same space weather, same dilemmas. Best rank wins.'}
+                  ? 'Compite hoy con la misma semilla de clima espacial por el mejor rango.'
+                  : 'Compete today with the exact same space weather seed for top rank.'}
               </span>
             </div>
             <div className="daily-challenge-actions">
@@ -442,10 +459,27 @@ export const App: React.FC = () => {
               onChangeAllocation={setAllocation}
               onOpenBadgesModal={() => setIsBadgesOpen(true)}
               crew={crew}
-              onTutorialAction={tutorial.completeActionTrigger}
+              onTutorialAction={handleInteractiveAction}
             />
 
             <div className="mission-center-col">
+              {onboarding.isActive && onboarding.currentStep?.isEmergency && (
+                <div
+                  className="onboarding-thermal-alert-banner"
+                  data-testid="onboarding-thermal-alert"
+                  role="alert"
+                >
+                  <span className="onboarding-thermal-tag">
+                    {es ? 'ALERTA TÉRMICA' : 'THERMAL ALERT'}
+                  </span>
+                  <span>
+                    {es
+                      ? 'Caída nocturna de temperatura detectada en el hábitat.'
+                      : 'Night temperature drop detected inside the habitat.'}
+                  </span>
+                </div>
+              )}
+
               <OutpostMap
                 lang={lang}
                 site={currentSite}
@@ -456,7 +490,7 @@ export const App: React.FC = () => {
                 projection={projection}
                 onOpenScienceModal={() => openScience()}
                 commDelaySeconds={getCommDelaySeconds(mission.siteId, mission.currentDay)}
-                onTutorialAction={tutorial.completeActionTrigger}
+                onTutorialAction={handleInteractiveAction}
               />
 
               {lastTurn && (
@@ -528,7 +562,7 @@ export const App: React.FC = () => {
                         onPreview={setPreviewChoice}
                         onExecute={handleExecute}
                         tutorialId={i === 0 ? 'primary-work-order' : undefined}
-                        onTutorialAction={tutorial.completeActionTrigger}
+                        onTutorialAction={handleInteractiveAction}
                       />
                     ))}
                   </div>
@@ -712,13 +746,16 @@ export const App: React.FC = () => {
       <ScienceModal
         lang={lang}
         isOpen={isScienceOpen}
-        onClose={() => setIsScienceOpen(false)}
+        onClose={() => {
+          setIsScienceOpen(false);
+          onboarding.completeOnboardingTarget('nasa-telemetry');
+        }}
         glossary={KID_SCIENCE_GLOSSARY}
         currentWeather={mission.currentWeather}
         focusTermId={focusTermId}
         siteId={mission.siteId}
         onQuizComplete={handleQuizComplete}
-        onTutorialAction={tutorial.completeActionTrigger}
+        onTutorialAction={handleInteractiveAction}
       />
 
       <CommanderCertificate
@@ -733,6 +770,17 @@ export const App: React.FC = () => {
         onRestartMission={handleResetMission}
         history={mission.engine?.history}
         crew={crew}
+      />
+
+      <OnboardingSpotlight
+        lang={lang}
+        isActive={onboarding.isActive && tutorialEnabled}
+        step={onboarding.currentStep}
+        targetRect={onboarding.targetRect}
+        onSkip={() => {
+          missionAudio.playClick();
+          onboarding.skipOnboarding();
+        }}
       />
 
       <TutorialSpotlight

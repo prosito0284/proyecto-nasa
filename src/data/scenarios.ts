@@ -42,8 +42,8 @@ export const OUTPOST_SITES: Record<string, OutpostSiteConfig> = {
     },
     totalMissionDays: 8,
     description: {
-      es: 'En el borde del Cráter Shackleton hay picos de luz solar casi continua para tus paneles, y en el fondo oscuro hay hielo de agua milenario. Pero no hay atmósfera que te proteja de la radiación solar (DONKI SEP) ni de los micrometeoritos.',
-      en: 'Along Shackleton Crater’s rim, peaks of near-constant sunlight power your solar arrays, while ancient water ice hides in dark craters. However, there is zero atmosphere to block solar radiation (DONKI SEP) or micrometeorites.',
+      es: 'Sol polar constante y hielo milenario, pero cero atmósfera contra tormentas solares.',
+      en: 'Constant polar sunlight and ancient ice, with zero atmosphere against solar storms.',
     },
     nasaMissionReference: {
       es: 'Datos basados en NASA Artemis III/IV, Lunar Reconnaissance Orbiter (LRO) y el dosímetro LND de Chang’e-4.',
@@ -83,8 +83,8 @@ export const OUTPOST_SITES: Record<string, OutpostSiteConfig> = {
     },
     totalMissionDays: 8,
     description: {
-      es: 'Un antiguo delta fluvial explorado por Perseverance. La atmósfera de CO₂ permite fabricar oxígeno con MOXIE, pero consume muchísima energía y las tormentas de polvo cubren los paneles solares. Cada Sol dura 24 h 39 min.',
-      en: 'An ancient river delta explored by Perseverance. The CO₂ atmosphere lets you generate oxygen via MOXIE, but it requires massive power and regional dust storms choke solar arrays. Each Sol lasts 24 h 39 min.',
+      es: 'Antiguo delta con atmósfera de CO₂ para fabricar oxígeno, pero tormentas de polvo.',
+      en: 'Ancient delta with a CO₂ atmosphere for oxygen, but global dust storms.',
     },
     nasaMissionReference: {
       es: 'Datos basados en Mars 2020 Perseverance (MEDA, MOXIE) y Curiosity RAD.',
