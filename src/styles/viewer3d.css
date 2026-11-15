@@ -1,0 +1,357 @@
+/* ============================================================================
+ * M01-M04: Visor 3D Técnico NASA (CAD + WebGL + Respaldo SVG)
+ * Reglas de AGENTS.md:
+ * - Cero degradados CSS, cero box-shadow difusos, border-radius: 2px.
+ * - Botones interactivos mínimo 44x44 px.
+ * - Fondo oscuro técnico reservado exclusivamente al lienzo de telemetría.
+ * ============================================================================ */
+
+.viewer3d-frame {
+  position: relative;
+  width: 100%;
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  background-color: #08121E;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.viewer3d-frame.viewer3d-mars {
+  background-color: #180C08;
+}
+
+.viewer3d-viewport {
+  position: relative;
+  width: 100%;
+  min-height: 160px;
+  background-color: #08121E;
+  outline: none;
+  touch-action: none;
+}
+
+.viewer3d-mars .viewer3d-viewport {
+  background-color: #180C08;
+}
+
+.viewer3d-canvas-host {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.viewer3d-viewport canvas,
+.viewer3d-canvas-host canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.viewer3d-hud-top {
+  position: absolute;
+  top: 0.45rem;
+  left: 0.45rem;
+  right: 0.45rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.viewer3d-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.18rem 0.48rem;
+  background-color: rgba(8, 18, 30, 0.9);
+  color: #B8D8F8;
+  border: 1px solid #6794C1;
+  border-radius: 2px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.viewer3d-mars .viewer3d-badge {
+  background-color: rgba(24, 12, 8, 0.9);
+  color: #F4C39B;
+  border-color: #C87D52;
+}
+
+.viewer3d-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  padding: 0.45rem 0.6rem;
+  background-color: var(--paper, #F2EBDD);
+  border-top: 1.5px solid var(--ink, #1B1F2A);
+}
+
+.viewer3d-compact .viewer3d-toolbar {
+  padding: 0.3rem 0.45rem;
+  gap: 0.35rem;
+}
+
+.viewer3d-controls-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.viewer3d-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.35rem 0.7rem;
+  background-color: var(--paper-sheet, #F8F3E8);
+  color: var(--ink, #1B1F2A);
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.viewer3d-btn:hover {
+  background-color: var(--paper-aged, #E5DEC9);
+}
+
+.viewer3d-btn.viewer3d-btn-active {
+  background-color: var(--nasa-blue, #0B3D91);
+  color: #FFFFFF;
+  border-color: var(--nasa-blue, #0B3D91);
+}
+
+.viewer3d-compact .viewer3d-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.72rem;
+}
+
+.viewer3d-hint {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.72rem;
+  color: var(--ink-secondary, #2F3647);
+}
+
+.viewer3d-fallback-svg-wrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+}
+
+.viewer3d-fallback-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* M02: Conmutador 2D/3D y selector rápido de módulos de la colonia */
+.surface-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.view-mode-switch {
+  display: inline-flex;
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  background-color: var(--paper, #F2EBDD);
+  overflow: hidden;
+}
+
+.view-mode-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.35rem 0.75rem;
+  background-color: var(--paper, #F2EBDD);
+  color: var(--ink, #1B1F2A);
+  border: none;
+  border-right: 1px solid var(--ink, #1B1F2A);
+  border-radius: 0;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.view-mode-btn:last-child {
+  border-right: none;
+}
+
+.view-mode-btn[aria-pressed='true'] {
+  background-color: var(--nasa-blue, #0B3D91);
+  color: #FFFFFF;
+}
+
+.outpost-3d-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.colony-3d-module-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.colony-3d-module-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.35rem 0.7rem;
+  background-color: var(--paper, #F2EBDD);
+  color: var(--ink, #1B1F2A);
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  font-family: var(--font-display, 'Barlow Condensed', sans-serif);
+  font-size: 1rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+.colony-3d-module-btn:hover {
+  background-color: var(--paper-aged, #E5DEC9);
+}
+
+.colony-3d-module-btn[aria-pressed='true'] {
+  background-color: var(--nasa-blue, #0B3D91);
+  color: #FFFFFF;
+  border-color: var(--nasa-blue, #0B3D91);
+}
+
+/* M03: Tarjeta de localizador planetario en MissionBriefing */
+.briefing-sites-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.6rem;
+  align-items: stretch;
+}
+
+@media (min-width: 1080px) {
+  .briefing-sites-layout {
+    grid-template-columns: minmax(0, 1.28fr) minmax(0, 1.28fr) minmax(240px, 0.68fr);
+    gap: 0.5rem;
+  }
+}
+
+.briefing-globe-card {
+  background-color: var(--paper, #F2EBDD);
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  padding: 0.45rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.briefing-globe-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.briefing-globe-eyebrow {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--nasa-blue, #0B3D91);
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.briefing-globe-site-btn {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.72rem;
+}
+
+.briefing-globe-meta {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.74rem;
+  color: var(--ink-secondary, #2F3647);
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+/* M03: Inspector 3D en ScienceModal */
+.science-3d-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.science-3d-hotspots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 0.55rem;
+}
+
+.science-3d-hotspot-btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.55rem 0.75rem;
+  background-color: var(--paper-sheet, #F8F3E8);
+  color: var(--ink, #1B1F2A);
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.science-3d-hotspot-btn:hover {
+  background-color: var(--paper-aged, #E5DEC9);
+}
+
+.science-3d-hotspot-btn[aria-pressed='true'] {
+  border: 2px solid var(--nasa-blue, #0B3D91);
+  background-color: #FFFFFF;
+}
+
+.science-3d-hotspot-btn strong {
+  font-family: var(--font-display, 'Barlow Condensed', sans-serif);
+  font-size: 1.02rem;
+  color: var(--nasa-blue, #0B3D91);
+}
+
+.science-3d-hotspot-btn span {
+  font-size: 1rem;
+  line-height: 1.35;
+  color: var(--ink, #1B1F2A);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewer3d-frame * {
+    transition: none !important;
+  }
+}
