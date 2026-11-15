@@ -214,6 +214,85 @@ export function buildOnboardingBrackets(cutout: OnboardingRect): Array<{
   ];
 }
 
+export interface OnboardingMicroCalloutProps {
+  lang: Language;
+  step: OnboardingStep;
+  top: number;
+  left: number;
+  onSkip: () => void;
+}
+
+export function countCommandWords(text: string): number {
+  return text
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w.length > 0).length;
+}
+
+export function countCommandSentences(text: string): number {
+  return text
+    .trim()
+    .split(/(?<=[.!?])\s+/)
+    .filter((s) => s.trim().length > 0).length;
+}
+
+/**
+ * T03: Recuadro micro-táctico sin párrafos largos ni botones "Siguiente/Anterior".
+ * Solo muestra rótulo superior ("SISTEMA 1/4"), orden directa de 1 frase (<= 15 palabras)
+ * y botón discreto "Saltar" / "Skip".
+ */
+export const OnboardingMicroCallout: React.FC<OnboardingMicroCalloutProps> = ({
+  lang,
+  step,
+  top,
+  left,
+  onSkip,
+}) => {
+  const es = lang === 'es';
+  return (
+    <aside
+      role="dialog"
+      aria-modal="false"
+      aria-label={step.eyebrow[lang]}
+      data-testid="onboarding-micro-callout"
+      data-tone={step.tone}
+      className={`onboarding-micro-callout onboarding-callout-${step.tone}`}
+      style={{
+        top: `${top}px`,
+        left: `${left}px`,
+      }}
+    >
+      <div className="onboarding-callout-top">
+        <span className="onboarding-eyebrow" data-testid="onboarding-eyebrow">
+          {step.tone === 'caution' ? <AlertIcon size={14} /> : <HelmetIcon size={14} />}
+          <span>{step.eyebrow[lang]}</span>
+        </span>
+
+        <button
+          type="button"
+          id="onboarding-skip-btn"
+          data-testid="onboarding-skip-btn"
+          className="onboarding-skip-btn"
+          onClick={onSkip}
+        >
+          <CloseIcon size={12} />
+          <span>{es ? 'Saltar' : 'Skip'}</span>
+        </button>
+      </div>
+
+      <p
+        id="onboarding-command-text"
+        data-testid="onboarding-command-text"
+        className="onboarding-command"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {step.command[lang]}
+      </p>
+    </aside>
+  );
+};
+
 export const OnboardingSpotlight: React.FC<OnboardingSpotlightProps> = ({
   lang,
   isActive,
@@ -249,7 +328,6 @@ export const OnboardingSpotlight: React.FC<OnboardingSpotlightProps> = ({
 
   if (!isActive || !step) return null;
 
-  const es = lang === 'es';
   const strokeColor = step.tone === 'caution' ? '#FFB300' : '#00E5FF';
   const hasCutout = cutout.width > 0 && cutout.height > 0;
   const arrow = hasCutout
@@ -358,46 +436,13 @@ export const OnboardingSpotlight: React.FC<OnboardingSpotlightProps> = ({
       )}
 
       {/* T03: Recuadro micro-táctico SIN párrafos largos NI botones Siguiente/Anterior */}
-      <aside
-        role="dialog"
-        aria-modal="false"
-        aria-label={step.eyebrow[lang]}
-        data-testid="onboarding-micro-callout"
-        data-tone={step.tone}
-        className={`onboarding-micro-callout onboarding-callout-${step.tone}`}
-        style={{
-          top: `${calloutLayout.box.top}px`,
-          left: `${calloutLayout.box.left}px`,
-        }}
-      >
-        <div className="onboarding-callout-top">
-          <span className="onboarding-eyebrow">
-            {step.tone === 'caution' ? <AlertIcon size={14} /> : <HelmetIcon size={14} />}
-            <span>{step.eyebrow[lang]}</span>
-          </span>
-
-          <button
-            type="button"
-            id="onboarding-skip-btn"
-            data-testid="onboarding-skip-btn"
-            className="onboarding-skip-btn"
-            onClick={onSkip}
-          >
-            <CloseIcon size={12} />
-            <span>{es ? 'Saltar' : 'Skip'}</span>
-          </button>
-        </div>
-
-        <p
-          id="onboarding-command-text"
-          data-testid="onboarding-command-text"
-          className="onboarding-command"
-          aria-live="polite"
-          aria-atomic="true"
-        >
-          {step.command[lang]}
-        </p>
-      </aside>
+      <OnboardingMicroCallout
+        lang={lang}
+        step={step}
+        top={calloutLayout.box.top}
+        left={calloutLayout.box.left}
+        onSkip={onSkip}
+      />
     </div>
   );
 };
