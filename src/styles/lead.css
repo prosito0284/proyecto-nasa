@@ -229,6 +229,19 @@
   border-radius: var(--radius);
 }
 
+@media (min-width: 1100px) {
+  .app-shell > .class-board {
+    margin: 0;
+    max-width: 100%;
+    width: 100%;
+    padding: 0.42rem 0.85rem;
+  }
+
+  .app-shell > .class-board .class-board-head {
+    margin-bottom: 0.2rem;
+  }
+}
+
 .board-entry .class-board {
   margin-top: 12px;
   padding: 12px;

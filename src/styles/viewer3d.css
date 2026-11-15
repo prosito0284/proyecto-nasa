@@ -24,7 +24,7 @@
 .viewer3d-viewport {
   position: relative;
   width: 100%;
-  min-height: 180px;
+  min-height: 160px;
   background-color: #08121E;
   outline: none;
   touch-action: none;
@@ -250,7 +250,8 @@
 
 @media (min-width: 1080px) {
   .briefing-sites-layout {
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.15fr) minmax(250px, 0.75fr);
+    grid-template-columns: minmax(0, 1.28fr) minmax(0, 1.28fr) minmax(240px, 0.68fr);
+    gap: 0.5rem;
   }
 }
 
@@ -278,6 +279,14 @@
   font-weight: 700;
   color: var(--nasa-blue, #0B3D91);
   text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.briefing-globe-site-btn {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.72rem;
 }
 
 .briefing-globe-meta {

@@ -61,6 +61,8 @@ import {
   SunIcon,
 } from '../icons';
 import { NasaProvenanceSource, SourceStamp } from './SourceStamp';
+import { ModelFocusPose, ModelViewer3D } from '../Three/ModelViewer3D';
+import { HARDWARE_MODEL_HOTSPOTS } from '../Three/proceduralModels';
 import './science.css';
 
 export interface ScienceModalProps {
@@ -79,13 +81,14 @@ export interface ScienceModalProps {
   onTutorialAction?: (stepId: string) => void;
 }
 
-type ModalTab = 'donki-glossary' | 'osdr-studies' | 'nasa-photos' | 'mini-quiz';
+type ModalTab = 'donki-glossary' | 'osdr-studies' | 'nasa-photos' | 'mini-quiz' | 'model-3d';
 
 const TAB_ORDER: ModalTab[] = [
   'donki-glossary',
   'osdr-studies',
   'nasa-photos',
   'mini-quiz',
+  'model-3d',
 ];
 
 const FOCUSABLE_SELECTOR =
@@ -168,6 +171,12 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
     Record<string, string>
   >({});
   const quizCompletedByFilterRef = useRef<Record<string, boolean>>({});
+
+  // M03: Estado del inspector de hardware NASA en 3D
+  const [selectedHardwareModel, setSelectedHardwareModel] = useState<
+    'rover-moxie' | 'habitat-shield'
+  >('rover-moxie');
+  const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>(null);
 
   const modalCardRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -596,6 +605,22 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                 ? `Examen de vuelo (${correctCount}/${totalQuestions})`
                 : `Flight check quiz (${correctCount}/${totalQuestions})`}
             </span>
+          </button>
+
+          <button
+            id="tab-model-3d-btn"
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'model-3d'}
+            aria-controls="panel-model-3d"
+            style={MIN_TOUCH_TARGET_STYLE}
+            className="science-folder-tab"
+            onClick={() => handleTabSwitch('model-3d')}
+            onKeyDown={(e) => handleTabKeyDown(e, 'model-3d')}
+          >
+            <span className="science-folder-tab-code">E</span>
+            <ShieldIcon size={16} />
+            <span>{lang === 'es' ? 'MODELO 3D' : '3D MODEL'}</span>
           </button>
         </nav>
 
@@ -1854,6 +1879,152 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* PESTAÑA E: INSPECTOR DE HARDWARE REAL NASA EN 3D (M03) */}
+        {activeTab === 'model-3d' && (
+          <div
+            id="panel-model-3d"
+            role="tabpanel"
+            aria-labelledby="tab-model-3d-btn"
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}
+          >
+            {(() => {
+              const hotspots = HARDWARE_MODEL_HOTSPOTS[selectedHardwareModel];
+              const activeSpot =
+                hotspots.find((h) => h.id === selectedHotspotId) ?? null;
+              const activeFocusPose: ModelFocusPose | null = activeSpot
+                ? {
+                    target: activeSpot.focusTarget,
+                    cameraPos: activeSpot.cameraPos,
+                  }
+                : null;
+
+              return (
+                <>
+                  <section className="science-form-box">
+                    <div className="science-section-bar">
+                      <h3 className="science-section-title">
+                        <ShieldIcon size={18} />
+                        <span>
+                          {lang === 'es'
+                            ? 'Inspector CAD de hardware real de la NASA'
+                            : 'Real NASA hardware 3D CAD inspector'}
+                        </span>
+                      </h3>
+                      <SourceStamp
+                        source={selectedHardwareModel === 'rover-moxie' ? 'MARS' : 'ARTEMIS'}
+                        live={false}
+                        url={
+                          selectedHardwareModel === 'rover-moxie'
+                            ? 'https://science.nasa.gov/mission/mars-2020-perseverance/'
+                            : 'https://www.nasa.gov/missions/artemis/'
+                        }
+                        lang={lang}
+                      />
+                    </div>
+
+                    <div className="science-3d-controls">
+                      <div
+                        style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}
+                        role="group"
+                        aria-label={
+                          lang === 'es'
+                            ? 'Seleccionar modelo NASA 3D'
+                            : 'Select NASA 3D hardware model'
+                        }
+                      >
+                        <button
+                          type="button"
+                          id="hw-select-rover-moxie"
+                          className={`science-annex-btn ${
+                            selectedHardwareModel === 'rover-moxie'
+                              ? 'science-annex-btn--active'
+                              : ''
+                          }`}
+                          aria-pressed={selectedHardwareModel === 'rover-moxie'}
+                          style={MIN_TOUCH_TARGET_STYLE}
+                          onClick={() => {
+                            missionAudio.playClick();
+                            setSelectedHardwareModel('rover-moxie');
+                            setSelectedHotspotId(null);
+                          }}
+                        >
+                          {lang === 'es'
+                            ? 'Rover Perseverance + MOXIE'
+                            : 'Perseverance Rover + MOXIE'}
+                        </button>
+
+                        <button
+                          type="button"
+                          id="hw-select-habitat-shield"
+                          className={`science-annex-btn ${
+                            selectedHardwareModel === 'habitat-shield'
+                              ? 'science-annex-btn--active'
+                              : ''
+                          }`}
+                          aria-pressed={selectedHardwareModel === 'habitat-shield'}
+                          style={MIN_TOUCH_TARGET_STYLE}
+                          onClick={() => {
+                            missionAudio.playClick();
+                            setSelectedHardwareModel('habitat-shield');
+                            setSelectedHotspotId(null);
+                          }}
+                        >
+                          {lang === 'es'
+                            ? 'Hábitat con Blindaje de Regolito'
+                            : 'Regolith-Shielded Habitat'}
+                        </button>
+                      </div>
+                    </div>
+                  </section>
+
+                  <ModelViewer3D
+                    lang={lang}
+                    modelId={selectedHardwareModel}
+                    options={{
+                      siteId:
+                        selectedHardwareModel === 'rover-moxie'
+                          ? 'mars-jezero'
+                          : 'moon-shackleton',
+                    }}
+                    height={295}
+                    focusPose={activeFocusPose}
+                  />
+
+                  <div
+                    className="science-3d-hotspots"
+                    role="group"
+                    aria-label={
+                      lang === 'es'
+                        ? 'Puntos de inspección del modelo 3D'
+                        : '3D model inspection hotspots'
+                    }
+                  >
+                    {hotspots.map((spot) => {
+                      const isSpotActive = selectedHotspotId === spot.id;
+                      return (
+                        <button
+                          key={spot.id}
+                          type="button"
+                          id={`hotspot-${spot.id}`}
+                          className="science-3d-hotspot-btn"
+                          aria-pressed={isSpotActive}
+                          onClick={() => {
+                            missionAudio.playClick();
+                            setSelectedHotspotId(spot.id);
+                          }}
+                        >
+                          <strong>{spot.label[lang]}</strong>
+                          <span>{spot.explanation[lang]}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
       </div>

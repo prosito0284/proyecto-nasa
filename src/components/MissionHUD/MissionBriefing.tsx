@@ -13,12 +13,14 @@ import {
   ArrowIcon,
   BatteryIcon,
   ClockIcon,
+  GlobeIcon,
   HelmetIcon,
   LanguageIcon,
   RadiationIcon,
   SlidersIcon,
   SunIcon,
 } from '../icons';
+import { ModelViewer3D } from '../Three/ModelViewer3D';
 
 export interface MissionBriefingProps {
   lang: Language;
@@ -232,7 +234,7 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
         </div>
       </div>
 
-      {/* Selección de Destino con Indicadores Visuales Interactivos de Telemetría (T01) */}
+      {/* Selección de Destino con Indicadores Visuales Interactivos de Telemetría (T01) + Globo 3D (M03) */}
       <div className="briefing-sites-section">
         <h3 className="briefing-section-heading">
           {lang === 'es'
@@ -240,7 +242,7 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
             : 'Select your mission outpost'}
         </h3>
 
-        <div className="briefing-sites-grid">
+        <div className="briefing-sites-layout">
           {sites.map((site) => {
             const isLunar = site.id === 'moon-shackleton';
             const isSelected = activeSiteId === site.id;
@@ -356,6 +358,64 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
               </article>
             );
           })}
+
+          {(() => {
+            const activeSite = sites.find((s) => s.id === activeSiteId) ?? sites[0];
+            if (!activeSite) return null;
+            return (
+              <aside
+                className="briefing-globe-card"
+                data-testid="briefing-globe-card"
+                aria-label={lang === 'es' ? 'Globo localizador 3D' : '3D destination locator'}
+              >
+                <div className="briefing-globe-head">
+                  <span className="briefing-globe-eyebrow">
+                    <GlobeIcon size={13} /> {lang === 'es' ? 'GLOBO 3D' : '3D GLOBE'}
+                  </span>
+                  <div
+                    className="view-mode-switch"
+                    role="group"
+                    aria-label={lang === 'es' ? 'Cambiar astro 3D' : 'Switch 3D planet'}
+                  >
+                    {sites.map((st) => (
+                      <button
+                        key={st.id}
+                        type="button"
+                        id={`briefing-globe-select-${st.id}`}
+                        className="view-mode-btn briefing-globe-site-btn"
+                        aria-pressed={activeSiteId === st.id}
+                        onClick={() => {
+                          missionAudio.playClick();
+                          setActiveSiteId(st.id);
+                        }}
+                      >
+                        {st.id === 'moon-shackleton'
+                          ? lang === 'es'
+                            ? 'Luna'
+                            : 'Moon'
+                          : lang === 'es'
+                            ? 'Marte'
+                            : 'Mars'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <ModelViewer3D
+                  lang={lang}
+                  modelId="planet-globe"
+                  options={{ siteId: activeSite.id }}
+                  height={164}
+                  compact
+                />
+
+                <div className="briefing-globe-meta">
+                  <span>{activeSite.name[lang]}</span>{' '}
+                  <span>{activeSite.coordinates}</span>
+                </div>
+              </aside>
+            );
+          })()}
         </div>
       </div>
     </section>
