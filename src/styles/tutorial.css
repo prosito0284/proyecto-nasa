@@ -1,13 +1,14 @@
 /**
- * Motor de Iluminación (Spotlight) de 4 Cuadrantes y Ficha de Entrenamiento (T03)
- * Dirección de arte: "Cuaderno de Vuelo del Comandante" (Secciones 6 y 7 de AGENTS.md)
+ * Motor de Iluminación (Spotlight) de 4 Cuadrantes y Recuadro Táctico NASA (T03 & T05)
  *
  * Reglas estrictas:
  * - 4 paneles independientes (Top, Bottom, Left, Right) con rgba(6, 10, 18, 0.85) y pointer-events: auto.
  * - Recorte central libre de obstrucciones cuando requireAction es true.
  * - Marco técnico de 2px con pointer-events: none (cian #00E5FF para 'info', ámbar #FFB300 para 'caution').
- * - Esquinas estrictas de 2px, cero degradados y cero sombras difusas (box-shadow: none).
+ * - TutorialCallout con estética de panel de instrumentos NASA: fondo sólido oscuro de alto contraste,
+ *   borde sólido de 2px, esquinas de 2px, cero degradados y cero sombras difusas (box-shadow: none).
  * - Tipografía: mayúsculas solo en etiquetas <= 3 palabras, títulos en tipo oración, cuerpo >= 16px.
+ * - Botones táctiles de mínimo 44x44 px.
  */
 
 .tutorial-layer {
@@ -85,15 +86,16 @@
   color: #060A12;
 }
 
-/* Ficha de instrucciones estilo Cuaderno de Vuelo */
-.tutorial-card {
+/* T05: Recuadro táctico de instrucción (Callout Box) — Panel de instrumentos NASA oscuro de alto contraste */
+.tutorial-card,
+.tutorial-callout {
   position: fixed;
-  z-index: 9502;
+  z-index: 9503;
   pointer-events: auto;
   width: min(392px, calc(100vw - 24px));
-  background-color: var(--paper-sheet, #F8F3E8);
-  color: var(--ink, #1B1F2A);
-  border: 2px solid var(--ink, #1B1F2A);
+  background-color: #0B101B;
+  color: #F4EFE4;
+  border: 2px solid #00E5FF;
   border-radius: 2px;
   box-shadow: none;
   padding: 14px 16px;
@@ -103,11 +105,11 @@
 }
 
 .tutorial-card-tone-info {
-  border-top: 5px solid var(--nasa-blue, #0B3D91);
+  border-color: #00E5FF;
 }
 
 .tutorial-card-tone-caution {
-  border-top: 5px solid var(--nasa-red, #FC3D21);
+  border-color: #FFB300;
 }
 
 .tutorial-card-header {
@@ -116,7 +118,7 @@
   justify-content: space-between;
   gap: 8px;
   padding-bottom: 6px;
-  border-bottom: 1.5px solid var(--rule, rgba(27, 31, 42, 0.25));
+  border-bottom: 1.5px solid #26334D;
 }
 
 .tutorial-step-meta {
@@ -124,11 +126,15 @@
   align-items: center;
   gap: 6px;
   font-family: var(--font-mono);
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--nasa-blue, #0B3D91);
+  color: #00E5FF;
+}
+
+.tutorial-card-tone-caution .tutorial-step-meta {
+  color: #FFB300;
 }
 
 .tutorial-tone-pill {
@@ -141,21 +147,23 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  border: 1.5px solid var(--ink, #1B1F2A);
+  border: 1.5px solid #00E5FF;
   border-radius: 2px;
 }
 
 .tutorial-tone-pill-info {
-  background-color: var(--paper, #F2EBDD);
-  color: var(--nasa-blue, #0B3D91);
+  background-color: #111A2B;
+  border-color: #00E5FF;
+  color: #00E5FF;
 }
 
 .tutorial-tone-pill-caution {
-  background-color: var(--paper, #F2EBDD);
-  color: var(--crit-red, #B31B12);
+  background-color: #1F1808;
+  border-color: #FFB300;
+  color: #FFB300;
 }
 
-/* Regla tipográfica Ronda 4: título en tipo oración, nunca uppercase en frases largas */
+/* Regla tipográfica Ronda 4 + T05: título en tipo oración, nunca uppercase en frases largas */
 .tutorial-card-title {
   font-family: var(--font-display);
   font-size: 1.35rem;
@@ -163,16 +171,16 @@
   line-height: 1.2;
   letter-spacing: 0.01em;
   text-transform: none;
-  color: var(--ink, #1B1F2A);
+  color: #FFFFFF;
   margin: 0;
 }
 
-/* Regla tipográfica Ronda 4: cuerpo mínimo 16px (1rem), entre 45 y 75 caracteres */
+/* Regla tipográfica Ronda 4 + T05: cuerpo mínimo 16px (1rem), máximo 2 frases */
 .tutorial-card-body {
   font-family: var(--font-body);
   font-size: 1rem;
   line-height: 1.5;
-  color: var(--ink-secondary, #2F3647);
+  color: #E5DEC9;
   max-width: 62ch;
   margin: 0;
 }
@@ -183,39 +191,14 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  background-color: var(--paper, #F2EBDD);
-  border: 1.5px dashed var(--nasa-red, #FC3D21);
+  background-color: #141E30;
+  border: 1.5px dashed #FFB300;
   border-radius: 2px;
   font-family: var(--font-mono);
-  font-size: 0.84rem;
+  font-size: 0.85rem;
   font-weight: 600;
   line-height: 1.35;
-  color: var(--ink, #1B1F2A);
-}
-
-.tutorial-progress-dots {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.tutorial-progress-dot {
-  width: 10px;
-  height: 6px;
-  border: 1.5px solid var(--ink, #1B1F2A);
-  border-radius: 2px;
-  background-color: var(--paper, #F2EBDD);
-}
-
-.tutorial-progress-dot-done {
-  background-color: var(--ok-green, #2E7D4F);
-  border-color: var(--ok-green, #2E7D4F);
-}
-
-.tutorial-progress-dot-active {
-  width: 18px;
-  background-color: var(--nasa-blue, #0B3D91);
-  border-color: var(--nasa-blue, #0B3D91);
+  color: #FFE082;
 }
 
 .tutorial-card-footer {
@@ -224,26 +207,28 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-top: 6px;
-  border-top: 1.5px solid var(--rule, rgba(27, 31, 42, 0.25));
+  padding-top: 8px;
+  border-top: 1.5px solid #26334D;
 }
 
 .tutorial-nav-btns {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin-left: auto;
 }
 
+/* T05: Botones táctiles de mínimo 44x44 px */
 .tutorial-btn {
   min-height: 44px;
+  min-width: 44px;
   padding: 6px 12px;
   font-family: var(--font-display);
   font-size: 0.98rem;
   font-weight: 700;
   letter-spacing: 0.03em;
   border-radius: 2px;
-  border: 1.5px solid var(--ink, #1B1F2A);
+  border: 2px solid #3B4E73;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -253,35 +238,39 @@
 }
 
 .tutorial-btn-skip {
-  background-color: transparent;
-  color: var(--ink-secondary, #2F3647);
+  background-color: #111A2B;
+  color: #D2DCEB;
+  border-color: #3B4E73;
 }
 
 .tutorial-btn-skip:hover,
 .tutorial-btn-skip:focus-visible {
-  background-color: var(--paper-aged, #E5DEC9);
-  color: var(--ink, #1B1F2A);
+  background-color: #1C2942;
+  color: #FFFFFF;
+  border-color: #00E5FF;
 }
 
 .tutorial-btn-secondary {
-  background-color: var(--paper, #F2EBDD);
-  color: var(--ink, #1B1F2A);
+  background-color: #141E30;
+  color: #F4EFE4;
+  border-color: #4D648D;
 }
 
 .tutorial-btn-secondary:hover:not(:disabled),
 .tutorial-btn-secondary:focus-visible:not(:disabled) {
-  background-color: var(--paper-aged, #E5DEC9);
+  background-color: #1F2E47;
+  border-color: #00E5FF;
 }
 
 .tutorial-btn-secondary:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: default;
 }
 
 .tutorial-btn-primary {
   background-color: var(--nasa-red, #FC3D21);
   color: #FFFFFF;
-  border-color: var(--ink, #1B1F2A);
+  border-color: #FFFFFF;
 }
 
 .tutorial-btn-primary:hover,
@@ -297,7 +286,8 @@
 }
 
 @media (max-width: 520px) {
-  .tutorial-card {
+  .tutorial-card,
+  .tutorial-callout {
     padding: 12px;
     gap: 8px;
   }
