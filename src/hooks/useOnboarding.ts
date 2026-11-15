@@ -141,6 +141,8 @@ export interface OnboardingMachineState {
   isDone: boolean;
   stepIndex: number;
   completionSeq: number;
+  /** Incrementado únicamente cuando se completan los 4 pasos reales (no al saltar). */
+  graduatedSeq?: number;
 }
 
 export type OnboardingMachineAction =
@@ -187,6 +189,7 @@ export function onboardingReducer(
           isActive: false,
           isDone: true,
           completionSeq: state.completionSeq + 1,
+          graduatedSeq: (state.graduatedSeq ?? 0) + 1,
         };
       }
       return {
@@ -203,6 +206,8 @@ export interface UseOnboardingOptions {
   steps?: OnboardingStep[];
   onStepCompleted?: (targetId: string, nextStepIndex: number) => void;
   onFinish?: () => void;
+  /** Callback disparado únicamente al completar los 4 clics reales del entrenamiento. */
+  onCompleteTraining?: () => void;
 }
 
 export interface UseOnboardingReturn {
@@ -235,6 +240,7 @@ export function useOnboarding(options: UseOnboardingOptions = {}): UseOnboarding
     steps = ONBOARDING_STEPS,
     onStepCompleted,
     onFinish,
+    onCompleteTraining,
   } = options;
 
   const [machine, dispatch] = useReducer(
@@ -245,18 +251,23 @@ export function useOnboarding(options: UseOnboardingOptions = {}): UseOnboarding
       isDone: readOnboardingDone(),
       stepIndex: 0,
       completionSeq: 0,
+      graduatedSeq: 0,
     }),
   );
 
   const [targetRect, setTargetRect] = useState<OnboardingRect | null>(null);
   const autoStartedRef = useRef(false);
   const handledCompletionRef = useRef(0);
+  const handledGraduationRef = useRef(0);
   const onStepCompletedRef = useRef(onStepCompleted);
   onStepCompletedRef.current = onStepCompleted;
   const onFinishRef = useRef(onFinish);
   onFinishRef.current = onFinish;
+  const onCompleteTrainingRef = useRef(onCompleteTraining);
+  onCompleteTrainingRef.current = onCompleteTraining;
 
   const { isActive, isDone, stepIndex, completionSeq } = machine;
+  const graduatedSeq = machine.graduatedSeq ?? 0;
   const currentStep = isActive && steps.length > 0 ? (steps[stepIndex] ?? null) : null;
 
   useEffect(() => {
@@ -267,6 +278,13 @@ export function useOnboarding(options: UseOnboardingOptions = {}): UseOnboarding
       onFinishRef.current?.();
     }
   }, [completionSeq]);
+
+  useEffect(() => {
+    if (graduatedSeq > handledGraduationRef.current) {
+      handledGraduationRef.current = graduatedSeq;
+      onCompleteTrainingRef.current?.();
+    }
+  }, [graduatedSeq]);
 
   const startOnboarding = useCallback(() => {
     writeOnboardingDone(false);
