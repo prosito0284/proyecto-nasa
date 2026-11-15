@@ -16,6 +16,11 @@ import type {
   TutorialTargetRect,
 } from '../../types/tutorial';
 import type { TrainingDrillReadout } from '../../engine/trainingDrill';
+import {
+  collectSharedTutorialFocusables,
+  getNextSharedFocusIndex,
+  resolveTutorialKeyCommand,
+} from '../../hooks/useTutorial';
 import { computeCalloutPosition, TutorialCallout } from './TutorialCallout';
 import { TutorialPointer } from './TutorialPointer';
 
@@ -77,20 +82,43 @@ export const TutorialSpotlight: React.FC<TutorialSpotlightProps> = ({
   useEffect(() => {
     if (!isActive || !step) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      const targetTag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
+      const isEditableTarget =
+        targetTag === 'input' || targetTag === 'textarea' || targetTag === 'select';
+
+      const cmd = resolveTutorialKeyCommand(e.key, {
+        requireAction: step.requireAction,
+        stepIndex,
+        totalSteps,
+        isEditableTarget,
+      });
+
+      if (cmd === 'skip') {
         e.preventDefault();
         onSkip();
-      } else if (e.key === 'ArrowRight' && !step.requireAction) {
+      } else if (cmd === 'next') {
         e.preventDefault();
         onNext();
-      } else if (e.key === 'ArrowLeft' && stepIndex > 0) {
+      } else if (cmd === 'prev') {
         e.preventDefault();
         onPrev();
+      } else if (cmd === 'tab' && typeof document !== 'undefined') {
+        const calloutEl = document.querySelector<HTMLElement>(
+          '[data-testid="tutorial-callout-box"]',
+        );
+        const shared = collectSharedTutorialFocusables(step.targetSelector, calloutEl);
+        if (shared.length > 0) {
+          e.preventDefault();
+          const activeEl = document.activeElement as HTMLElement | null;
+          const currentIdx = activeEl ? shared.indexOf(activeEl) : -1;
+          const nextIdx = getNextSharedFocusIndex(shared.length, currentIdx, e.shiftKey);
+          shared[nextIdx]?.focus();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isActive, step, stepIndex, onNext, onPrev, onSkip]);
+  }, [isActive, step, stepIndex, totalSteps, onNext, onPrev, onSkip]);
 
   const cutout = useMemo(
     () => computeCutoutBox(targetRect, step?.spotlightPadding ?? 8, vw, vh),

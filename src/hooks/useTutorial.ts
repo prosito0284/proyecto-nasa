@@ -1,16 +1,21 @@
 /**
- * Máquina de estados y rastreo DOM seguro del Sistema de Entrenamiento Guiado (T02)
+ * Máquina de estados, gestor de foco compartido entre árboles DOM y rastreo seguro del
+ * Sistema de Entrenamiento Guiado (T02 & T11)
  *
  * Responsabilidades:
  * - Persistencia en `localStorage` bajo `'jamt_tutorial_completed'`.
- * - Control de pasos (`startTutorial`, `nextStep`, `prevStep`, `skipTutorial`, `completeActionTrigger`).
+ * - Máquina de estados idempotente (`tutorialStateReducer`) para `startTutorial`, `nextStep`,
+ *   `prevStep`, `skipTutorial` y `completeActionTrigger(stepId)` (evita doble avance si un
+ *   control dispara tanto el listener nativo como el callback de React).
+ * - Gestor de foco compartido (`collectSharedTutorialFocusables`, `getNextSharedFocusIndex`)
+ *   que alterna `Tab` / `Shift+Tab` únicamente entre los botones del `TutorialCallout` y el
+ *   elemento interactivo iluminado en el HUD (`data-tutorial-id`).
+ * - Resolución de teclas (`Escape`, `ArrowLeft`, `ArrowRight`, `Tab`).
  * - Cálculo en tiempo real de coordenadas con `getBoundingClientRect()`, sincronizado mediante
  *   `ResizeObserver` y listeners de `scroll` / `resize`.
- * - Recuperación segura ante elementos no montados o con dimensiones `0x0` (scroll suave o salto
- *   automático al siguiente paso válido sin romper la aplicación).
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import {
   TUTORIAL_STORAGE_KEY,
   type OutpostSiteId,
@@ -41,6 +46,215 @@ export interface UseTutorialReturn {
   prevStep: () => void;
   skipTutorial: () => void;
   completeActionTrigger: (stepId: string) => void;
+}
+
+export interface TutorialMachineState {
+  isActive: boolean;
+  hasCompleted: boolean;
+  currentStepIndex: number;
+  /** Contador incremental para disparar efectos de cierre una sola vez por sesión. */
+  completionSeq: number;
+}
+
+export type TutorialMachineAction =
+  | { type: 'START'; steps: TutorialStep[] }
+  | { type: 'NEXT'; steps: TutorialStep[] }
+  | { type: 'PREV' }
+  | { type: 'SKIP' }
+  | { type: 'GOTO'; index: number; steps: TutorialStep[] }
+  | { type: 'STOP_SAFE' }
+  | { type: 'COMPLETE_ACTION'; stepId: string; steps: TutorialStep[] };
+
+/**
+ * Reductor puro e idempotente de la máquina de estados del tutorial (T02 & T11).
+ * Si `COMPLETE_ACTION` se invoca dos veces en el mismo ciclo para el mismo `stepId`,
+ * la segunda llamada no salta el siguiente paso porque `currentStep` ya cambió.
+ */
+export function tutorialStateReducer(
+  state: TutorialMachineState,
+  action: TutorialMachineAction,
+): TutorialMachineState {
+  switch (action.type) {
+    case 'START': {
+      if (action.steps.length === 0) return state;
+      return {
+        ...state,
+        isActive: true,
+        currentStepIndex: 0,
+      };
+    }
+    case 'SKIP': {
+      if (!state.isActive && state.hasCompleted) return state;
+      return {
+        ...state,
+        isActive: false,
+        hasCompleted: true,
+        completionSeq: state.completionSeq + 1,
+      };
+    }
+    case 'NEXT': {
+      if (!state.isActive) return state;
+      if (state.currentStepIndex >= action.steps.length - 1) {
+        return {
+          ...state,
+          isActive: false,
+          hasCompleted: true,
+          completionSeq: state.completionSeq + 1,
+        };
+      }
+      return {
+        ...state,
+        currentStepIndex: state.currentStepIndex + 1,
+      };
+    }
+    case 'PREV': {
+      if (!state.isActive) return state;
+      return {
+        ...state,
+        currentStepIndex: Math.max(0, state.currentStepIndex - 1),
+      };
+    }
+    case 'GOTO': {
+      if (!state.isActive) return state;
+      const clamped = Math.max(0, Math.min(action.steps.length - 1, action.index));
+      return {
+        ...state,
+        currentStepIndex: clamped,
+      };
+    }
+    case 'STOP_SAFE': {
+      if (!state.isActive) return state;
+      return {
+        ...state,
+        isActive: false,
+      };
+    }
+    case 'COMPLETE_ACTION': {
+      if (!state.isActive) return state;
+      const activeStep = action.steps[state.currentStepIndex];
+      if (!activeStep) return state;
+      if (activeStep.id !== action.stepId && activeStep.targetSelector !== action.stepId) {
+        return state;
+      }
+      if (state.currentStepIndex >= action.steps.length - 1) {
+        return {
+          ...state,
+          isActive: false,
+          hasCompleted: true,
+          completionSeq: state.completionSeq + 1,
+        };
+      }
+      return {
+        ...state,
+        currentStepIndex: state.currentStepIndex + 1,
+      };
+    }
+  }
+}
+
+export type TutorialKeyCommand = 'skip' | 'next' | 'prev' | 'tab' | null;
+
+/**
+ * Resuelve el comando de teclado cuando el tutorial está activo (T11):
+ * - `Escape`: cierra el tutorial de inmediato (`'skip'`).
+ * - `ArrowRight`: avanza al siguiente paso si el paso actual no exige acción obligatoria (`'next'`).
+ * - `ArrowLeft`: retrocede al paso anterior si `stepIndex > 0` (`'prev'`).
+ * - `Tab`: activa el ciclo de foco compartido entre el Callout y el elemento iluminado (`'tab'`).
+ */
+export function resolveTutorialKeyCommand(
+  key: string,
+  options: {
+    requireAction: boolean;
+    stepIndex: number;
+    totalSteps: number;
+    isEditableTarget?: boolean;
+  },
+): TutorialKeyCommand {
+  if (key === 'Escape') return 'skip';
+  if (key === 'Tab') return 'tab';
+  if (options.isEditableTarget) return null;
+  if (key === 'ArrowRight' && !options.requireAction && options.totalSteps > 0) {
+    return 'next';
+  }
+  if (key === 'ArrowLeft' && options.stepIndex > 0) {
+    return 'prev';
+  }
+  return null;
+}
+
+/**
+ * Calcula el siguiente índice dentro de la lista de elementos enfocables compartidos
+ * (botones del `TutorialCallout` + controles dentro del objetivo `data-tutorial-id`) al pulsar
+ * `Tab` o `Shift+Tab` (T11).
+ */
+export function getNextSharedFocusIndex(
+  totalFocusables: number,
+  currentIndex: number,
+  shiftKey: boolean,
+): number {
+  if (totalFocusables <= 0) return -1;
+  if (currentIndex < 0 || currentIndex >= totalFocusables) {
+    return shiftKey ? totalFocusables - 1 : 0;
+  }
+  if (shiftKey) {
+    return (currentIndex - 1 + totalFocusables) % totalFocusables;
+  }
+  return (currentIndex + 1) % totalFocusables;
+}
+
+const FOCUSABLE_SELECTOR =
+  'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+
+function isElementFocusable(el: HTMLElement): boolean {
+  if (el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') {
+    return false;
+  }
+  const tabIdxAttr = el.getAttribute('tabindex');
+  if (tabIdxAttr === '-1') return false;
+  const tag = el.tagName.toLowerCase();
+  if (['button', 'input', 'select', 'textarea', 'a'].includes(tag)) {
+    return true;
+  }
+  return tabIdxAttr !== null;
+}
+
+/**
+ * Obtiene la lista ordenada de elementos interactivos que participan en el gestor de foco
+ * compartido (T11): primero el control iluminado en el HUD (`data-tutorial-id`) y sus controles
+ * hijos habilitados, y después los botones del `TutorialCallout`.
+ */
+export function collectSharedTutorialFocusables(
+  targetSelector: string,
+  calloutRoot: HTMLElement | null,
+): HTMLElement[] {
+  const result: HTMLElement[] = [];
+  const seen = new Set<HTMLElement>();
+
+  const pushUnique = (el: HTMLElement | null) => {
+    if (!el || seen.has(el)) return;
+    seen.add(el);
+    result.push(el);
+  };
+
+  const targetEl = findTutorialTargetElement(targetSelector);
+  if (targetEl) {
+    if (isElementFocusable(targetEl)) {
+      pushUnique(targetEl);
+    }
+    const nestedTargetFocusables = targetEl.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+    nestedTargetFocusables.forEach((child) => {
+      if (isElementFocusable(child)) pushUnique(child);
+    });
+  }
+
+  if (calloutRoot) {
+    const calloutButtons = calloutRoot.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+    calloutButtons.forEach((btn) => {
+      if (isElementFocusable(btn)) pushUnique(btn);
+    });
+  }
+
+  return result;
 }
 
 /** Lee de forma segura si el entrenamiento ya fue completado previamente. */
@@ -95,7 +309,13 @@ function toTargetRect(rect: DOMRect): TutorialTargetRect {
 }
 
 function hasValidDimensions(rect: DOMRect | TutorialTargetRect | null): boolean {
-  return Boolean(rect && Number.isFinite(rect.width) && Number.isFinite(rect.height) && rect.width > 0 && rect.height > 0);
+  return Boolean(
+    rect &&
+      Number.isFinite(rect.width) &&
+      Number.isFinite(rect.height) &&
+      rect.width > 0 &&
+      rect.height > 0,
+  );
 }
 
 export function useTutorial(
@@ -116,80 +336,83 @@ export function useTutorial(
     [steps, siteId],
   );
 
-  const [hasCompleted, setHasCompleted] = useState<boolean>(() => readTutorialCompleted());
-  const [isActive, setIsActive] = useState<boolean>(false);
-  const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
+  const [machine, dispatch] = useReducer(
+    tutorialStateReducer,
+    undefined,
+    (): TutorialMachineState => ({
+      isActive: false,
+      hasCompleted: readTutorialCompleted(),
+      currentStepIndex: 0,
+      completionSeq: 0,
+    }),
+  );
+
   const [targetRect, setTargetRect] = useState<TutorialTargetRect | null>(null);
 
   const autoStartedRef = useRef<boolean>(false);
   const scrolledStepIdRef = useRef<string | null>(null);
+  const handledCompletionSeqRef = useRef<number>(0);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+
+  const { isActive, hasCompleted, currentStepIndex, completionSeq } = machine;
 
   const currentStep: TutorialStep | null =
     isActive && filteredSteps.length > 0
       ? (filteredSteps[currentStepIndex] ?? null)
       : null;
 
-  const finishTutorial = useCallback(() => {
-    writeTutorialCompleted(true);
-    setHasCompleted(true);
-    setIsActive(false);
-    setTargetRect(null);
-    scrolledStepIdRef.current = null;
-    onCompleteRef.current?.();
-  }, []);
+  // Sincroniza la persistencia en localStorage cuando el tutorial termina o se salta
+  useEffect(() => {
+    if (completionSeq > handledCompletionSeqRef.current) {
+      handledCompletionSeqRef.current = completionSeq;
+      writeTutorialCompleted(true);
+      setTargetRect(null);
+      scrolledStepIdRef.current = null;
+      onCompleteRef.current?.();
+    }
+  }, [completionSeq]);
 
   const startTutorial = useCallback(() => {
     if (filteredSteps.length === 0) return;
     scrolledStepIdRef.current = null;
-    setCurrentStepIndex(0);
-    setIsActive(true);
-  }, [filteredSteps.length]);
+    dispatch({ type: 'START', steps: filteredSteps });
+  }, [filteredSteps]);
 
   const skipTutorial = useCallback(() => {
-    finishTutorial();
-  }, [finishTutorial]);
+    dispatch({ type: 'SKIP' });
+  }, []);
 
   const nextStep = useCallback(() => {
-    setCurrentStepIndex((prevIdx) => {
-      if (prevIdx >= filteredSteps.length - 1) {
-        finishTutorial();
-        return prevIdx;
-      }
-      return prevIdx + 1;
-    });
-  }, [filteredSteps.length, finishTutorial]);
+    dispatch({ type: 'NEXT', steps: filteredSteps });
+  }, [filteredSteps]);
 
   const prevStep = useCallback(() => {
-    setCurrentStepIndex((prevIdx) => Math.max(0, prevIdx - 1));
+    dispatch({ type: 'PREV' });
   }, []);
 
   const completeActionTrigger = useCallback(
     (stepId: string) => {
-      if (!isActive || !currentStep) return;
-      if (currentStep.id === stepId || currentStep.targetSelector === stepId) {
-        nextStep();
-      }
+      dispatch({ type: 'COMPLETE_ACTION', stepId, steps: filteredSteps });
     },
-    [isActive, currentStep, nextStep],
+    [filteredSteps],
   );
 
-  // Inicio automático en la primera visita cuando la vista principal está habilitada
+  // Inicio automático la primera vez que un usuario entra a una misión (cuando 'jamt_tutorial_completed' no exista)
   useEffect(() => {
     if (
       autoStart &&
       enabled &&
       !hasCompleted &&
+      !readTutorialCompleted() &&
       !isActive &&
       !autoStartedRef.current &&
       filteredSteps.length > 0
     ) {
       autoStartedRef.current = true;
-      setCurrentStepIndex(0);
-      setIsActive(true);
+      dispatch({ type: 'START', steps: filteredSteps });
     }
-  }, [autoStart, enabled, hasCompleted, isActive, filteredSteps.length]);
+  }, [autoStart, enabled, hasCompleted, isActive, filteredSteps]);
 
   // Rastreo de coordenadas en tiempo real y manejo seguro de objetivos no montados o 0x0
   useEffect(() => {
@@ -203,19 +426,17 @@ export function useTutorial(
 
     const advanceOrFinishSafely = () => {
       if (cancelled) return;
-      // Busca el siguiente paso que sí tenga un elemento válido en el DOM
       for (let i = currentStepIndex + 1; i < filteredSteps.length; i += 1) {
         const candidateEl = findTutorialTargetElement(filteredSteps[i].targetSelector);
         if (candidateEl) {
           const candidateRect = candidateEl.getBoundingClientRect();
           if (hasValidDimensions(candidateRect)) {
-            setCurrentStepIndex(i);
+            dispatch({ type: 'GOTO', index: i, steps: filteredSteps });
             return;
           }
         }
       }
-      // Si ningún paso posterior está disponible con dimensiones válidas, cerramos sin romper la app
-      setIsActive(false);
+      dispatch({ type: 'STOP_SAFE' });
       setTargetRect(null);
     };
 

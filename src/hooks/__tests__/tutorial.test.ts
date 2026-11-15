@@ -36,10 +36,14 @@ import {
   projectSystemsTurn,
   selectStartingWeather,
 } from '../../engine/simulationEngine';
+import { simulateTrainingDrill } from '../../engine/trainingDrill';
 import { TUTORIAL_STORAGE_KEY } from '../../types/tutorial';
 import {
   findTutorialTargetElement,
+  getNextSharedFocusIndex,
   readTutorialCompleted,
+  resolveTutorialKeyCommand,
+  tutorialStateReducer,
   writeTutorialCompleted,
 } from '../useTutorial';
 
@@ -304,5 +308,141 @@ describe('Interactive Tutorial System (T01–T08)', () => {
     expect(combinedHtml).toContain('data-tutorial-id="primary-work-order"');
     expect(combinedHtml).toContain('data-tutorial-id="science-modal-sheet"');
     expect(combinedHtml).toContain('data-tutorial-id="science-folder-tabs"');
+    expect(appMarkup).toContain('id="start-tutorial-btn"');
+    expect(appMarkup).toContain('tutorial-launch-btn');
+    expect(appMarkup).toContain('Entrenamiento');
+  });
+
+  it('T09: simulateTrainingDrill proyecta la tormenta SEP real sin mutar la misión ni causar Game Over', () => {
+    const weather = selectStartingWeather('mars-jezero', VERIFIED_NASA_WEATHER_EVENTS, 20260415);
+    const mission = createInitialMissionState('mars-jezero', weather, 20260415);
+    const snapshotBefore = JSON.stringify(mission);
+
+    const readout = simulateTrainingDrill(mission);
+    expect(readout.isTrainingOnly).toBe(true);
+    expect(readout.event.type).toBe('SEP');
+    expect(readout.stormShield.doseMsv).toBeLessThan(readout.current.doseMsv);
+    expect(readout.doseSavedMsv).toBeGreaterThan(0);
+    // La partida real permanece intacta y en estado 'playing'
+    expect(mission.status).toBe('playing');
+    expect(JSON.stringify(mission)).toBe(snapshotBefore);
+
+    const drillStep = TUTORIAL_STEPS.find((s) => s.drill)!;
+    expect(drillStep).toBeDefined();
+    expect(drillStep.tone).toBe('caution');
+    expect(drillStep.targetSelector).toBe('power-preset-storm');
+
+    const drillHtml = renderToStaticMarkup(
+      React.createElement(TutorialSpotlight, {
+        lang: 'es',
+        isActive: true,
+        step: drillStep,
+        stepIndex: TUTORIAL_STEPS.length - 1,
+        totalSteps: TUTORIAL_STEPS.length,
+        targetRect: { top: 220, left: 24, width: 160, height: 64, right: 184, bottom: 284 },
+        drillReadout: readout,
+        onNext: () => {},
+        onPrev: () => {},
+        onSkip: () => {},
+      }),
+    );
+
+    expect(drillHtml).toContain('data-testid="tutorial-drill-readout"');
+    expect(drillHtml).toContain('SIMULACRO CONTROLADO');
+    expect(drillHtml).toContain('data-testid="tutorial-callout-text"');
+    expect(drillHtml).toContain('aria-live="polite"');
+  });
+
+  it('T11: avance de pasos por acción (idempotente), cierre inmediato con Esc y gestor de foco compartido con Tab', () => {
+    let state = tutorialStateReducer(
+      { isActive: false, hasCompleted: false, currentStepIndex: 0, completionSeq: 0 },
+      { type: 'START', steps: TUTORIAL_STEPS },
+    );
+    expect(state.isActive).toBe(true);
+    expect(state.currentStepIndex).toBe(0);
+
+    // Avanza al paso 1 ('step-power-presets', requireAction: true)
+    state = tutorialStateReducer(state, { type: 'NEXT', steps: TUTORIAL_STEPS });
+    expect(state.currentStepIndex).toBe(1);
+    expect(TUTORIAL_STEPS[state.currentStepIndex].id).toBe('step-power-presets');
+
+    // Acción de un paso distinto no debe avanzar el paso actual
+    const unchanged = tutorialStateReducer(state, {
+      type: 'COMPLETE_ACTION',
+      stepId: 'step-science-button',
+      steps: TUTORIAL_STEPS,
+    });
+    expect(unchanged.currentStepIndex).toBe(1);
+
+    // Acción sobre el paso activo avanza exactamente 1 paso (idempotente ante doble disparo)
+    const afterFirstTrigger = tutorialStateReducer(state, {
+      type: 'COMPLETE_ACTION',
+      stepId: 'step-power-presets',
+      steps: TUTORIAL_STEPS,
+    });
+    expect(afterFirstTrigger.currentStepIndex).toBe(2);
+
+    const afterDuplicateTrigger = tutorialStateReducer(afterFirstTrigger, {
+      type: 'COMPLETE_ACTION',
+      stepId: 'step-power-presets',
+      steps: TUTORIAL_STEPS,
+    });
+    expect(afterDuplicateTrigger.currentStepIndex).toBe(2);
+
+    // Tecla Escape resuelve 'skip' y cierra de inmediato marcando completado
+    const escCmd = resolveTutorialKeyCommand('Escape', {
+      requireAction: true,
+      stepIndex: 2,
+      totalSteps: TUTORIAL_STEPS.length,
+    });
+    expect(escCmd).toBe('skip');
+
+    const afterEsc = tutorialStateReducer(afterDuplicateTrigger, { type: 'SKIP' });
+    expect(afterEsc.isActive).toBe(false);
+    expect(afterEsc.hasCompleted).toBe(true);
+    expect(afterEsc.completionSeq).toBe(1);
+
+    // Flechas Izquierda / Derecha respetan requireAction e índice 0
+    expect(
+      resolveTutorialKeyCommand('ArrowRight', {
+        requireAction: false,
+        stepIndex: 0,
+        totalSteps: TUTORIAL_STEPS.length,
+      }),
+    ).toBe('next');
+    expect(
+      resolveTutorialKeyCommand('ArrowRight', {
+        requireAction: true,
+        stepIndex: 1,
+        totalSteps: TUTORIAL_STEPS.length,
+      }),
+    ).toBeNull();
+    expect(
+      resolveTutorialKeyCommand('ArrowLeft', {
+        requireAction: false,
+        stepIndex: 0,
+        totalSteps: TUTORIAL_STEPS.length,
+      }),
+    ).toBeNull();
+    expect(
+      resolveTutorialKeyCommand('ArrowLeft', {
+        requireAction: false,
+        stepIndex: 2,
+        totalSteps: TUTORIAL_STEPS.length,
+      }),
+    ).toBe('prev');
+
+    // Gestor de foco compartido alterna en ciclo entre elemento iluminado y botones del Callout
+    expect(
+      resolveTutorialKeyCommand('Tab', {
+        requireAction: true,
+        stepIndex: 1,
+        totalSteps: TUTORIAL_STEPS.length,
+      }),
+    ).toBe('tab');
+    expect(getNextSharedFocusIndex(4, -1, false)).toBe(0);
+    expect(getNextSharedFocusIndex(4, 0, false)).toBe(1);
+    expect(getNextSharedFocusIndex(4, 3, false)).toBe(0);
+    expect(getNextSharedFocusIndex(4, 0, true)).toBe(3);
   });
 });

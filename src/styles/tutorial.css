@@ -163,6 +163,12 @@
   color: #FFB300;
 }
 
+.tutorial-callout-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* Regla tipográfica Ronda 4 + T05: título en tipo oración, nunca uppercase en frases largas */
 .tutorial-card-title {
   font-family: var(--font-display);

@@ -300,13 +300,20 @@ export const TutorialCallout: React.FC<TutorialCalloutProps> = ({
         </span>
       </header>
 
-      <h3 id="tutorial-callout-title" className="tutorial-card-title">
-        {step.title[lang]}
-      </h3>
+      <div
+        className="tutorial-callout-text"
+        data-testid="tutorial-callout-text"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <h3 id="tutorial-callout-title" className="tutorial-card-title">
+          {step.title[lang]}
+        </h3>
 
-      <p id="tutorial-callout-body" className="tutorial-card-body">
-        {step.body[lang]}
-      </p>
+        <p id="tutorial-callout-body" className="tutorial-card-body">
+          {step.body[lang]}
+        </p>
+      </div>
 
       {step.drill && drillReadout && (
         <div
