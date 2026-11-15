@@ -2001,7 +2001,31 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                     }}
                     height={295}
                     focusPose={activeFocusPose}
+                    selectedPartId={selectedHotspotId}
+                    onSelectPart={(partId) => {
+                      missionAudio.playClick();
+                      setSelectedHotspotId(partId);
+                    }}
                   />
+
+                  <p
+                    className="science-3d-selected-readout"
+                    data-testid="science-3d-selected-readout"
+                    aria-live="polite"
+                  >
+                    {activeSpot ? (
+                      <>
+                        <strong>{activeSpot.label[lang]}</strong>
+                        <span>{activeSpot.explanation[lang]}</span>
+                      </>
+                    ) : (
+                      <span>
+                        {lang === 'es'
+                          ? 'Haz clic en una pieza del modelo 3D o abajo para inspeccionarla.'
+                          : 'Click any piece on the 3D model or below to inspect its function.'}
+                      </span>
+                    )}
+                  </p>
 
                   <div
                     className="science-3d-hotspots"

@@ -70,33 +70,33 @@ export const HARDWARE_MODEL_HOTSPOTS: Record<'rover-moxie' | 'habitat-shield', M
   'rover-moxie': [
     {
       id: 'moxie-unit',
-      label: { es: 'Reactor MOXIE', en: 'MOXIE Reactor' },
+      label: { es: 'Unidad MOXIE', en: 'MOXIE Unit' },
       explanation: {
-        es: 'Toma CO₂ marciano y lo calienta a 800 °C para producir oxígeno puro respirable.',
-        en: 'Draws Martian CO₂ and heats it to 800 °C to produce breathable oxygen.',
+        es: 'Extrae oxígeno puro del CO₂ marciano calentando el aire a 800 °C.',
+        en: 'Splits Martian CO₂ gas at 800 °C to produce pure breathable oxygen.',
       },
-      focusTarget: [0.0, 0.72, 0.0],
-      cameraPos: [2.2, 2.0, 2.3],
+      focusTarget: [0.08, 0.92, 0.0],
+      cameraPos: [1.85, 1.85, 1.95],
     },
     {
-      id: 'optical-mast',
-      label: { es: 'Mástil SuperCam', en: 'SuperCam Mast' },
+      id: 'mmrtg',
+      label: { es: 'Generador MMRTG', en: 'MMRTG Generator' },
       explanation: {
-        es: 'Dispara láseres a rocas lejanas e inspecciona minerales del Cráter Jezero sin perforar.',
-        en: 'Fires lasers at distant rocks and analyzes Jezero Crater minerals before drilling.',
+        es: 'Batería nuclear térmica que genera electricidad continua de día y de noche.',
+        en: 'Nuclear thermal battery providing steady electricity for the rover day and night.',
       },
-      focusTarget: [0.72, 1.5, 0.48],
-      cameraPos: [2.6, 2.2, 2.5],
+      focusTarget: [-1.08, 0.78, 0.0],
+      cameraPos: [-2.65, 1.68, 1.95],
     },
     {
-      id: 'rocker-bogie',
-      label: { es: 'Ruedas y brazo', en: 'Wheels & Arm' },
+      id: 'mastcam-z',
+      label: { es: 'Cámara Mastcam-Z', en: 'Mastcam-Z Camera' },
       explanation: {
-        es: 'Seis ruedas metálicas con suspensión articulada superan piedras de hasta medio metro.',
-        en: 'Six metal wheels with rocker-bogie suspension climb rocks half a meter tall.',
+        es: 'Cámara panorámica con zoom que fotografía minerales y rastros de agua antigua.',
+        en: 'Stereo zoom camera on the mast searching rocks for ancient water clues.',
       },
-      focusTarget: [-0.25, 0.35, 0.75],
-      cameraPos: [-2.6, 1.35, 2.8],
+      focusTarget: [0.72, 1.58, 0.44],
+      cameraPos: [2.25, 2.15, 2.05],
     },
   ],
   'habitat-shield': [
@@ -124,8 +124,8 @@ export const HARDWARE_MODEL_HOTSPOTS: Record<'rover-moxie' | 'habitat-shield', M
       id: 'pressurized-core',
       label: { es: 'Cabina ECLSS', en: 'ECLSS Cabin' },
       explanation: {
-        es: 'Núcleo presurizado con reciclaje del 98 % de agua y control térmico de tripulación.',
-        en: 'Pressurized crew core with 98% water recycling and active thermal control.',
+        es: 'Núcleo presurizado con 98% de agua reciclada y control térmico constante.',
+        en: 'Pressurized crew core with 98% water recycling and steady thermal control.',
       },
       focusTarget: [-0.25, 0.48, 0.5],
       cameraPos: [-2.3, 1.45, 2.85],
@@ -178,6 +178,7 @@ function addCadMesh(
     emissiveIntensity?: number;
     edgeThreshold?: number;
     moduleId?: ColonyModule3DId;
+    partId?: string;
     name?: string;
   },
 ): THREE.Mesh {
@@ -187,6 +188,7 @@ function addCadMesh(
   if (opts?.rot) mesh.rotation.set(...opts.rot);
   if (opts?.scale) mesh.scale.set(...opts.scale);
   if (opts?.moduleId) mesh.userData.moduleId = opts.moduleId;
+  if (opts?.partId) mesh.userData.partId = opts.partId;
   if (opts?.name) mesh.name = opts.name;
 
   const edges = new THREE.EdgesGeometry(geometry, opts?.edgeThreshold ?? 22);
@@ -196,6 +198,59 @@ function addCadMesh(
 
   parent.add(mesh);
   return mesh;
+}
+
+export function findModelPartId(obj: THREE.Object3D | null): string | null {
+  let cur: THREE.Object3D | null = obj;
+  while (cur) {
+    const partId = cur.userData?.partId as string | undefined;
+    if (partId) return partId;
+    cur = cur.parent;
+  }
+  return null;
+}
+
+export function highlightModelPart(root: THREE.Object3D, activePartId: string | null): void {
+  root.traverse((obj) => {
+    if (!(obj instanceof THREE.Mesh)) return;
+    const partId = obj.userData?.partId as string | undefined;
+    if (!partId) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const isActive = Boolean(activePartId && partId === activePartId);
+    for (const rawMat of mats) {
+      if (!(rawMat instanceof THREE.MeshStandardMaterial)) continue;
+      if (!rawMat.userData.basePartEmissive) {
+        rawMat.userData.basePartEmissive = {
+          hex: rawMat.emissive.getHex(),
+          intensity: rawMat.emissiveIntensity,
+        };
+      }
+      const base = rawMat.userData.basePartEmissive as { hex: number; intensity: number };
+      rawMat.userData.isPartHighlighted = isActive;
+      if (isActive) {
+        rawMat.emissive.setHex(COLONY_HIGHLIGHT_HEX);
+        rawMat.emissiveIntensity = Math.max(0.65, base.intensity + 0.35);
+      } else {
+        rawMat.emissive.setHex(base.hex);
+        rawMat.emissiveIntensity = base.intensity;
+      }
+    }
+    for (const child of obj.children) {
+      if (child instanceof THREE.LineSegments && child.material instanceof THREE.LineBasicMaterial) {
+        if (child.material.userData.baseWireColor === undefined) {
+          child.material.userData.baseWireColor = child.material.color.getHex();
+          child.material.userData.baseWireOpacity = child.material.opacity;
+        }
+        if (isActive) {
+          child.material.color.setHex(COLONY_HIGHLIGHT_HEX);
+          child.material.opacity = 0.98;
+        } else {
+          child.material.color.setHex(child.material.userData.baseWireColor as number);
+          child.material.opacity = child.material.userData.baseWireOpacity as number;
+        }
+      }
+    }
+  });
 }
 
 function tagModuleTree(root: THREE.Object3D, moduleId: ColonyModule3DId): void {
@@ -627,40 +682,52 @@ function buildRoverMoxie(): ProceduralModelHandle {
   });
 
   // Chasis principal del rover
-  addCadMesh(group, new THREE.BoxGeometry(1.7, 0.56, 1.15), 0xf2ebdd, wireTint, {
-    pos: [0, 0.68, 0],
+  addCadMesh(group, new THREE.BoxGeometry(1.7, 0.52, 1.15), 0xf2ebdd, wireTint, {
+    pos: [0, 0.66, 0],
   });
-  // Placa superior abierta mostrando bahía MOXIE
-  addCadMesh(group, new THREE.BoxGeometry(1.15, 0.12, 0.92), 0x334155, cyanTint, {
-    pos: [-0.15, 0.99, 0],
+  // Placa de cubierta del chasis alrededor de la bahía MOXIE
+  addCadMesh(group, new THREE.BoxGeometry(0.45, 0.08, 0.96), 0x334155, cyanTint, {
+    pos: [-0.52, 0.94, 0],
   });
 
-  // Unidad interna MOXIE resaltada en ámbar/cian
-  const moxieCore = addCadMesh(group, new THREE.BoxGeometry(0.62, 0.36, 0.64), amberTint, cyanTint, {
-    pos: [0.05, 0.78, 0],
+  // 1. Unidad MOXIE visible en cubierta central (resaltada en ámbar/cian)
+  const moxieCore = addCadMesh(group, new THREE.BoxGeometry(0.64, 0.36, 0.68), amberTint, cyanTint, {
+    pos: [0.08, 0.94, 0],
     emissive: amberTint,
     emissiveIntensity: 0.65,
+    partId: 'moxie-unit',
   });
-  addCadMesh(group, new THREE.CylinderGeometry(0.11, 0.11, 0.52, 12), cyanTint, 0xffffff, {
-    pos: [0.22, 0.85, 0.18],
+  addCadMesh(group, new THREE.CylinderGeometry(0.11, 0.11, 0.56, 12), cyanTint, 0xffffff, {
+    pos: [0.24, 1.0, 0.2],
     rot: [0, 0, Math.PI / 2],
     emissive: cyanTint,
     emissiveIntensity: 0.55,
+    partId: 'moxie-unit',
+  });
+  addCadMesh(group, new THREE.BoxGeometry(0.42, 0.12, 0.42), 0x475569, amberTint, {
+    pos: [0.08, 1.16, 0],
+    partId: 'moxie-unit',
   });
 
-  // Mástil óptico SuperCam
-  addCadMesh(group, new THREE.CylinderGeometry(0.06, 0.08, 0.75, 10), 0xf8f3e8, wireTint, {
-    pos: [0.68, 1.25, 0.42],
+  // 2. Mástil óptico + Cámara estéreo Mastcam-Z
+  addCadMesh(group, new THREE.CylinderGeometry(0.06, 0.08, 0.72, 10), 0xf8f3e8, wireTint, {
+    pos: [0.68, 1.24, 0.42],
+    partId: 'mastcam-z',
   });
-  addCadMesh(group, new THREE.BoxGeometry(0.32, 0.24, 0.3), 0xf8f3e8, cyanTint, {
-    pos: [0.72, 1.65, 0.44],
+  addCadMesh(group, new THREE.BoxGeometry(0.34, 0.24, 0.38), 0xf8f3e8, cyanTint, {
+    pos: [0.72, 1.62, 0.44],
+    partId: 'mastcam-z',
   });
-  addCadMesh(group, new THREE.CylinderGeometry(0.08, 0.08, 0.14, 12), cyanTint, 0xffffff, {
-    pos: [0.88, 1.66, 0.44],
-    rot: [0, 0, Math.PI / 2],
-    emissive: cyanTint,
-    emissiveIntensity: 0.8,
-  });
+  // Ópticas duales Mastcam-Z
+  for (const lz of [0.34, 0.54]) {
+    addCadMesh(group, new THREE.CylinderGeometry(0.075, 0.075, 0.14, 12), cyanTint, 0xffffff, {
+      pos: [0.9, 1.62, lz],
+      rot: [0, 0, Math.PI / 2],
+      emissive: cyanTint,
+      emissiveIntensity: 0.85,
+      partId: 'mastcam-z',
+    });
+  }
 
   // Brazo robótico delantero de muestreo + torreta taladro
   addCadMesh(group, new THREE.BoxGeometry(0.75, 0.1, 0.1), 0x94a3b8, wireTint, {
@@ -672,11 +739,24 @@ function buildRoverMoxie(): ProceduralModelHandle {
     rot: [Math.PI / 2, 0, 0],
   });
 
-  // RTG trasero con aletas térmicas
-  addCadMesh(group, new THREE.CylinderGeometry(0.22, 0.26, 0.65, 8), 0x1e293b, 0xfc3d21, {
-    pos: [-1.05, 0.78, 0],
-    rot: [0, 0, 0.42],
+  // 3. Generador nuclear MMRTG trasero con aletas radiadoras
+  const rtgGroup = new THREE.Group();
+  rtgGroup.position.set(-1.08, 0.78, 0);
+  rtgGroup.rotation.set(0, 0, 0.42);
+  addCadMesh(rtgGroup, new THREE.CylinderGeometry(0.24, 0.28, 0.72, 10), 0x1e293b, 0xfc3d21, {
+    emissive: 0xd97706,
+    emissiveIntensity: 0.25,
+    partId: 'mmrtg',
   });
+  for (let i = 0; i < 4; i++) {
+    addCadMesh(rtgGroup, new THREE.BoxGeometry(0.68, 0.64, 0.05), 0x475569, 0xfc3d21, {
+      rot: [0, (i / 4) * Math.PI, 0],
+      emissive: 0xd97706,
+      emissiveIntensity: 0.2,
+      partId: 'mmrtg',
+    });
+  }
+  group.add(rtgGroup);
 
   // 6 ruedas metálicas con suspensión rocker-bogie
   const wheelX = [-0.72, 0.0, 0.72];
@@ -694,12 +774,14 @@ function buildRoverMoxie(): ProceduralModelHandle {
 
   const animate = (elapsedSec: number) => {
     const mat = moxieCore.material as THREE.MeshStandardMaterial;
-    mat.emissiveIntensity = 0.55 + Math.sin(elapsedSec * 3.0) * 0.2;
+    if (!mat.userData.isPartHighlighted) {
+      mat.emissiveIntensity = 0.55 + Math.sin(elapsedSec * 3.0) * 0.2;
+    }
   };
 
   return {
     group,
-    defaultTarget: [0.05, 0.72, 0],
+    defaultTarget: [0.05, 0.78, 0],
     defaultCameraPos: [2.75, 2.05, 3.05],
     animate,
   };
@@ -720,7 +802,7 @@ function buildHabitatShield(): ProceduralModelHandle {
     new THREE.SphereGeometry(2.05, 20, 12, Math.PI * 0.42, Math.PI * 1.38, 0, Math.PI * 0.5),
     0x786552,
     0xfdba74,
-    { pos: [0, 0.18, 0] },
+    { pos: [0, 0.18, 0], partId: 'regolith-shell' },
   );
 
   // 2. Camisa intermedia de agua reciclada ECLSS (muro de hidrógeno anti-radiación)
@@ -734,51 +816,58 @@ function buildHabitatShield(): ProceduralModelHandle {
       opacity: 0.42,
       emissive: cyanTint,
       emissiveIntensity: 0.35,
+      partId: 'water-jacket',
     },
   );
 
-  // 3. Núcleo interior presurizado de aluminio + consola y camas
+  // 3. Núcleo interior presurizado de aluminio + consola y tanque O2
   addCadMesh(
     group,
     new THREE.SphereGeometry(1.32, 16, 10, Math.PI * 0.25, Math.PI * 1.5, 0, Math.PI * 0.5),
     0xf2ebdd,
     0x0b3d91,
-    { pos: [0, 0.18, 0] },
+    { pos: [0, 0.18, 0], partId: 'pressurized-core' },
   );
-  // Piso interior + consola científica + tanque O2
   addCadMesh(group, new THREE.CylinderGeometry(1.28, 1.28, 0.08, 18), 0x475569, cyanTint, {
     pos: [0, 0.22, 0],
+    partId: 'pressurized-core',
   });
   addCadMesh(group, new THREE.BoxGeometry(0.58, 0.42, 0.35), 0x0b3d91, cyanTint, {
     pos: [-0.35, 0.46, 0.35],
     emissive: cyanTint,
     emissiveIntensity: 0.22,
+    partId: 'pressurized-core',
   });
   addCadMesh(group, new THREE.CylinderGeometry(0.16, 0.16, 0.68, 10), 0x2e7d4f, 0xf2ebdd, {
     pos: [0.45, 0.58, 0.25],
+    partId: 'pressurized-core',
   });
 
   // Flechas esquemáticas de partículas solares (DONKI SEP) desviándose en la capa de regolito/agua
   const rayGroup = new THREE.Group();
   for (const offset of [-0.6, 0.0, 0.6]) {
-    addCadMesh(rayGroup, new THREE.CylinderGeometry(0.03, 0.03, 1.0, 6), 0xfc3d21, 0xfc3d21, {
+    const stick = addCadMesh(rayGroup, new THREE.CylinderGeometry(0.03, 0.03, 1.0, 6), 0xfc3d21, 0xfc3d21, {
       pos: [offset, 2.52, -0.35],
       rot: [0.45, 0, 0.2],
       emissive: 0xfc3d21,
       emissiveIntensity: 0.7,
     });
-    addCadMesh(rayGroup, new THREE.ConeGeometry(0.09, 0.22, 6), 0xfc3d21, 0xfc3d21, {
+    stick.raycast = () => undefined;
+    const tip = addCadMesh(rayGroup, new THREE.ConeGeometry(0.09, 0.22, 6), 0xfc3d21, 0xfc3d21, {
       pos: [offset - 0.1, 2.08, -0.14],
       rot: [Math.PI + 0.45, 0, -0.2],
       emissive: 0xfc3d21,
       emissiveIntensity: 0.85,
     });
+    tip.raycast = () => undefined;
   }
   group.add(rayGroup);
 
   const animate = (elapsedSec: number) => {
     const waterMat = waterJacket.material as THREE.MeshStandardMaterial;
-    waterMat.emissiveIntensity = 0.28 + Math.sin(elapsedSec * 2.4) * 0.12;
+    if (!waterMat.userData.isPartHighlighted) {
+      waterMat.emissiveIntensity = 0.28 + Math.sin(elapsedSec * 2.4) * 0.12;
+    }
     rayGroup.position.y = Math.sin(elapsedSec * 3.5) * 0.06;
   };
 

@@ -87,6 +87,19 @@
   border-color: #C87D52;
 }
 
+.viewer3d-part-badge,
+.viewer3d-mars .viewer3d-part-badge {
+  background-color: #0B121E;
+  color: #38BDF8;
+  border-color: #38BDF8;
+  text-transform: none;
+}
+
+.viewer3d-fallback-svg [role='button']:focus-visible {
+  outline: 2px solid #38BDF8;
+  outline-offset: 2px;
+}
+
 .colony3d-floating-tag {
   position: absolute;
   transform: translate(-50%, -100%);
@@ -406,6 +419,30 @@
 .science-3d-hotspot-btn span {
   font-size: 1rem;
   line-height: 1.35;
+  color: var(--ink, #1B1F2A);
+}
+
+.science-3d-selected-readout {
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  background-color: var(--paper-sheet, #F8F3E8);
+  border: 1.5px solid var(--nasa-blue, #0B3D91);
+  border-radius: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.65rem;
+}
+
+.science-3d-selected-readout strong {
+  font-family: var(--font-display, 'Barlow Condensed', sans-serif);
+  font-size: 1.05rem;
+  color: var(--nasa-blue, #0B3D91);
+}
+
+.science-3d-selected-readout span {
+  font-size: 1rem;
+  line-height: 1.4;
   color: var(--ink, #1B1F2A);
 }
 

@@ -12,6 +12,7 @@
 
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MissionBriefing } from '../../MissionHUD/MissionBriefing';
 import { OutpostMap } from '../../OutpostView/OutpostMap';
@@ -35,7 +36,9 @@ import {
   buildProceduralModel,
   disposeObject3D,
   EXTERNAL_GLB_ASSETS,
+  findModelPartId,
   HARDWARE_MODEL_HOTSPOTS,
+  highlightModelPart,
   type Model3DId,
   resolveExternalModelUrl,
 } from '../proceduralModels';
@@ -270,6 +273,14 @@ describe('NASA 3D Models & CAD Viewer (M01–M04)', () => {
     expect(htmlEs).toContain('id="hw-select-rover-moxie"');
     expect(htmlEs).toContain('id="hw-select-habitat-shield"');
     expect(htmlEs).toContain('data-testid="viewer3d-svg-fallback-rover-moxie"');
+    expect(htmlEs).toContain('data-testid="science-3d-selected-readout"');
+    expect(htmlEs).toContain('Haz clic en una pieza del modelo 3D o abajo para inspeccionarla.');
+    expect(htmlEs).toContain('id="hotspot-moxie-unit"');
+    expect(htmlEs).toContain('id="hotspot-mmrtg"');
+    expect(htmlEs).toContain('id="hotspot-mastcam-z"');
+    expect(htmlEs).toContain('data-part-id="moxie-unit"');
+    expect(htmlEs).toContain('data-part-id="mmrtg"');
+    expect(htmlEs).toContain('data-part-id="mastcam-z"');
 
     const htmlEn = renderToStaticMarkup(
       React.createElement(ScienceModal, {
@@ -285,6 +296,18 @@ describe('NASA 3D Models & CAD Viewer (M01–M04)', () => {
     expect(htmlEn).toContain('3D MODEL');
     expect(htmlEn).toContain('Perseverance Rover + MOXIE');
     expect(htmlEn).toContain('Regolith-Shielded Habitat');
+    expect(htmlEn).toContain('Click any piece on the 3D model or below to inspect its function.');
+
+    expect(HARDWARE_MODEL_HOTSPOTS['rover-moxie'].map((h) => h.id)).toEqual([
+      'moxie-unit',
+      'mmrtg',
+      'mastcam-z',
+    ]);
+    expect(HARDWARE_MODEL_HOTSPOTS['habitat-shield'].map((h) => h.id)).toEqual([
+      'regolith-shell',
+      'water-jacket',
+      'pressurized-core',
+    ]);
 
     for (const modelKey of ['rover-moxie', 'habitat-shield'] as const) {
       const spots = HARDWARE_MODEL_HOTSPOTS[modelKey];
@@ -296,6 +319,76 @@ describe('NASA 3D Models & CAD Viewer (M01–M04)', () => {
           expect(EMOJI_REGEX.test(spot.label[lang])).toBe(false);
         }
       }
+    }
+  });
+
+  it('M03: ModelViewer3D expone piezas interactivas en SVG y Three.js (findModelPartId + highlightModelPart)', () => {
+    const htmlRover = renderToStaticMarkup(
+      React.createElement(ModelViewer3D, {
+        lang: 'es',
+        modelId: 'rover-moxie',
+        forceFallback: true,
+        selectedPartId: 'mmrtg',
+        options: { siteId: 'mars-jezero' },
+      }),
+    );
+    expect(htmlRover).toContain('data-testid="viewer3d-active-part-badge"');
+    expect(htmlRover).toContain('Generador MMRTG');
+    expect(htmlRover).toContain('data-part-id="moxie-unit"');
+    expect(htmlRover).toContain('data-part-id="mmrtg"');
+    expect(htmlRover).toContain('data-part-id="mastcam-z"');
+
+    const htmlHab = renderToStaticMarkup(
+      React.createElement(ModelViewer3D, {
+        lang: 'en',
+        modelId: 'habitat-shield',
+        forceFallback: true,
+        selectedPartId: 'water-jacket',
+        options: { siteId: 'moon-shackleton' },
+      }),
+    );
+    expect(htmlHab).toContain('H₂O Water Jacket');
+    expect(htmlHab).toContain('data-part-id="regolith-shell"');
+    expect(htmlHab).toContain('data-part-id="water-jacket"');
+    expect(htmlHab).toContain('data-part-id="pressurized-core"');
+
+    for (const [modelId, expectedIds] of [
+      ['rover-moxie', ['moxie-unit', 'mmrtg', 'mastcam-z']],
+      ['habitat-shield', ['regolith-shell', 'water-jacket', 'pressurized-core']],
+    ] as const) {
+      const built = buildProceduralModel(modelId);
+      const foundIds = new Set<string>();
+      built.group.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          const pid = findModelPartId(obj);
+          if (pid) foundIds.add(pid);
+        }
+      });
+      for (const expectedId of expectedIds) {
+        expect(foundIds.has(expectedId)).toBe(true);
+      }
+
+      const targetId = expectedIds[1];
+      highlightModelPart(built.group, targetId);
+      let highlightedMeshCount = 0;
+      built.group.traverse((obj) => {
+        if (obj instanceof THREE.Mesh && obj.userData.partId === targetId) {
+          const mat = obj.material as THREE.MeshStandardMaterial;
+          if (mat.userData.isPartHighlighted) highlightedMeshCount++;
+        }
+      });
+      expect(highlightedMeshCount).toBeGreaterThan(0);
+
+      highlightModelPart(built.group, null);
+      let stillHighlightedCount = 0;
+      built.group.traverse((obj) => {
+        if (obj instanceof THREE.Mesh && obj.userData.partId) {
+          const mat = obj.material as THREE.MeshStandardMaterial;
+          if (mat.userData.isPartHighlighted) stillHighlightedCount++;
+        }
+      });
+      expect(stillHighlightedCount).toBe(0);
+      disposeObject3D(built.group);
     }
   });
 
@@ -313,6 +406,12 @@ describe('NASA 3D Models & CAD Viewer (M01–M04)', () => {
     expect(htmlBriefing).toContain('id="briefing-globe-select-moon-shackleton"');
     expect(htmlBriefing).toContain('id="briefing-globe-select-mars-jezero"');
     expect(EMOJI_REGEX.test(htmlBriefing)).toBe(false);
+
+    const globe = buildProceduralModel('planet-globe', { siteId: 'moon-shackleton' });
+    globe.updateState?.({ siteId: 'mars-jezero' });
+    globe.animate?.(0.5, 0.016);
+    globe.updateState?.({ siteId: 'moon-shackleton' });
+    disposeObject3D(globe.group);
   });
 
   it('M01: resolveExternalModelUrl respeta BASE_URL y evita peticiones 404 por defecto', () => {
