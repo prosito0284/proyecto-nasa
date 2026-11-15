@@ -43,6 +43,7 @@ import {
   selectStartingWeather,
 } from '../../engine/simulationEngine';
 import {
+  ensureOnboardingTargetInViewport,
   ONBOARDING_STEPS,
   ONBOARDING_STORAGE_KEY,
   onboardingReducer,
@@ -374,6 +375,42 @@ describe('Interactive Ignition Onboarding (T01–T05)', () => {
     );
     expect(mobileCutout.height).toBe(56);
     expect(mobileCutout.top).toBe(62);
+
+    // B03: al redimensionar de 1280x800 a 360x640 con thermal-stabilizer fuera del viewport (top: 4937),
+    // ensureOnboardingTargetInViewport ejecuta scrollOnboardingTargetIntoView y si el cutout es 0x0 no bloquea clics
+    const resizeScrollSpy = vi.fn();
+    const thermalOffscreenTarget = {
+      closest: () => null,
+      getBoundingClientRect: () => ({
+        top: 4937,
+        left: 16,
+        width: 150,
+        height: 52,
+        right: 166,
+        bottom: 4989,
+        x: 16,
+        y: 4937,
+        toJSON: () => ({}),
+      }),
+      scrollIntoView: resizeScrollSpy,
+    } as unknown as HTMLElement;
+    expect(ensureOnboardingTargetInViewport(thermalOffscreenTarget)).toBe(true);
+    expect(resizeScrollSpy).toHaveBeenCalledWith({
+      behavior: 'instant',
+      block: 'center',
+      inline: 'nearest',
+    });
+
+    const zeroCutoutHtml = renderToStaticMarkup(
+      React.createElement(OnboardingSpotlight, {
+        lang: 'es',
+        isActive: true,
+        step: ONBOARDING_STEPS[3],
+        targetRect: null,
+        onSkip: () => {},
+      }),
+    );
+    expect(zeroCutoutHtml).toContain('pointer-events:none');
   });
 
   it('F02: restaura la asignación de energía tras el Paso 4 sin dejar Escudo Tormenta activo, eleva utilidades y da >=44x44px a Saltar', () => {

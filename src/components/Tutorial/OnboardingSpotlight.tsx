@@ -361,6 +361,7 @@ export const OnboardingSpotlight: React.FC<OnboardingSpotlightProps> = ({
           left: 0,
           width: '100vw',
           height: `${cutout.top}px`,
+          pointerEvents: hasCutout ? undefined : 'none',
         }}
         aria-hidden="true"
       />
@@ -372,6 +373,7 @@ export const OnboardingSpotlight: React.FC<OnboardingSpotlightProps> = ({
           left: 0,
           width: '100vw',
           height: `${Math.max(0, vh - cutout.bottom)}px`,
+          pointerEvents: hasCutout ? undefined : 'none',
         }}
         aria-hidden="true"
       />
@@ -383,6 +385,7 @@ export const OnboardingSpotlight: React.FC<OnboardingSpotlightProps> = ({
           left: 0,
           width: `${cutout.left}px`,
           height: `${cutout.height}px`,
+          pointerEvents: hasCutout ? undefined : 'none',
         }}
         aria-hidden="true"
       />
@@ -394,6 +397,7 @@ export const OnboardingSpotlight: React.FC<OnboardingSpotlightProps> = ({
           left: `${cutout.right}px`,
           width: `${Math.max(0, vw - cutout.right)}px`,
           height: `${cutout.height}px`,
+          pointerEvents: hasCutout ? undefined : 'none',
         }}
         aria-hidden="true"
       />
