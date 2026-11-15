@@ -9,7 +9,12 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { App, isExecutionLocked, resolvePostDrillAllocation } from '../../App';
+import {
+  App,
+  computeOutcomeFlagsAfterTutorialLaunch,
+  isExecutionLocked,
+  resolvePostDrillAllocation,
+} from '../../App';
 import { MissionBriefing } from '../../components/MissionHUD/MissionBriefing';
 import {
   BALANCED_POWER_ALLOCATION,
@@ -438,5 +443,19 @@ describe('Interactive Ignition Onboarding (T01–T05)', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('F04: reinicia boardSaved y linkCopied al relanzar Entrenamiento tras misión ganada o abortada', () => {
+    expect(
+      computeOutcomeFlagsAfterTutorialLaunch('won', { linkCopied: true, boardSaved: true }),
+    ).toEqual({ linkCopied: false, boardSaved: false });
+
+    expect(
+      computeOutcomeFlagsAfterTutorialLaunch('failed', { linkCopied: true, boardSaved: true }),
+    ).toEqual({ linkCopied: false, boardSaved: false });
+
+    expect(
+      computeOutcomeFlagsAfterTutorialLaunch('playing', { linkCopied: true, boardSaved: false }),
+    ).toEqual({ linkCopied: true, boardSaved: false });
   });
 });

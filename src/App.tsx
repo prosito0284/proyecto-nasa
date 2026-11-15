@@ -64,6 +64,14 @@ export function isExecutionLocked(
   return executingId !== null || hasPendingStamp;
 }
 
+export function computeOutcomeFlagsAfterTutorialLaunch(
+  status: 'briefing' | 'playing' | 'won' | 'failed',
+  current: { linkCopied: boolean; boardSaved: boolean },
+): { linkCopied: boolean; boardSaved: boolean } {
+  if (status !== 'playing') return { linkCopied: false, boardSaved: false };
+  return current;
+}
+
 const siteShortName = (siteId: OutpostSiteId, lang: Language) =>
   siteId === 'moon-shackleton'
     ? lang === 'es'
@@ -285,6 +293,12 @@ export const App: React.FC = () => {
     setExecutingId(null);
     setIsScienceOpen(false);
     setIsBadgesOpen(false);
+    const nextFlags = computeOutcomeFlagsAfterTutorialLaunch(mission.status, {
+      linkCopied,
+      boardSaved,
+    });
+    setLinkCopied(nextFlags.linkCopied);
+    setBoardSaved(nextFlags.boardSaved);
     if (mission.status !== 'playing') {
       startMission(mission.siteId, challengeSeed);
       window.scrollTo({ top: 0 });

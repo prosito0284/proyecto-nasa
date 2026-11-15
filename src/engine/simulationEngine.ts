@@ -757,7 +757,7 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
         es: 'Mantuviste el blindaje ≥60% en todos los días de tormenta solar DONKI.',
         en: 'Kept shielding ≥60% on every DONKI solar storm day.',
       },
-      earned: tel.stormDays > 0 && tel.shieldedStormDays === tel.stormDays,
+      earned: finished && tel.stormDays > 0 && tel.shieldedStormDays === tel.stormDays,
     },
     {
       id: 'eclss-master',
@@ -802,7 +802,7 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
         es: `Ganaste ${SCIENCE_TARGET} o más puntos de ciencia en la misión.`,
         en: `Earned ${SCIENCE_TARGET}+ science points during the mission.`,
       },
-      earned: sciEarned >= SCIENCE_TARGET,
+      earned: finished && sciEarned >= SCIENCE_TARGET,
     },
     {
       id: 'isru-pioneer',
@@ -811,7 +811,7 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
         es: 'Usaste recursos locales (hielo o regolito) al menos 2 veces.',
         en: 'Used local resources (ice or regolith) at least 2 times.',
       },
-      earned: choices.filter((c) => ISRU_CHOICES.includes(c)).length >= 2,
+      earned: finished && choices.filter((c) => ISRU_CHOICES.includes(c)).length >= 2,
     },
     {
       id: 'happy-crew',
