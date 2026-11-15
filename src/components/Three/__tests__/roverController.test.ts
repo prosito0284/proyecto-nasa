@@ -117,7 +117,11 @@ describe('Planetary Rover Controller (R01)', () => {
     expect(after.y).toBeGreaterThan(before.y + 0.4);
   });
 
-  it('respeta límites físicos invisibles [-22, 22] con amortiguación suave', () => {
+  it('respeta límites físicos invisibles ampliados x2 [-44, 44] superando 22 u con amortiguación suave cerca de ±41', () => {
+    expect(ROVER_WORLD_LIMITS.boundsMin).toBe(-44);
+    expect(ROVER_WORLD_LIMITS.boundsMax).toBe(44);
+    expect(ROVER_WORLD_LIMITS.softMargin).toBe(3.0);
+
     const rover = createRoverController({
       planet: 'lunar',
       initialX: 20,
@@ -126,19 +130,25 @@ describe('Planetary Rover Controller (R01)', () => {
     });
 
     let last = rover.getState();
-    for (let i = 0; i < 80; i++) {
+    let crossedOldLimit = false;
+    for (let i = 0; i < 270; i++) {
       last = rover.step({
         dt: 0.05,
         input: { ...EMPTY_ROVER_INPUT, forward: true },
         getTerrainHeight: flatGround,
       });
+      if (last.x > 22 && last.z > 22) {
+        crossedOldLimit = true;
+      }
       expect(last.x).toBeGreaterThanOrEqual(ROVER_WORLD_LIMITS.boundsMin);
       expect(last.x).toBeLessThanOrEqual(ROVER_WORLD_LIMITS.boundsMax);
       expect(last.z).toBeGreaterThanOrEqual(ROVER_WORLD_LIMITS.boundsMin);
       expect(last.z).toBeLessThanOrEqual(ROVER_WORLD_LIMITS.boundsMax);
     }
+    expect(crossedOldLimit).toBe(true);
     expect(last.hitBoundary).toBe(true);
     expect(last.x).toBeCloseTo(ROVER_WORLD_LIMITS.boundsMax, 1);
+    expect(last.z).toBeCloseTo(ROVER_WORLD_LIMITS.boundsMax, 1);
   });
 
   it('evita atravesar domos/edificios de la colonia y rodea sus perímetros suavemente', () => {

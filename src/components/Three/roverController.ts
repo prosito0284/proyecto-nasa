@@ -41,20 +41,20 @@ export const ROVER_WHEEL_RADIUS = 0.42;
 export const ROVER_COLLISION_RADIUS = 1.45;
 
 export const ROVER_WORLD_LIMITS = {
-  boundsMin: -22,
-  boundsMax: 22,
-  /** Franja invisible interior donde se amortigua suavemente la componente saliente */
-  softMargin: 1.4,
+  boundsMin: -44,
+  boundsMax: 44,
+  /** Franja invisible interior (41..44) donde se amortigua suavemente la componente saliente */
+  softMargin: 3.0,
 } as const;
 
 export const PLANET_ROVER_PHYSICS: Record<WorldAtmosphereKind, PlanetRoverPhysicsProfile> = {
   lunar: {
     kind: 'lunar',
     gravityFactor: 0.166,
-    maxForwardSpeed: 8.6,
-    maxReverseSpeed: 4.8,
-    acceleration: 8.8,
-    brakingDeceleration: 10.5,
+    maxForwardSpeed: 10.3,
+    maxReverseSpeed: 5.8,
+    acceleration: 10.6,
+    brakingDeceleration: 12.6,
     rollingFriction: 1.15,
     lateralGrip: 2.8,
     maxSteerAngleRad: ROVER_MAX_STEER_RAD,
@@ -68,10 +68,10 @@ export const PLANET_ROVER_PHYSICS: Record<WorldAtmosphereKind, PlanetRoverPhysic
   mars: {
     kind: 'mars',
     gravityFactor: 0.378,
-    maxForwardSpeed: 7.4,
-    maxReverseSpeed: 4.2,
-    acceleration: 10.8,
-    brakingDeceleration: 17.5,
+    maxForwardSpeed: 8.9,
+    maxReverseSpeed: 5.0,
+    acceleration: 13.0,
+    brakingDeceleration: 21.0,
     rollingFriction: 3.6,
     lateralGrip: 7.8,
     maxSteerAngleRad: ROVER_MAX_STEER_RAD,

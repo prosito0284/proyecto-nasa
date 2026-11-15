@@ -185,7 +185,7 @@ describe('RoverPlayable (R09: Kinematics, Controls, Samples, Telemetry & Return 
     expect(marsCtrl.getState().steerAngle).toBeLessThan(0);
     expect(Math.abs(marsCtrl.getState().steerAngle)).toBeLessThanOrEqual(ROVER_MAX_STEER_RAD + 0.0001);
 
-    // Límites físicos invisibles [-22, 22] y anticolisión contra domos de la colonia
+    // Límites físicos invisibles ampliados x2 [-44, 44] y anticolisión contra domos de la colonia
     const obstacles = getColonyObstacleColliders({
       solarWingLeft: true,
       solarWingRight: true,
@@ -202,13 +202,15 @@ describe('RoverPlayable (R09: Kinematics, Controls, Samples, Telemetry & Return 
       initialZ: 20.5,
       initialHeading: -Math.PI / 4,
     });
-    for (let i = 0; i < 60; i++) {
+    let crossed22 = false;
+    for (let i = 0; i < 140; i++) {
       const s = edgeCtrl.step({
         dt: 0.05,
         input: { ...EMPTY_ROVER_INPUT, forward: true },
         getTerrainHeight: () => 0,
         obstacles,
       });
+      if (s.x > 22 && s.z > 22) crossed22 = true;
       expect(s.x).toBeGreaterThanOrEqual(ROVER_WORLD_LIMITS.boundsMin);
       expect(s.x).toBeLessThanOrEqual(ROVER_WORLD_LIMITS.boundsMax);
       expect(s.z).toBeGreaterThanOrEqual(ROVER_WORLD_LIMITS.boundsMin);
@@ -219,6 +221,7 @@ describe('RoverPlayable (R09: Kinematics, Controls, Samples, Telemetry & Return 
         );
       }
     }
+    expect(crossed22).toBe(true);
     expect(edgeCtrl.getState().hitBoundary).toBe(true);
   });
 

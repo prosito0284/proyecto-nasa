@@ -172,49 +172,49 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
     disposeObject3D(world.group);
   });
 
-  it('M01: aplica límites invisibles de cámara en [-24, 24] con retorno amortiguado y focos seguros', () => {
-    expect(COLONY_CAMERA_LIMITS.boundsMin).toBe(-24);
-    expect(COLONY_CAMERA_LIMITS.boundsMax).toBe(24);
+  it('M01: aplica límites invisibles de cámara ampliados [-46, 46] con retorno amortiguado y maxDistance 88', () => {
+    expect(COLONY_CAMERA_LIMITS.boundsMin).toBe(-46);
+    expect(COLONY_CAMERA_LIMITS.boundsMax).toBe(46);
     expect(COLONY_CAMERA_LIMITS.minDistance).toBe(7);
-    expect(COLONY_CAMERA_LIMITS.maxDistance).toBe(45);
+    expect(COLONY_CAMERA_LIMITS.maxDistance).toBe(88);
     expect(COLONY_CAMERA_LIMITS.minPolarAngle).toBe(0.18);
     expect(COLONY_CAMERA_LIMITS.maxPolarAngle).toBeLessThan(Math.PI / 2);
 
-    expect(clampToColonyBounds(-99)).toBe(-24);
-    expect(clampToColonyBounds(99)).toBe(24);
+    expect(clampToColonyBounds(-99)).toBe(-46);
+    expect(clampToColonyBounds(99)).toBe(46);
     expect(clampColonyCameraDistance(2)).toBe(7);
-    expect(clampColonyCameraDistance(120)).toBe(45);
+    expect(clampColonyCameraDistance(120)).toBe(88);
     expect(clampColonyPolarAngle(0.01)).toBe(COLONY_CAMERA_LIMITS.minPolarAngle);
     expect(clampColonyPolarAngle(Math.PI)).toBe(COLONY_CAMERA_LIMITS.maxPolarAngle);
 
-    const inside = softClampColonyTarget(10, -12, 0.5);
+    const inside = softClampColonyTarget(30, -32, 0.5);
     expect(inside.wasOutside).toBe(false);
-    expect(inside.x).toBe(10);
-    expect(inside.z).toBe(-12);
+    expect(inside.x).toBe(30);
+    expect(inside.z).toBe(-32);
 
-    const soft = softClampColonyTarget(40, -35, 0.5);
+    const soft = softClampColonyTarget(64, -60, 0.5);
     expect(soft.wasOutside).toBe(true);
-    expect(soft.x).toBeLessThanOrEqual(24 + COLONY_CAMERA_LIMITS.overshoot);
-    expect(soft.z).toBeGreaterThanOrEqual(-24 - COLONY_CAMERA_LIMITS.overshoot);
+    expect(soft.x).toBeLessThanOrEqual(46 + COLONY_CAMERA_LIMITS.overshoot);
+    expect(soft.z).toBeGreaterThanOrEqual(-46 - COLONY_CAMERA_LIMITS.overshoot);
 
-    const hard = softClampColonyTarget(80, -80, 1);
+    const hard = softClampColonyTarget(120, -120, 1);
     expect(hard.wasOutside).toBe(true);
-    expect(hard.x).toBe(24);
-    expect(hard.z).toBe(-24);
+    expect(hard.x).toBe(46);
+    expect(hard.z).toBe(-46);
 
     for (const id of COLONY_WORLD_MODULE_IDS) {
       const pose = computeColonyFocusPose(id);
-      expect(pose.target[0]).toBeGreaterThanOrEqual(-24);
-      expect(pose.target[0]).toBeLessThanOrEqual(24);
-      expect(pose.target[2]).toBeGreaterThanOrEqual(-24);
-      expect(pose.target[2]).toBeLessThanOrEqual(24);
+      expect(pose.target[0]).toBeGreaterThanOrEqual(-46);
+      expect(pose.target[0]).toBeLessThanOrEqual(46);
+      expect(pose.target[2]).toBeGreaterThanOrEqual(-46);
+      expect(pose.target[2]).toBeLessThanOrEqual(46);
       const dist = Math.hypot(
         pose.cameraPos[0] - pose.target[0],
         pose.cameraPos[1] - pose.target[1],
         pose.cameraPos[2] - pose.target[2],
       );
       expect(dist).toBeGreaterThanOrEqual(7 - 0.001);
-      expect(dist).toBeLessThanOrEqual(45 + 0.001);
+      expect(dist).toBeLessThanOrEqual(88 + 0.001);
     }
   });
 

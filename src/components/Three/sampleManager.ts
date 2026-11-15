@@ -328,6 +328,13 @@ export function generateTurnSamples(
     const j = Math.floor(slotRng() * (i + 1));
     [kindsQueue[i], kindsQueue[j]] = [kindsQueue[j], kindsQueue[i]];
   }
+  // Escalonar por valor: muestras estándar (+10/+15 PTS) en anillos interior/medio
+  // y muestras de alto valor (+20/+25 PTS) en el perímetro exterior (~26–39.5 u)
+  kindsQueue.sort((a, b) => {
+    const highA = SAMPLE_CATALOG[a].points >= 20 ? 1 : 0;
+    const highB = SAMPLE_CATALOG[b].points >= 20 ? 1 : 0;
+    return highA - highB;
+  });
 
   const baseAngle = rng() * Math.PI * 2;
   const extraAvoid = options.avoidPositions ?? [];
@@ -338,19 +345,25 @@ export function generateTurnSamples(
   const placed: Array<{ x: number; z: number }> = [];
   const specs: SurfaceSampleSpec[] = [];
 
-  const safeFallbacks: ReadonlyArray<[number, number]> = [
+  const safeFallbacksInner: ReadonlyArray<[number, number]> = [
     [-17.2, -16.8],
-    [16.8, -16.5],
-    [-17.8, 16.5],
-    [17.5, -3.5],
-    [-1.5, -18.2],
-    [1.8, 17.8],
+    [17.4, -16.5],
+    [-18.2, 16.5],
+    [22.5, -14.5],
+  ];
+  const safeFallbacksOuter: ReadonlyArray<[number, number]> = [
+    [29.5, -24.5],
+    [-27.5, -28.2],
+    [26.8, 28.4],
+    [-31.2, 22.6],
   ];
 
   for (let slot = 0; slot < sampleCount; slot++) {
     const kind = kindsQueue[slot];
     const entry = SAMPLE_CATALOG[kind];
-    const fb = safeFallbacks[slot % safeFallbacks.length];
+    const isHighValue = entry.points >= 20;
+    const fbPool = isHighValue ? safeFallbacksOuter : safeFallbacksInner;
+    const fb = fbPool[slot % fbPool.length];
     let chosenX = fb[0];
     let chosenZ = fb[1];
 
@@ -360,18 +373,34 @@ export function generateTurnSamples(
         attempt < 28
           ? sectorAngle + attempt * 0.27 + (rng() - 0.5) * 0.45
           : rng() * Math.PI * 2;
-      const radial =
-        attempt < 28
-          ? 10.5 + ((attempt * 1.45 + rng() * 9.5) % 10.0)
-          : 9.8 + rng() * 11.4;
-      const candX = Math.max(-19.2, Math.min(19.2, Math.cos(a) * radial));
-      const candZ = Math.max(-19.2, Math.min(19.2, Math.sin(a) * radial));
+      let radial: number;
+      if (isHighValue) {
+        // Anillo exterior de exploración larga (~26.5 a 39.5 unidades) para muestras de +20/+25 PTS
+        radial =
+          attempt < 28
+            ? 26.5 + ((attempt * 1.65 + rng() * 11.5) % 13.0)
+            : 26.0 + rng() * 13.5;
+      } else if (slot === 0) {
+        // Anillo interior cercano a la base (~10.5 a 19.0 unidades)
+        radial = 10.5 + ((attempt * 1.15 + rng() * 7.5) % 8.5);
+      } else if (slot <= 2) {
+        // Anillo intermedio (~13.5 a 23.5 unidades)
+        radial = 13.5 + ((attempt * 1.35 + rng() * 9.0) % 10.0);
+      } else {
+        // Anillo medio-exterior (~21.0 a 34.5 unidades)
+        radial = 21.0 + ((attempt * 1.55 + rng() * 12.0) % 13.5);
+      }
+      const candX = Math.max(-39.5, Math.min(39.5, Math.cos(a) * radial));
+      const candZ = Math.max(-39.5, Math.min(39.5, Math.sin(a) * radial));
+      const candDist = Math.hypot(candX, candZ);
 
-      let valid = true;
-      for (const zone of DEFAULT_KEEP_OUT_ZONES) {
-        if (Math.hypot(candX - zone.x, candZ - zone.z) < zone.r) {
-          valid = false;
-          break;
+      let valid = candDist <= 40.0 && (!isHighValue || candDist >= 25.0);
+      if (valid) {
+        for (const zone of DEFAULT_KEEP_OUT_ZONES) {
+          if (Math.hypot(candX - zone.x, candZ - zone.z) < zone.r) {
+            valid = false;
+            break;
+          }
         }
       }
       if (valid) {
