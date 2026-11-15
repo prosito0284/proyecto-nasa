@@ -37,9 +37,11 @@ import {
   findColonyModuleId,
   formatTerrainSeedBadge,
   generateTurnAnomalies,
+  getAnomalyGlossaryTermId,
   getColonyModuleStatus,
   getColonyEvolutionSummary,
   getMaintenanceConfirmation,
+  getModuleGlossaryTermId,
   getModulesNeedingMaintenance,
   getWorldAtmosphere,
   isStormShieldDeployed,
@@ -62,6 +64,8 @@ export interface ColonyWorld3DProps {
   /** M03: Callbacks al escanear anomalías con el Rover o realizar mantenimiento en 3D */
   onScanAnomaly?: (anomaly: WorldAnomalySpec) => void | boolean;
   onMaintainModule?: (moduleId: ColonyWorldModuleId) => void | boolean;
+  /** M04: Abre el glosario científico NASA centrado en el término de la anomalía o módulo */
+  onInspectScienceTerm?: (termId: string) => void;
   /** Mapa opcional de archivos .glb/.gltf en public/models/ por módulo */
   moduleGlbFiles?: Partial<Record<ColonyWorldModuleId, string>>;
   /** Semilla procedural de topografía; si cambia regenera cráteres/dunas/rocas */
@@ -148,6 +152,7 @@ interface TacticalNotice {
   tone: 'ok' | 'warn' | 'info';
   badge: string;
   text: string;
+  glossaryTermId?: string;
 }
 
 const SVG_MODULE_COORDS: Record<ColonyWorldModuleId, { x: number; y: number }> = {
@@ -167,6 +172,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   onCameraModeChange,
   onScanAnomaly,
   onMaintainModule,
+  onInspectScienceTerm,
   moduleGlbFiles,
   terrainSeed,
   canRegenerateTerrain = true,
@@ -329,6 +335,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     }
 
     worldRef.current?.dispatchRoverToAnomaly(spec.id);
+    const glossaryTermId = getAnomalyGlossaryTermId(spec.kind);
     const alreadyScanned = Boolean(curOpts.scannedAnomalyIds?.includes(spec.id));
     if (!alreadyScanned) {
       missionAudio.playSuccess();
@@ -338,6 +345,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
         tone: 'ok',
         badge: es ? 'MUESTRA +3 CIENCIA' : 'SAMPLE +3 SCIENCE',
         text: spec.finding[lang],
+        glossaryTermId,
       });
     } else {
       missionAudio.playClick();
@@ -346,6 +354,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
         tone: 'info',
         badge: spec.title[lang],
         text: spec.finding[lang],
+        glossaryTermId,
       });
     }
   };
@@ -367,6 +376,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           tone: 'ok',
           badge: es ? 'MANTENIMIENTO OK' : 'MAINTENANCE OK',
           text: conf[lang],
+          glossaryTermId: getModuleGlossaryTermId(modId, siteId),
         });
       }
     } else {
@@ -1303,17 +1313,33 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
               <strong>{tacticalNotice.badge}</strong>
               <span>{tacticalNotice.text}</span>
             </div>
-            <button
-              type="button"
-              className="colony3d-toast-close"
-              onClick={() => {
-                missionAudio.playClick();
-                setTacticalNotice(null);
-              }}
-              aria-label={es ? 'Cerrar aviso táctico' : 'Dismiss tactical notice'}
-            >
-              <CloseIcon size={14} />
-            </button>
+            <div className="colony3d-toast-actions">
+              {tacticalNotice.glossaryTermId && onInspectScienceTerm && (
+                <button
+                  type="button"
+                  className="colony3d-toast-science-btn"
+                  data-testid="colony3d-science-link-btn"
+                  onClick={() => {
+                    missionAudio.playClick();
+                    onInspectScienceTerm(tacticalNotice.glossaryTermId!);
+                  }}
+                >
+                  <ScienceIcon size={14} />
+                  <span>{es ? 'Ficha NASA' : 'NASA file'}</span>
+                </button>
+              )}
+              <button
+                type="button"
+                className="colony3d-toast-close"
+                onClick={() => {
+                  missionAudio.playClick();
+                  setTacticalNotice(null);
+                }}
+                aria-label={es ? 'Cerrar aviso táctico' : 'Dismiss tactical notice'}
+              >
+                <CloseIcon size={14} />
+              </button>
+            </div>
           </div>
         )}
 

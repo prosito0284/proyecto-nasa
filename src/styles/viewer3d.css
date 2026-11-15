@@ -539,6 +539,35 @@
   color: #F8F3E8;
 }
 
+.colony3d-toast-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.colony3d-toast-science-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.35rem 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  background-color: #0B3D91;
+  color: #F8F3E8;
+  border: 1.5px solid #38BDF8;
+  border-radius: 2px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.colony3d-toast-science-btn:hover {
+  background-color: #164DA8;
+}
+
 .colony3d-toast-close {
   flex-shrink: 0;
   min-width: 44px;
@@ -555,6 +584,17 @@
 
 .colony3d-toast-close:hover {
   background-color: #0B3D91;
+}
+
+@media (max-width: 540px) {
+  .colony3d-tactical-toast {
+    flex-wrap: wrap;
+  }
+
+  .colony3d-toast-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }
 
 .colony-anomalies-bar {

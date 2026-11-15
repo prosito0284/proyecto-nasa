@@ -650,7 +650,7 @@ export const App: React.FC = () => {
                 allocation={mission.powerAllocation}
                 weather={mission.currentWeather}
                 projection={projection}
-                onOpenScienceModal={() => openScience()}
+                onOpenScienceModal={openScience}
                 commDelaySeconds={getCommDelaySeconds(mission.siteId, mission.currentDay)}
                 onTutorialAction={handleInteractiveAction}
                 isEnvironmentalAlert={isEmergencyStepActive}

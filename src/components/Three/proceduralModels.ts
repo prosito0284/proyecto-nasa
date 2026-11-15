@@ -1652,17 +1652,32 @@ function buildOutcropSpires(
 
   for (const outcrop of prof.outcrops) {
     const baseY = sampleWorldTerrainHeight(outcrop.x, outcrop.z, siteId, terrainSeed);
-    const radiusTop = atmo.kind === 'mars' ? outcrop.radius * 0.42 : outcrop.radius * 0.14;
+    const radiusTop = atmo.kind === 'mars' ? outcrop.radius * 0.48 : outcrop.radius * 0.14;
     const radiusBottom = outcrop.radius * 0.72;
     const height = outcrop.height * (atmo.kind === 'mars' ? 1.35 : 1.15);
+    const rotY = rng() * Math.PI * 2;
+    const rotX = (rng() - 0.5) * 0.14;
+    const rotZ = (rng() - 0.5) * 0.14;
     const geo = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 7);
     const spire = addWorldMesh(group, geo, atmo.terrainDark, wire, {
       pos: [outcrop.x, baseY + height * 0.42, outcrop.z],
-      rot: [(rng() - 0.5) * 0.14, rng() * Math.PI * 2, (rng() - 0.5) * 0.14],
+      rot: [rotX, rotY, rotZ],
       edgeThreshold: 26,
     });
     spire.castShadow = true;
     spire.receiveShadow = true;
+
+    if (atmo.kind === 'mars') {
+      const capHeight = Math.max(0.55, height * 0.22);
+      const capGeo = new THREE.CylinderGeometry(radiusTop * 1.14, radiusTop * 1.04, capHeight, 7);
+      const cap = addWorldMesh(group, capGeo, atmo.rockColor, wire, {
+        pos: [outcrop.x, baseY + height * 0.88, outcrop.z],
+        rot: [rotX * 0.4, rotY + 0.3, rotZ * 0.4],
+        edgeThreshold: 28,
+      });
+      cap.castShadow = true;
+      cap.receiveShadow = true;
+    }
   }
 
   group.traverse((o) => {
@@ -1713,6 +1728,10 @@ function buildEarth(): THREE.Group {
     new THREE.SphereGeometry(42.2, 18, 12, 0.6, 1.4, 0.7, 1.1),
     new THREE.MeshBasicMaterial({ color: 0x4ade80, fog: false }),
   );
+  const northIce = new THREE.Mesh(
+    new THREE.SphereGeometry(42.3, 18, 10, 0, Math.PI * 2, 0, 0.34),
+    new THREE.MeshBasicMaterial({ color: 0xf8fafc, fog: false }),
+  );
   const clouds = new THREE.Mesh(
     new THREE.SphereGeometry(43.2, 24, 16),
     new THREE.MeshBasicMaterial({
@@ -1723,20 +1742,108 @@ function buildEarth(): THREE.Group {
       depthWrite: false,
     }),
   );
+  const limbHalo = new THREE.Mesh(
+    new THREE.RingGeometry(43.6, 51, 48),
+    new THREE.MeshBasicMaterial({
+      color: 0x60a5fa,
+      transparent: true,
+      opacity: 0.36,
+      side: THREE.DoubleSide,
+      fog: false,
+      depthWrite: false,
+    }),
+  );
+  limbHalo.quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 0, 1),
+    dir.clone().negate().normalize(),
+  );
   ocean.raycast = () => undefined;
   land.raycast = () => undefined;
+  northIce.raycast = () => undefined;
   clouds.raycast = () => undefined;
-  earth.add(ocean, land, clouds);
+  limbHalo.raycast = () => undefined;
+  earth.add(ocean, land, northIce, clouds, limbHalo);
   return earth;
+}
+
+function buildPhobosMoon(): THREE.Group {
+  const moons = new THREE.Group();
+  moons.name = 'world-phobos';
+
+  const phobosPos = new THREE.Vector3(-0.48, 0.27, -0.84).normalize().multiplyScalar(1180);
+  const phobos = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(16, 1),
+    new THREE.MeshBasicMaterial({ color: 0xc29578, fog: false }),
+  );
+  phobos.position.copy(phobosPos);
+  phobos.scale.set(1.26, 0.86, 1.04);
+  phobos.rotation.set(0.3, 0.5, 0.2);
+
+  const stickneyCrater = new THREE.Mesh(
+    new THREE.RingGeometry(4.2, 6.2, 16),
+    new THREE.MeshBasicMaterial({ color: 0x7c533c, side: THREE.DoubleSide, fog: false }),
+  );
+  stickneyCrater.position.copy(phobosPos).add(new THREE.Vector3(5, 2, 14));
+  stickneyCrater.quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 0, 1),
+    phobosPos.clone().negate().normalize(),
+  );
+
+  const deimosPos = new THREE.Vector3(0.55, 0.38, -0.74).normalize().multiplyScalar(1240);
+  const deimos = new THREE.Mesh(
+    new THREE.SphereGeometry(5.5, 10, 8),
+    new THREE.MeshBasicMaterial({ color: 0xf4d5be, fog: false }),
+  );
+  deimos.position.copy(deimosPos);
+
+  phobos.raycast = () => undefined;
+  stickneyCrater.raycast = () => undefined;
+  deimos.raycast = () => undefined;
+  moons.add(phobos, stickneyCrater, deimos);
+  return moons;
+}
+
+function buildMarsHorizonHaze(): THREE.Mesh {
+  const haze = new THREE.Mesh(
+    new THREE.CylinderGeometry(1180, 1180, 170, 48, 1, true),
+    new THREE.MeshBasicMaterial({
+      color: 0x6e2d18,
+      transparent: true,
+      opacity: 0.26,
+      side: THREE.BackSide,
+      fog: false,
+      depthWrite: false,
+    }),
+  );
+  haze.name = 'world-mars-horizon-haze';
+  haze.position.y = 75;
+  haze.raycast = () => undefined;
+  return haze;
 }
 
 function buildSunDisc(atmo: WorldAtmosphere): THREE.Mesh {
   const dir = new THREE.Vector3(...atmo.sunDirection).normalize().multiplyScalar(1300);
+  const sunRadius = atmo.kind === 'mars' ? 11 : 16;
   const sun = new THREE.Mesh(
-    new THREE.SphereGeometry(atmo.kind === 'mars' ? 11 : 16, 20, 12),
+    new THREE.SphereGeometry(sunRadius, 20, 12),
     new THREE.MeshBasicMaterial({ color: atmo.kind === 'mars' ? 0xfff1dc : 0xfffbeb, fog: false }),
   );
+  const corona = new THREE.Mesh(
+    new THREE.RingGeometry(sunRadius * 1.15, sunRadius * (atmo.kind === 'mars' ? 2.4 : 1.9), 32),
+    new THREE.MeshBasicMaterial({
+      color: atmo.kind === 'mars' ? 0xf59e0b : 0xfde68a,
+      transparent: true,
+      opacity: atmo.kind === 'mars' ? 0.24 : 0.2,
+      side: THREE.DoubleSide,
+      fog: false,
+      depthWrite: false,
+    }),
+  );
+  corona.name = 'world-sun-corona';
+  corona.raycast = () => undefined;
+  sun.add(corona);
   sun.position.copy(dir);
+  sun.lookAt(0, 0, 0);
   sun.name = 'world-sun';
   sun.raycast = () => undefined;
   return sun;
@@ -2052,6 +2159,40 @@ const ANOMALY_CATALOG: Record<
     nasaSource: 'MARS',
   },
 };
+
+export const ANOMALY_GLOSSARY_TERM_MAP: Record<WorldAnomalyKind, string> = {
+  'ice-vein': 'shackleton',
+  'lava-skylight': 'msv',
+  'metallic-meteorite': 'regolith',
+  'seismic-probe': 'micrometeorite',
+  'delta-clay': 'jezero',
+  'silica-vein': 'isru',
+  'paleolake-boulder': 'jezero',
+  'ancient-shoreline': 'jezero',
+};
+
+export function getAnomalyGlossaryTermId(kind: WorldAnomalyKind): string {
+  return ANOMALY_GLOSSARY_TERM_MAP[kind];
+}
+
+export function getModuleGlossaryTermId(
+  moduleId: ColonyWorldModuleId,
+  siteId: OutpostSiteId = 'moon-shackleton',
+): string {
+  const isMars = siteId === 'mars-jezero';
+  switch (moduleId) {
+    case 'power-grid':
+      return isMars ? 'dust-storm' : 'shackleton';
+    case 'oxygen-module':
+      return isMars ? 'moxie' : 'eclss';
+    case 'greenhouse':
+      return 'veggie';
+    case 'comms-array':
+      return 'light-delay';
+    case 'rover-moxie':
+      return isMars ? 'moxie' : 'isru';
+  }
+}
 
 const ANOMALY_KEEP_OUT: Array<{ x: number; z: number; r: number }> = [
   { x: 0, z: 0, r: 8.2 },
@@ -2403,8 +2544,13 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
 
   if (atmo.showStars) root.add(buildStarField());
   if (atmo.showEarth) root.add(buildEarth());
+  if (!isLunar) {
+    root.add(buildPhobosMoon());
+    root.add(buildMarsHorizonHaze());
+  }
   const sunDisc = buildSunDisc(atmo);
   sunDisc.position.copy(sunDirVec).multiplyScalar(1300);
+  sunDisc.lookAt(0, 0, 0);
   root.add(sunDisc);
 
   root.add(buildWorldTerrain(atmo, siteId, terrainSeed));
@@ -2821,10 +2967,21 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   addWorldMesh(rover.visual, new THREE.CylinderGeometry(0.08, 0.1, 1.6, 8), 0xf8f3e8, wire, {
     pos: [0.95, 2.4, 0.55],
   });
-  addWorldMesh(rover.visual, new THREE.BoxGeometry(0.45, 0.32, 0.4), 0xf8f3e8, 0x00e5ff, {
-    pos: [1.0, 3.25, 0.55],
+  const mastCamPivot = new THREE.Group();
+  mastCamPivot.name = 'rover-mastcam-pivot';
+  mastCamPivot.position.set(1.0, 3.25, 0.55);
+  addWorldMesh(mastCamPivot, new THREE.BoxGeometry(0.45, 0.32, 0.4), 0xf8f3e8, 0x00e5ff, {
+    pos: [0, 0, 0],
     partId: 'mastcam-z',
   });
+  addWorldMesh(mastCamPivot, new THREE.BoxGeometry(0.1, 0.14, 0.14), 0x00e5ff, 0xf2ebdd, {
+    pos: [0.24, 0.02, 0.08],
+    emissive: 0x00e5ff,
+    emissiveIntensity: 0.7,
+    partId: 'mastcam-z',
+  });
+  rover.visual.add(mastCamPivot);
+
   const scannerArmPivot = new THREE.Group();
   scannerArmPivot.name = 'rover-scanner-arm';
   scannerArmPivot.position.set(1.25, 1.15, -0.35);
@@ -2854,6 +3011,41 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   scannerBeamMesh.raycast = () => undefined;
   scannerArmPivot.add(scannerBeamMesh);
   rover.visual.add(scannerArmPivot);
+
+  const scannerRingMat = new THREE.MeshBasicMaterial({
+    color: 0x00e5ff,
+    transparent: true,
+    opacity: 0.85,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const scannerRingMesh = new THREE.Mesh(
+    new THREE.RingGeometry(0.5, 0.72, 28),
+    scannerRingMat,
+  );
+  scannerRingMesh.name = 'rover-scanner-ring';
+  scannerRingMesh.rotation.x = -Math.PI / 2;
+  scannerRingMesh.visible = false;
+  scannerRingMesh.raycast = () => undefined;
+  root.add(scannerRingMesh);
+
+  const wakeCount = 24;
+  const wakePositions = new Float32Array(wakeCount * 3);
+  const wakeGeo = new THREE.BufferGeometry();
+  wakeGeo.setAttribute('position', new THREE.BufferAttribute(wakePositions, 3));
+  wakeGeo.setDrawRange(0, 0);
+  const wakeMat = new THREE.PointsMaterial({
+    color: atmo.dustColor,
+    size: 0.26,
+    transparent: true,
+    opacity: 0.65,
+    depthWrite: false,
+  });
+  const roverWakeDust = new THREE.Points(wakeGeo, wakeMat);
+  roverWakeDust.name = 'rover-wake-dust';
+  roverWakeDust.frustumCulled = false;
+  roverWakeDust.raycast = () => undefined;
+  root.add(roverWakeDust);
 
   const wheels: THREE.Mesh[] = [];
   for (const side of [-1.05, 1.05]) {
@@ -3275,6 +3467,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     sunDirVec.set(sx, sy, sz).normalize();
     sun.position.copy(sunDirVec).multiplyScalar(80);
     sunDisc.position.copy(sunDirVec).multiplyScalar(1300);
+    sunDisc.lookAt(0, 0, 0);
     sun.updateMatrixWorld();
     const dynamicSunHex = state.isDustStorm
       ? 0xf59e0b
@@ -3618,7 +3811,9 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
         }
         roverSpeed = 1.8;
         scannerBeamMesh.visible = false;
+        scannerRingMesh.visible = false;
         scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * Math.min(1, dtSec * 5);
+        mastCamPivot.rotation.y = Math.sin(elapsedSec * 0.85) * 0.48;
       } else if (roverTask.mode === 'driving') {
         const dx = roverTask.targetX - roverWorldX;
         const dz = roverTask.targetZ - roverWorldZ;
@@ -3643,21 +3838,31 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
           roverSpeed = 0;
         }
         scannerBeamMesh.visible = false;
+        scannerRingMesh.visible = false;
         scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * Math.min(1, dtSec * 5);
+        mastCamPivot.rotation.y = Math.sin(elapsedSec * 2.2) * 0.22;
       } else if (roverTask.mode === 'scanning') {
         roverTask.timer += dtSec;
         const lookYaw = Math.atan2(-(roverTask.lookZ - roverWorldZ), roverTask.lookX - roverWorldX);
         roverHeading += shortestAngleDelta(roverHeading, lookYaw) * Math.min(1, dtSec * 7);
         roverSpeed = 0;
         scannerArmPivot.rotation.z = -0.52 + Math.sin(elapsedSec * 7) * 0.12;
-        scannerBeamMesh.visible = roverTask.timer < 1.8;
+        mastCamPivot.rotation.y = Math.sin(elapsedSec * 4) * 0.14;
+        const scanActive = roverTask.timer < 1.8;
+        scannerBeamMesh.visible = scanActive;
         scannerBeamMat.opacity = 0.55 + Math.sin(elapsedSec * 18) * 0.25;
+        scannerRingMesh.visible = scanActive;
+        if (scanActive) {
+          const groundScanY =
+            sampleWorldTerrainHeight(roverTask.lookX, roverTask.lookZ, siteId, terrainSeed) + 0.14;
+          const phase = (roverTask.timer % 0.9) / 0.9;
+          scannerRingMesh.position.set(roverTask.lookX, groundScanY, roverTask.lookZ);
+          scannerRingMesh.scale.setScalar(0.65 + phase * 1.85);
+          scannerRingMat.opacity = (1 - phase) * 0.9;
+        }
         if (roverTask.timer >= 1.8 && !scannedVisualIds.has(roverTask.anomalyId)) {
           scannedVisualIds.add(roverTask.anomalyId);
           refreshAnomalyAppearance();
-        }
-        if (roverTask.timer >= 1.8) {
-          scannerBeamMesh.visible = false;
         }
         if (roverTask.timer >= 2.8) {
           roverTask = { mode: 'returning' };
@@ -3671,7 +3876,9 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
         const desiredYaw = Math.atan2(-dz, dx);
         roverHeading += shortestAngleDelta(roverHeading, desiredYaw) * Math.min(1, dtSec * 5.5);
         scannerBeamMesh.visible = false;
+        scannerRingMesh.visible = false;
         scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * Math.min(1, dtSec * 5);
+        mastCamPivot.rotation.y *= 0.9;
         if (dist > 0.35) {
           const step = Math.min(dist, dtSec * 6.5);
           roverWorldX += (dx / dist) * step;
@@ -3697,6 +3904,27 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       rover.visual.rotation.z = Math.max(-0.28, Math.min(0.28, Math.atan2(yAhead - ry, 1.1)));
       rover.visual.rotation.x = Math.max(-0.25, Math.min(0.25, Math.atan2(ry - ySide, 0.9)));
       for (const w of wheels) w.rotation.y -= dtSec * roverSpeed;
+
+      if (roverSpeed > 2.4) {
+        const wakeArr = (wakeGeo.attributes.position as THREE.BufferAttribute).array as Float32Array;
+        for (let i = 0; i < wakeCount; i++) {
+          const sideSign = i % 2 === 0 ? 1.0 : -1.0;
+          const trail = ((elapsedSec * 3.8 + i * 0.27) % 1.0);
+          const backDist = 1.05 + trail * 2.2;
+          const lateral = sideSign * (0.95 + trail * 0.25);
+          wakeArr[i * 3] = roverWorldX - fx * backDist - fz * lateral;
+          wakeArr[i * 3 + 1] = ry + 0.12 + trail * 0.48;
+          wakeArr[i * 3 + 2] = roverWorldZ - fz * backDist + fx * lateral;
+        }
+        wakeGeo.setDrawRange(0, wakeCount);
+        wakeGeo.attributes.position.needsUpdate = true;
+      } else {
+        wakeGeo.setDrawRange(0, 0);
+      }
+    } else {
+      scannerBeamMesh.visible = false;
+      scannerRingMesh.visible = false;
+      wakeGeo.setDrawRange(0, 0);
     }
 
     for (const id of COLONY_WORLD_MODULE_IDS) {

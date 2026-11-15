@@ -34,6 +34,7 @@ import { ColonyWorld3D } from '../Three/ColonyWorld3D';
 import {
   type ColonyWorldModuleId,
   type ColonyWorldStateOptions,
+  getModuleGlossaryTermId,
   getModulesNeedingMaintenance,
   type WorldAnomalySpec,
 } from '../Three/proceduralModels';
@@ -46,7 +47,7 @@ export interface OutpostMapProps {
   allocation: PowerAllocation;
   weather: SpaceWeatherEvent;
   projection: TurnProjection;
-  onOpenScienceModal?: () => void;
+  onOpenScienceModal?: (termId?: string) => void;
   /** Retraso orbital opcional en segundos (si no se envía, se calcula a partir de site.commDelaySeconds) */
   commDelaySeconds?: number;
   /** T08: Callback opcional para disparar avance del tutorial al interactuar con la colonia */
@@ -620,6 +621,9 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 return onScanAnomaly?.(anomaly);
               }}
               onMaintainModule={onMaintainModule}
+              onInspectScienceTerm={
+                onOpenScienceModal ? (termId) => onOpenScienceModal(termId) : undefined
+              }
               terrainSeed={terrainSeed}
               canRegenerateTerrain={canRegenerateTerrain}
               onRegenerateTerrain={onRegenerateTerrain}
@@ -1582,6 +1586,25 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
               <p className="inspector-note">
                 <ScienceIcon size={14} /> {activeDetail.nasaEngineeringNote[lang]}
               </p>
+              {onOpenScienceModal && (
+                <div className="inspector-actions-row">
+                  <button
+                    type="button"
+                    id="inspector-science-link-btn"
+                    data-testid="inspector-science-link-btn"
+                    className="btn-secondary inspector-science-btn"
+                    onClick={() => {
+                      missionAudio.playClick();
+                      onOpenScienceModal(
+                        getModuleGlossaryTermId(moduleKeyToWorldId(selectedModule), site.id),
+                      );
+                    }}
+                  >
+                    <ScienceIcon size={15} />
+                    <span>{lang === 'es' ? 'Ver ficha NASA' : 'Open NASA file'}</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
