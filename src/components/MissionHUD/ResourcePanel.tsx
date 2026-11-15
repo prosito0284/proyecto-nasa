@@ -16,6 +16,7 @@ import type {
   CommanderEvaluation,
   TurnProjection,
 } from '../../engine/simulationEngine';
+import type { UnlockedPatchRecord } from '../../services/patchStorage';
 import { findCrewWatcherForVital, getCrewMemberName } from '../../data/crew';
 import { missionAudio } from '../../utils/sound';
 import {
@@ -53,6 +54,8 @@ export interface ResourcePanelProps {
   crew?: CrewStatus[];
   /** T04: Callback opcional para notificar acciones del entrenamiento guiado */
   onTutorialAction?: (stepId: string) => void;
+  /** P03: Registros persistidos de parches desbloqueados */
+  unlockedRecords?: Record<string, UnlockedPatchRecord>;
   /** F02: Indica si el simulacro de emergencia térmica del Paso 4 de onboarding está activo */
   isOnboardingEmergency?: boolean;
 }
@@ -141,6 +144,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   onOpenBadgesModal,
   crew,
   onTutorialAction,
+  unlockedRecords,
   isOnboardingEmergency = false,
 }) => {
   const [showAdvancedSliders, setShowAdvancedSliders] = useState(false);
@@ -236,7 +240,10 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
     },
   ];
 
-  const earnedBadgesCount = evaluation.badges.filter((b) => b.earned).length;
+  const isBadgeEarned = (badge: { id: string; earned: boolean }) =>
+    badge.earned || Boolean(unlockedRecords?.[badge.id]);
+
+  const earnedBadgesCount = evaluation.badges.filter(isBadgeEarned).length;
   const scienceDelta =
     projection.delta.sciencePoints + (hoveredChoice?.resourceDelta.sciencePoints ?? 0);
 
@@ -331,29 +338,32 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
               lang === 'es' ? 'Colección de parches de misión' : 'Mission patch collection'
             }
           >
-            {evaluation.badges.map((badge) => (
-              <button
-                key={badge.id}
-                type="button"
-                className="commander-mini-patch-btn"
-                onClick={() => {
-                  missionAudio.playClick();
-                  onOpenBadgesModal();
-                }}
-                title={`${badge.title[lang]} — ${
-                  badge.earned
-                    ? lang === 'es'
-                      ? 'Ganado'
-                      : 'Earned'
-                    : lang === 'es'
-                      ? 'Por desbloquear'
-                      : 'Locked'
-                }`}
-                aria-label={badge.title[lang]}
-              >
-                <MissionPatch badgeId={badge.id} earned={badge.earned} size={26} />
-              </button>
-            ))}
+            {evaluation.badges.map((badge) => {
+              const earned = isBadgeEarned(badge);
+              return (
+                <button
+                  key={badge.id}
+                  type="button"
+                  className="commander-mini-patch-btn"
+                  onClick={() => {
+                    missionAudio.playClick();
+                    onOpenBadgesModal();
+                  }}
+                  title={`${badge.title[lang]} — ${
+                    earned
+                      ? lang === 'es'
+                        ? 'Ganado'
+                        : 'Earned'
+                      : lang === 'es'
+                        ? 'Por desbloquear'
+                        : 'Locked'
+                  }`}
+                  aria-label={badge.title[lang]}
+                >
+                  <MissionPatch badgeId={badge.id} earned={earned} size={26} />
+                </button>
+              );
+            })}
           </div>
         </div>
 

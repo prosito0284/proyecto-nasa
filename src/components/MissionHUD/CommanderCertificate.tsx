@@ -14,6 +14,7 @@ import {
   SpaceWeatherEvent,
 } from '../../types/mission';
 import type { CommanderEvaluation } from '../../engine/simulationEngine';
+import type { UnlockedPatchRecord } from '../../services/patchStorage';
 import { CREW_MEMBERS, getCrewMemberName } from '../../data/crew';
 import { missionAudio } from '../../utils/sound';
 import { CrewPortrait } from '../crew';
@@ -32,6 +33,7 @@ import {
   SunIcon,
 } from '../icons';
 import { MissionPatch } from './MissionPatch';
+import { formatPatchUnlockDate } from './PatchShowcaseModal';
 
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -52,6 +54,10 @@ export interface CommanderCertificateProps {
   astronautName?: string;
   /** C17: Estado opcional de la tripulación para mostrar sus retratos en el diploma */
   crew?: CrewStatus[];
+  /** P03: Registros persistidos de parches desbloqueados */
+  unlockedRecords?: Record<string, UnlockedPatchRecord>;
+  /** P03: Callback opcional para abrir la Vitrina de Parches completa */
+  onOpenShowcase?: () => void;
 }
 
 export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
@@ -67,6 +73,8 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
   history,
   astronautName,
   crew,
+  unlockedRecords,
+  onOpenShowcase,
 }) => {
   const [commanderName, setCommanderName] = useState(astronautName ?? '');
   const modalCardRef = useRef<HTMLDivElement | null>(null);
@@ -265,6 +273,20 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
               <p className="brand-subtitle">{evaluation.rank.message[lang]}</p>
             </div>
             <div className="cert-header-actions no-print">
+              {onOpenShowcase && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    missionAudio.playClick();
+                    onOpenShowcase();
+                  }}
+                  id="open-showcase-from-cert-btn"
+                >
+                  <PatchIcon size={16} />{' '}
+                  {lang === 'es' ? 'Vitrina completa' : 'Full showcase'}
+                </button>
+              )}
               <button
                 type="button"
                 className="btn-secondary"
@@ -452,32 +474,42 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                 : 'NASA Space Engineering Patches'}
             </h3>
             <div className="badges-grid">
-              {evaluation.badges.map((badge) => (
-                <div
-                  key={badge.id}
-                  className={`badge-card ${badge.earned ? 'badge-earned' : 'badge-locked'}`}
-                >
-                  <div className="badge-card-top">
-                    <MissionPatch
-                      badgeId={badge.id}
-                      earned={badge.earned}
-                      size={46}
-                      title={badge.title[lang]}
-                    />
-                    <span className="badge-status-tag">
-                      {badge.earned
-                        ? lang === 'es'
-                          ? 'GANADA'
-                          : 'EARNED'
-                        : lang === 'es'
-                          ? 'POR DESBLOQUEAR'
-                          : 'LOCKED'}
-                    </span>
+              {evaluation.badges.map((badge) => {
+                const persistedRecord = unlockedRecords?.[badge.id];
+                const isEarned = badge.earned || Boolean(persistedRecord);
+                return (
+                  <div
+                    key={badge.id}
+                    className={`badge-card ${isEarned ? 'badge-earned' : 'badge-locked'}`}
+                  >
+                    <div className="badge-card-top">
+                      <MissionPatch
+                        badgeId={badge.id}
+                        earned={isEarned}
+                        size={46}
+                        title={badge.title[lang]}
+                      />
+                      <span className="badge-status-tag">
+                        {isEarned
+                          ? lang === 'es'
+                            ? 'GANADA'
+                            : 'EARNED'
+                          : lang === 'es'
+                            ? 'POR DESBLOQUEAR'
+                            : 'LOCKED'}
+                      </span>
+                    </div>
+                    <h4>{badge.title[lang]}</h4>
+                    <p>{badge.description[lang]}</p>
+                    {persistedRecord && (
+                      <small className="cert-sig-line">
+                        {lang === 'es' ? 'Guardado' : 'Saved'}:{' '}
+                        {formatPatchUnlockDate(persistedRecord.unlockedAt, lang)}
+                      </small>
+                    )}
                   </div>
-                  <h4>{badge.title[lang]}</h4>
-                  <p>{badge.description[lang]}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
