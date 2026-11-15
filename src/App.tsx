@@ -97,6 +97,10 @@ export const App: React.FC = () => {
     challengeSeed,
     terrainSeed,
     reseedTerrain,
+    scannedAnomalyIds,
+    maintainedModules,
+    recordAnomalyScan,
+    recordModuleMaintenance,
     lastTurn,
     dismissTurnReport,
     openBriefing,
@@ -630,6 +634,10 @@ export const App: React.FC = () => {
                 terrainSeed={terrainSeed}
                 canRegenerateTerrain={challengeSeed === null}
                 onRegenerateTerrain={reseedTerrain}
+                scannedAnomalyIds={scannedAnomalyIds}
+                maintainedModules={maintainedModules}
+                onScanAnomaly={recordAnomalyScan}
+                onMaintainModule={recordModuleMaintenance}
               />
 
               {lastTurn && (

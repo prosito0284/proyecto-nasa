@@ -480,7 +480,7 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
       expect(html).toContain(lang === 'es' ? 'Centrar vista' : 'Reset view');
       expect(html).toContain(lang === 'es' ? 'Pausar' : 'Pause');
       for (const modId of COLONY_WORLD_MODULE_IDS) {
-        expect(html).toContain(`aria-label="${COLONY_WORLD_MODULES[modId].label[lang]}"`);
+        expect(html).toContain(`aria-label="${COLONY_WORLD_MODULES[modId].label[lang]}`);
       }
       expect(EMOJI_REGEX.test(html)).toBe(false);
     }

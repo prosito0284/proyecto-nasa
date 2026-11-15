@@ -4,7 +4,15 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { Language } from '../../types/mission';
 import { missionAudio } from '../../utils/sound';
-import { ArrowIcon, CloseIcon, GlobeIcon, SlidersIcon } from '../icons';
+import {
+  AlertIcon,
+  ArrowIcon,
+  CheckIcon,
+  CloseIcon,
+  GlobeIcon,
+  ScienceIcon,
+  SlidersIcon,
+} from '../icons';
 import { isWebGLAvailable } from './ModelViewer3D';
 import {
   buildColonyWorld,
@@ -25,15 +33,20 @@ import {
   createSeededPrng,
   DEFAULT_TERRAIN_SEED,
   disposeObject3D,
+  findAnomalyId,
   findColonyModuleId,
   formatTerrainSeedBadge,
+  generateTurnAnomalies,
   getColonyModuleStatus,
+  getMaintenanceConfirmation,
+  getModulesNeedingMaintenance,
   getWorldAtmosphere,
   isStormShieldDeployed,
   normalizeTerrainSeed,
   resolveColonyModuleGlbUrl,
   sampleWorldTerrainHeight,
   softClampColonyTarget,
+  type WorldAnomalySpec,
 } from './proceduralModels';
 import '../../styles/viewer3d.css';
 
@@ -42,6 +55,12 @@ export interface ColonyWorld3DProps {
   options: ColonyWorldStateOptions;
   selectedModule?: ColonyWorldModuleId | null;
   onSelectModule?: (moduleId: ColonyWorldModuleId) => void;
+  /** M03: Modo de cámara 3D activo ('orbital' libre o 'rover' en tercera persona) */
+  cameraMode?: 'orbital' | 'rover';
+  onCameraModeChange?: (mode: 'orbital' | 'rover') => void;
+  /** M03: Callbacks al escanear anomalías con el Rover o realizar mantenimiento en 3D */
+  onScanAnomaly?: (anomaly: WorldAnomalySpec) => void | boolean;
+  onMaintainModule?: (moduleId: ColonyWorldModuleId) => void | boolean;
   /** Mapa opcional de archivos .glb/.gltf en public/models/ por módulo */
   moduleGlbFiles?: Partial<Record<ColonyWorldModuleId, string>>;
   /** Semilla procedural de topografía; si cambia regenera cráteres/dunas/rocas */
@@ -62,6 +81,7 @@ export type ColonyKeyAction =
   | { type: 'pan'; dx: number; dz: number }
   | { type: 'reset' }
   | { type: 'toggle-pause' }
+  | { type: 'toggle-camera' }
   | { type: 'cycle-module'; dir: 1 | -1 }
   | { type: 'activate-module' };
 
@@ -104,6 +124,9 @@ export function resolveColonyKeyCommand(key: string, shiftKey = false): ColonyKe
     case 'r':
     case 'R':
       return { type: 'reset' };
+    case 'c':
+    case 'C':
+      return { type: 'toggle-camera' };
     case 'Tab':
       return { type: 'cycle-module', dir: shiftKey ? -1 : 1 };
     case 'Enter':
@@ -115,10 +138,15 @@ export function resolveColonyKeyCommand(key: string, shiftKey = false): ColonyKe
   }
 }
 
-interface FloatingTagState {
-  moduleId: ColonyWorldModuleId;
-  x: number;
-  y: number;
+type FloatingTagState =
+  | { kind: 'module'; moduleId: ColonyWorldModuleId; x: number; y: number }
+  | { kind: 'anomaly'; anomalyId: string; x: number; y: number };
+
+interface TacticalNotice {
+  id: string;
+  tone: 'ok' | 'warn' | 'info';
+  badge: string;
+  text: string;
 }
 
 const SVG_MODULE_COORDS: Record<ColonyWorldModuleId, { x: number; y: number }> = {
@@ -134,6 +162,10 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   options,
   selectedModule = null,
   onSelectModule,
+  cameraMode = 'orbital',
+  onCameraModeChange,
+  onScanAnomaly,
+  onMaintainModule,
   moduleGlbFiles,
   terrainSeed,
   canRegenerateTerrain = true,
@@ -166,16 +198,30 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
 
   const onSelectModuleRef = useRef(onSelectModule);
   onSelectModuleRef.current = onSelectModule;
+  const onScanAnomalyRef = useRef(onScanAnomaly);
+  onScanAnomalyRef.current = onScanAnomaly;
+  const onMaintainModuleRef = useRef(onMaintainModule);
+  onMaintainModuleRef.current = onMaintainModule;
+  const onCameraModeChangeRef = useRef(onCameraModeChange);
+  onCameraModeChangeRef.current = onCameraModeChange;
+
+  const cameraModeRef = useRef<'orbital' | 'rover'>(cameraMode);
+  cameraModeRef.current = cameraMode;
 
   const [hoveredModule, setHoveredModule] = useState<ColonyWorldModuleId | null>(null);
   const hoveredRef = useRef<ColonyWorldModuleId | null>(null);
   hoveredRef.current = hoveredModule;
+
+  const [hoveredAnomalyId, setHoveredAnomalyId] = useState<string | null>(null);
+  const hoveredAnomalyRef = useRef<string | null>(null);
+  hoveredAnomalyRef.current = hoveredAnomalyId;
 
   const [keyboardModule, setKeyboardModule] = useState<ColonyWorldModuleId | null>(null);
   const keyboardRef = useRef<ColonyWorldModuleId | null>(null);
   keyboardRef.current = keyboardModule;
 
   const [floatingTag, setFloatingTag] = useState<FloatingTagState | null>(null);
+  const [tacticalNotice, setTacticalNotice] = useState<TacticalNotice | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const isPausedRef = useRef(isPaused);
   isPausedRef.current = isPaused;
@@ -188,20 +234,41 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     [forceFallback],
   );
 
+  const turnAnomalies = useMemo(
+    () => generateTurnAnomalies(siteId, effectiveSeed, options.currentDay ?? 1),
+    [siteId, effectiveSeed, options.currentDay],
+  );
+  const scannedSet = useMemo(
+    () => new Set(options.scannedAnomalyIds ?? []),
+    [options.scannedAnomalyIds],
+  );
+  const maintenanceIssues = useMemo(
+    () => getModulesNeedingMaintenance(options, options.maintainedModuleIds),
+    [options],
+  );
+  const maintenanceSet = useMemo(
+    () => new Set(maintenanceIssues.map((m) => m.moduleId)),
+    [maintenanceIssues],
+  );
+
   const titleLabel =
     ariaLabel ??
     (es
-      ? `Entorno 3D interactivo de la colonia en ${isMars ? 'Marte' : 'la Luna'}. Usa flechas para orbitar, + o - para acercar, Tab para recorrer los módulos y R para centrar.`
-      : `Interactive 3D colony environment on ${isMars ? 'Mars' : 'the Moon'}. Use arrow keys to orbit, + or - to zoom, Tab to step through modules, and R to reset.`);
+      ? `Entorno 3D interactivo de la colonia en ${isMars ? 'Marte' : 'la Luna'}. Usa flechas para orbitar, + o - para acercar, C para cámara Rover, Tab para módulos y R para centrar.`
+      : `Interactive 3D colony environment on ${isMars ? 'Mars' : 'the Moon'}. Use arrow keys to orbit, + or - to zoom, C for Rover camera, Tab for modules, and R to reset.`);
 
   const handleRegenerateTerrain = () => {
     missionAudio.playClick();
+    setTacticalNotice(null);
     if (onRegenerateTerrain) {
       onRegenerateTerrain();
     } else {
       setLocalSeedBump((prev) => prev + 7919);
     }
   };
+
+  const scannedKey = (options.scannedAnomalyIds ?? []).join(',');
+  const maintainedKey = (options.maintainedModuleIds ?? []).join(',');
 
   const optionsKeyDeps = [
     siteId,
@@ -227,6 +294,8 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     options.isEnvironmentalAlert,
     options.commsActive,
     options.commDelaySeconds,
+    scannedKey,
+    maintainedKey,
   ];
 
   const getCurrentOffset = (): { x: number; y: number; z: number } | undefined => {
@@ -237,10 +306,75 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     return { x: off.x, y: off.y, z: off.z };
   };
 
-  const focusAndHighlightModule = (modId: ColonyWorldModuleId, triggerSelect: boolean) => {
+  const handleInspectAnomaly = (anomalyId: string) => {
+    const curOpts = latestOptionsRef.current;
+    const list =
+      worldRef.current?.getAnomalies() ??
+      generateTurnAnomalies(curOpts.siteId, curOpts.terrainSeed, curOpts.currentDay ?? 1);
+    const spec = list.find((a) => a.id === anomalyId);
+    if (!spec) return;
+
+    if (curOpts.isLowPowerBlackout) {
+      missionAudio.playAlert();
+      setTacticalNotice({
+        id: `blackout-${spec.id}`,
+        tone: 'warn',
+        badge: es ? 'ROVER SIN ENERGÍA' : 'ROVER OFFLINE',
+        text: es
+          ? 'Batería bajo 15 %. Recarga energía antes de enviar el rover.'
+          : 'Power below 15%. Recharge battery before deploying the rover.',
+      });
+      return;
+    }
+
+    worldRef.current?.dispatchRoverToAnomaly(spec.id);
+    const alreadyScanned = Boolean(curOpts.scannedAnomalyIds?.includes(spec.id));
+    if (!alreadyScanned) {
+      missionAudio.playSuccess();
+      onScanAnomalyRef.current?.(spec);
+      setTacticalNotice({
+        id: `scan-${spec.id}`,
+        tone: 'ok',
+        badge: es ? 'MUESTRA +3 CIENCIA' : 'SAMPLE +3 SCIENCE',
+        text: spec.finding[lang],
+      });
+    } else {
+      missionAudio.playClick();
+      setTacticalNotice({
+        id: `revisit-${spec.id}`,
+        tone: 'info',
+        badge: spec.title[lang],
+        text: spec.finding[lang],
+      });
+    }
+  };
+  const handleInspectAnomalyRef = useRef(handleInspectAnomaly);
+  handleInspectAnomalyRef.current = handleInspectAnomaly;
+
+  const activateModuleInteraction = (modId: ColonyWorldModuleId, focusOrbitalCamera: boolean) => {
+    const curOpts = latestOptionsRef.current;
+    const issues = getModulesNeedingMaintenance(curOpts, curOpts.maintainedModuleIds);
+    const needsMaint = issues.some((m) => m.moduleId === modId);
+    if (needsMaint) {
+      worldRef.current?.triggerMaintenanceAnimation(modId);
+      const conf = getMaintenanceConfirmation(modId);
+      onMaintainModuleRef.current?.(modId);
+      missionAudio.playSuccess();
+      if (conf) {
+        setTacticalNotice({
+          id: `maint-${modId}-${Date.now()}`,
+          tone: 'ok',
+          badge: es ? 'MANTENIMIENTO OK' : 'MAINTENANCE OK',
+          text: conf[lang],
+        });
+      }
+    } else {
+      missionAudio.playClick();
+    }
+
     setKeyboardModule(modId);
     worldRef.current?.setHovered(modId);
-    if (webglSupported && worldRef.current) {
+    if (focusOrbitalCamera && webglSupported && worldRef.current && cameraModeRef.current === 'orbital') {
       const anchor = new THREE.Vector3();
       worldRef.current.getModuleAnchor(modId, anchor);
       desiredPoseRef.current = computeColonyFocusPose(modId, getCurrentOffset(), {
@@ -248,14 +382,34 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
         z: anchor.z,
       });
     }
+    worldRef.current?.pulse(modId);
+    onSelectModuleRef.current?.(modId);
+  };
+  const activateModuleInteractionRef = useRef(activateModuleInteraction);
+  activateModuleInteractionRef.current = activateModuleInteraction;
+
+  const focusAndHighlightModule = (modId: ColonyWorldModuleId, triggerSelect: boolean) => {
     if (triggerSelect) {
-      worldRef.current?.pulse(modId);
-      onSelectModuleRef.current?.(modId);
+      activateModuleInteraction(modId, true);
+      return;
+    }
+    setKeyboardModule(modId);
+    worldRef.current?.setHovered(modId);
+    if (webglSupported && worldRef.current && cameraModeRef.current === 'orbital') {
+      const anchor = new THREE.Vector3();
+      worldRef.current.getModuleAnchor(modId, anchor);
+      desiredPoseRef.current = computeColonyFocusPose(modId, getCurrentOffset(), {
+        x: anchor.x,
+        z: anchor.z,
+      });
     }
   };
 
   const handleResetView = () => {
     missionAudio.playClick();
+    if (cameraModeRef.current === 'rover') {
+      onCameraModeChangeRef.current?.('orbital');
+    }
     if (!webglSupported) {
       setSvgZoom(1);
       setSvgRotDeg(0);
@@ -278,6 +432,9 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       }
       return;
     }
+    if (cameraModeRef.current === 'rover') {
+      onCameraModeChangeRef.current?.('orbital');
+    }
     const cam = cameraRef.current;
     const ctrl = controlsRef.current;
     if (!cam || !ctrl) return;
@@ -293,7 +450,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   };
 
   const stepPanCamera = (dx: number, dz: number) => {
-    if (!webglSupported) return;
+    if (!webglSupported || cameraModeRef.current === 'rover') return;
     const cam = cameraRef.current;
     const ctrl = controlsRef.current;
     if (!cam || !ctrl) return;
@@ -357,9 +514,15 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       const targetMod = keyboardModule ?? hoveredModule ?? selectedModule;
       if (targetMod) {
         e.preventDefault();
-        missionAudio.playClick();
-        focusAndHighlightModule(targetMod, true);
+        activateModuleInteraction(targetMod, true);
       }
+      return;
+    }
+
+    if (cmd.type === 'toggle-camera') {
+      e.preventDefault();
+      missionAudio.playClick();
+      onCameraModeChangeRef.current?.(cameraModeRef.current === 'rover' ? 'orbital' : 'rover');
       return;
     }
 
@@ -376,8 +539,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       e.preventDefault();
       const targetMod = keyboardModule;
       if (targetMod) {
-        missionAudio.playClick();
-        focusAndHighlightModule(targetMod, true);
+        activateModuleInteraction(targetMod, true);
       } else {
         missionAudio.playClick();
         setIsPaused((p) => !p);
@@ -447,6 +609,22 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     controls.update();
     controlsRef.current = controls;
 
+    const roverPosVec = new THREE.Vector3();
+    const roverFwdVec = new THREE.Vector3();
+    const chaseGoalCam = new THREE.Vector3();
+    const chaseGoalTarget = new THREE.Vector3();
+    let prevCamMode: 'orbital' | 'rover' = cameraModeRef.current;
+
+    if (prevCamMode === 'rover') {
+      world.getRoverPose(roverPosVec, roverFwdVec);
+      controls.enabled = false;
+      controls.target.copy(roverPosVec).addScaledVector(roverFwdVec, 3.6);
+      controls.target.y = roverPosVec.y + 1.35;
+      camera.position.copy(roverPosVec).addScaledVector(roverFwdVec, -7.2);
+      camera.position.y = roverPosVec.y + 3.8;
+      camera.lookAt(controls.target);
+    }
+
     // Carga opcional de archivos .glb/.gltf por módulo usando import.meta.env.BASE_URL (cero 404 por defecto)
     let isDisposed = false;
     const loader = new GLTFLoader();
@@ -474,23 +652,31 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       );
     }
 
-    // Raycaster para hover (cursor: pointer + cian + etiqueta) y clic sin arrastre
+    // Raycaster para anomalías + 5 módulos interactivos (hover cian/ámbar + clic sin arrastre)
     const raycaster = new THREE.Raycaster();
     const pointerNdc = new THREE.Vector2();
     let downX = 0;
     let downY = 0;
     let isDragging = false;
 
-    const pickAtClient = (clientX: number, clientY: number): ColonyWorldModuleId | null => {
+    type PickResult =
+      | { kind: 'anomaly'; id: string }
+      | { kind: 'module'; id: ColonyWorldModuleId }
+      | null;
+
+    const pickAtClient = (clientX: number, clientY: number): PickResult => {
       const rect = renderer.domElement.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return null;
       pointerNdc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
       pointerNdc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointerNdc, camera);
-      const hits = raycaster.intersectObjects(world.pickables, true);
+      const targets = [...world.anomalyPickables, ...world.pickables];
+      const hits = raycaster.intersectObjects(targets, true);
       for (const hit of hits) {
-        const id = findColonyModuleId(hit.object);
-        if (id) return id;
+        const anomId = findAnomalyId(hit.object);
+        if (anomId) return { kind: 'anomaly', id: anomId };
+        const modId = findColonyModuleId(hit.object);
+        if (modId) return { kind: 'module', id: modId };
       }
       return null;
     };
@@ -500,11 +686,23 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
         renderer.domElement.style.cursor = 'grabbing';
         return;
       }
-      const modId = pickAtClient(ev.clientX, ev.clientY);
-      renderer.domElement.style.cursor = modId ? 'pointer' : 'grab';
-      if (modId !== hoveredRef.current) {
-        setHoveredModule(modId);
-        world.setHovered(modId ?? keyboardRef.current);
+      const hit = pickAtClient(ev.clientX, ev.clientY);
+      renderer.domElement.style.cursor = hit
+        ? 'pointer'
+        : cameraModeRef.current === 'rover'
+          ? 'default'
+          : 'grab';
+
+      const nextAnom = hit?.kind === 'anomaly' ? hit.id : null;
+      const nextMod = hit?.kind === 'module' ? hit.id : null;
+
+      if (nextAnom !== hoveredAnomalyRef.current) {
+        setHoveredAnomalyId(nextAnom);
+        world.setHoveredAnomaly(nextAnom);
+      }
+      if (nextMod !== hoveredRef.current) {
+        setHoveredModule(nextMod);
+        world.setHovered(nextMod ?? keyboardRef.current);
       }
     };
 
@@ -518,28 +716,31 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     const handlePointerUp = (ev: PointerEvent) => {
       const moved = Math.hypot(ev.clientX - downX, ev.clientY - downY);
       isDragging = false;
-      const modId = pickAtClient(ev.clientX, ev.clientY);
-      renderer.domElement.style.cursor = modId ? 'pointer' : 'grab';
-      if (moved > 6 || !modId) return;
+      const hit = pickAtClient(ev.clientX, ev.clientY);
+      renderer.domElement.style.cursor = hit
+        ? 'pointer'
+        : cameraModeRef.current === 'rover'
+          ? 'default'
+          : 'grab';
+      if (moved > 6 || !hit) return;
 
-      missionAudio.playClick();
-      const anchor = new THREE.Vector3();
-      world.getModuleAnchor(modId, anchor);
-      desiredPoseRef.current = computeColonyFocusPose(modId, getCurrentOffset(), {
-        x: anchor.x,
-        z: anchor.z,
-      });
-      world.pulse(modId);
-      setKeyboardModule(modId);
-      onSelectModuleRef.current?.(modId);
+      if (hit.kind === 'anomaly') {
+        handleInspectAnomalyRef.current(hit.id);
+        return;
+      }
+      activateModuleInteractionRef.current(hit.id, true);
     };
 
     const handlePointerLeave = () => {
       isDragging = false;
-      renderer.domElement.style.cursor = 'grab';
+      renderer.domElement.style.cursor = cameraModeRef.current === 'rover' ? 'default' : 'grab';
       if (hoveredRef.current !== null) {
         setHoveredModule(null);
         world.setHovered(keyboardRef.current);
+      }
+      if (hoveredAnomalyRef.current !== null) {
+        setHoveredAnomalyId(null);
+        world.setHoveredAnomaly(null);
       }
     };
 
@@ -580,55 +781,103 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
         world.animate(elapsed, dt);
       }
 
-      if (desiredPoseRef.current) {
-        const goalT = new THREE.Vector3(...desiredPoseRef.current.target);
-        const goalC = new THREE.Vector3(...desiredPoseRef.current.cameraPos);
-        const blend = Math.min(1, dt * 6);
-        controls.target.lerp(goalT, blend);
-        camera.position.lerp(goalC, blend);
-        if (controls.target.distanceTo(goalT) < 0.05 && camera.position.distanceTo(goalC) < 0.08) {
-          controls.target.copy(goalT);
-          camera.position.copy(goalC);
+      const activeCamMode = cameraModeRef.current;
+      if (activeCamMode !== prevCamMode) {
+        prevCamMode = activeCamMode;
+        if (activeCamMode === 'rover') {
+          controls.enabled = false;
           desiredPoseRef.current = null;
+        } else {
+          controls.enabled = true;
+          desiredPoseRef.current = COLONY_DEFAULT_POSE;
         }
       }
 
-      controls.update();
+      if (activeCamMode === 'rover') {
+        world.getRoverPose(roverPosVec, roverFwdVec);
+        chaseGoalCam.copy(roverPosVec).addScaledVector(roverFwdVec, -7.2);
+        chaseGoalCam.y = roverPosVec.y + 3.8;
+        const camGround = sampleWorldTerrainHeight(
+          chaseGoalCam.x,
+          chaseGoalCam.z,
+          siteId,
+          effectiveSeed,
+        );
+        if (chaseGoalCam.y < camGround + 1.2) {
+          chaseGoalCam.y = camGround + 1.2;
+        }
+        chaseGoalTarget.copy(roverPosVec).addScaledVector(roverFwdVec, 3.6);
+        chaseGoalTarget.y = roverPosVec.y + 1.35;
 
-      // Límites invisibles con amortiguación suave dentro de [-22, 22] y sobre el suelo
-      controls.target.y = Math.max(
-        COLONY_CAMERA_LIMITS.minTargetY,
-        Math.min(COLONY_CAMERA_LIMITS.maxTargetY, controls.target.y),
-      );
-      const clamped = softClampColonyTarget(
-        controls.target.x,
-        controls.target.z,
-        1 - Math.exp(-dt * 12),
-      );
-      if (clamped.wasOutside) {
-        const dx = clamped.x - controls.target.x;
-        const dz = clamped.z - controls.target.z;
-        controls.target.x = clamped.x;
-        controls.target.z = clamped.z;
-        camera.position.x += dx;
-        camera.position.z += dz;
-      }
+        const blend = reducedMotion ? 1 : Math.min(1, Math.max(0.08, dt * 6.2));
+        camera.position.lerp(chaseGoalCam, blend);
+        controls.target.lerp(chaseGoalTarget, blend);
+        camera.lookAt(controls.target);
+      } else {
+        if (desiredPoseRef.current) {
+          const goalT = new THREE.Vector3(...desiredPoseRef.current.target);
+          const goalC = new THREE.Vector3(...desiredPoseRef.current.cameraPos);
+          const blend = Math.min(1, dt * 6);
+          controls.target.lerp(goalT, blend);
+          camera.position.lerp(goalC, blend);
+          if (controls.target.distanceTo(goalT) < 0.05 && camera.position.distanceTo(goalC) < 0.08) {
+            controls.target.copy(goalT);
+            camera.position.copy(goalC);
+            desiredPoseRef.current = null;
+          }
+        }
 
-      const groundY = sampleWorldTerrainHeight(
-        camera.position.x,
-        camera.position.z,
-        siteId,
-        effectiveSeed,
-      );
-      if (camera.position.y < groundY + 0.8) {
-        camera.position.y = groundY + 0.8;
+        controls.update();
+
+        // Límites invisibles con amortiguación suave dentro de [-24, 24] y sobre el suelo
+        controls.target.y = Math.max(
+          COLONY_CAMERA_LIMITS.minTargetY,
+          Math.min(COLONY_CAMERA_LIMITS.maxTargetY, controls.target.y),
+        );
+        const clamped = softClampColonyTarget(
+          controls.target.x,
+          controls.target.z,
+          1 - Math.exp(-dt * 12),
+        );
+        if (clamped.wasOutside) {
+          const dx = clamped.x - controls.target.x;
+          const dz = clamped.z - controls.target.z;
+          controls.target.x = clamped.x;
+          controls.target.z = clamped.z;
+          camera.position.x += dx;
+          camera.position.z += dz;
+        }
+
+        const groundY = sampleWorldTerrainHeight(
+          camera.position.x,
+          camera.position.z,
+          siteId,
+          effectiveSeed,
+        );
+        if (camera.position.y < groundY + 0.8) {
+          camera.position.y = groundY + 0.8;
+        }
       }
 
       renderer.render(scene, camera);
 
-      // Etiqueta táctica flotante proyectada sobre el módulo con cursor o foco por teclado
+      // Etiqueta táctica flotante proyectada sobre anomalía o módulo activo
+      const activeAnom = hoveredAnomalyRef.current;
       const taggedMod = hoveredRef.current ?? keyboardRef.current;
-      if (taggedMod) {
+      if (activeAnom && world.getAnomalyAnchor(activeAnom, anchorVec)) {
+        anchorVec.project(camera);
+        if (anchorVec.z > -1 && anchorVec.z < 1) {
+          const cw = host.clientWidth || width;
+          const ch = height;
+          const px = Math.max(115, Math.min(cw - 115, (anchorVec.x * 0.5 + 0.5) * cw));
+          const py = Math.max(54, Math.min(ch - 32, (-anchorVec.y * 0.5 + 0.5) * ch));
+          const key = `anom:${activeAnom}:${Math.round(px)}:${Math.round(py)}`;
+          if (key !== lastTagKey) {
+            lastTagKey = key;
+            setFloatingTag({ kind: 'anomaly', anomalyId: activeAnom, x: px, y: py });
+          }
+        }
+      } else if (taggedMod) {
         world.getModuleAnchor(taggedMod, anchorVec);
         anchorVec.project(camera);
         if (anchorVec.z > -1 && anchorVec.z < 1) {
@@ -636,10 +885,10 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           const ch = height;
           const px = Math.max(115, Math.min(cw - 115, (anchorVec.x * 0.5 + 0.5) * cw));
           const py = Math.max(54, Math.min(ch - 32, (-anchorVec.y * 0.5 + 0.5) * ch));
-          const key = `${taggedMod}:${Math.round(px)}:${Math.round(py)}`;
+          const key = `mod:${taggedMod}:${Math.round(px)}:${Math.round(py)}`;
           if (key !== lastTagKey) {
             lastTagKey = key;
-            setFloatingTag({ moduleId: taggedMod, x: px, y: py });
+            setFloatingTag({ kind: 'module', moduleId: taggedMod, x: px, y: py });
           }
         }
       } else if (lastTagKey !== '') {
@@ -683,6 +932,24 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     worldRef.current?.setSelected(selectedModule ?? null);
   }, [selectedModule]);
 
+  const activeAnomalyTag = (() => {
+    if (!hoveredAnomalyId) return null;
+    const spec = turnAnomalies.find((a) => a.id === hoveredAnomalyId);
+    if (!spec) return null;
+    const isScanned = scannedSet.has(spec.id);
+    return {
+      title: spec.title[lang],
+      subtitle: isScanned
+        ? es
+          ? 'Muestra ya analizada (+3 pts)'
+          : 'Sample scanned (+3 pts)'
+        : es
+          ? 'Clic para enviar Rover (+3 ciencia)'
+          : 'Click to dispatch Rover (+3 science)',
+      tone: isScanned ? 'ok' : 'warn',
+    };
+  })();
+
   const activeTagModule = hoveredModule ?? keyboardModule;
   const activeTagMeta = activeTagModule ? COLONY_WORLD_MODULES[activeTagModule] : null;
   const activeTagStatus = activeTagModule
@@ -723,7 +990,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           aria-label={titleLabel}
           data-testid="viewer3d-svg-fallback-colony-base"
           style={{
-            transform: `scale(${svgZoom}) rotate(${svgRotDeg}deg)`,
+            transform: `scale(${cameraMode === 'rover' ? Math.max(svgZoom, 1.15) : svgZoom}) rotate(${svgRotDeg}deg)`,
             transition: 'transform 120ms ease-out',
           }}
         >
@@ -779,13 +1046,16 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           {COLONY_WORLD_MODULE_IDS.map((modId) => {
             const c = SVG_MODULE_COORDS[modId];
             const active = selectedModule === modId || keyboardModule === modId;
+            const needsMaint = maintenanceSet.has(modId);
             return (
               <g
                 key={modId}
                 transform={`translate(${c.x}, ${c.y})`}
                 role="button"
                 tabIndex={0}
-                aria-label={COLONY_WORLD_MODULES[modId].label[lang]}
+                aria-label={`${COLONY_WORLD_MODULES[modId].label[lang]}${
+                  needsMaint ? (es ? ' (requiere mantenimiento)' : ' (maintenance needed)') : ''
+                }`}
                 style={{ cursor: 'pointer' }}
                 onClick={() => focusAndHighlightModule(modId, true)}
                 onKeyDown={(ev) => {
@@ -801,8 +1071,8 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
                   cy="0"
                   r="22"
                   fill="none"
-                  stroke={active ? '#38BDF8' : inkSecondary}
-                  strokeWidth={active ? 2 : 1}
+                  stroke={needsMaint ? '#FFB300' : active ? '#38BDF8' : inkSecondary}
+                  strokeWidth={active || needsMaint ? 2 : 1}
                   strokeDasharray={active ? undefined : '4 3'}
                 />
                 {modId === 'power-grid' && (
@@ -865,17 +1135,66 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
                 )}
                 {modId === 'rover-moxie' && (
                   <>
+                    {cameraMode === 'rover' && (
+                      <polygon points="-24,-14 0,-2 24,-14" fill="none" stroke="#38BDF8" strokeWidth="1.4" strokeDasharray="3 2" />
+                    )}
                     <rect x="-14" y="-8" width="28" height="14" fill="#F2EBDD" stroke="#FFB300" strokeWidth="1.5" />
                     <rect x="-6" y="-5" width="12" height="8" fill="#FFB300" />
                   </>
                 )}
+                {needsMaint && (
+                  <polygon
+                    points="18,-23 23,-17 18,-11 13,-17"
+                    fill="#FFB300"
+                    stroke="#1B1F2A"
+                    strokeWidth="1"
+                    data-testid={`svg-maint-${modId}`}
+                  />
+                )}
+              </g>
+            );
+          })}
+
+          {turnAnomalies.map((anom) => {
+            const sx = Math.max(24, Math.min(336, Math.round(185 + anom.position[0] * 7.6)));
+            const sy = Math.max(76, Math.min(172, Math.round(112 + anom.position[2] * 3.0)));
+            const scanned = scannedSet.has(anom.id);
+            const markerColor = scanned ? '#2E7D4F' : '#FFB300';
+            return (
+              <g
+                key={anom.id}
+                transform={`translate(${sx}, ${sy})`}
+                role="button"
+                tabIndex={0}
+                data-testid={`svg-anomaly-${anom.id}`}
+                aria-label={`${anom.title[lang]}${
+                  scanned
+                    ? es
+                      ? ' (analizada)'
+                      : ' (scanned)'
+                    : es
+                      ? ' (+3 ciencia)'
+                      : ' (+3 science)'
+                }`}
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleInspectAnomaly(anom.id)}
+                onKeyDown={(ev) => {
+                  if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    handleInspectAnomaly(anom.id);
+                  }
+                }}
+              >
+                <circle cx="0" cy="0" r="10" fill="none" stroke={markerColor} strokeWidth="1.2" strokeDasharray="2 2" />
+                <polygon points="0,-7 6,0 0,7 -6,0" fill={markerColor} stroke="#F8FAFC" strokeWidth="1" />
               </g>
             );
           })}
 
           <text
             x="180"
-            y="182"
+            y="184"
             textAnchor="middle"
             fill={inkPrimary}
             fontSize="9"
@@ -909,13 +1228,17 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
             <GlobeIcon size={13} />
             <span>
               {webglSupported
-                ? isMars
+                ? cameraMode === 'rover'
                   ? es
-                    ? '3D // MARTE JEZERO'
-                    : '3D // MARS JEZERO'
-                  : es
-                    ? '3D // LUNA SHACKLETON'
-                    : '3D // LUNAR SHACKLETON'
+                    ? '3D // CÁMARA ROVER'
+                    : '3D // ROVER CAM'
+                  : isMars
+                    ? es
+                      ? '3D // MARTE JEZERO'
+                      : '3D // MARS JEZERO'
+                    : es
+                      ? '3D // LUNA SHACKLETON'
+                      : '3D // LUNAR SHACKLETON'
                 : es
                   ? 'SVG // SIN WEBGL'
                   : 'SVG // NO WEBGL'}
@@ -926,17 +1249,60 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           </span>
         </div>
 
-        {webglSupported && activeTagMeta && activeTagStatus && floatingTag && (
+        {webglSupported && floatingTag && floatingTag.kind === 'anomaly' && activeAnomalyTag && (
           <div
-            className={`colony3d-floating-tag tone-${activeTagStatus.tone}`}
+            className={`colony3d-floating-tag tone-${activeAnomalyTag.tone}`}
             style={{
               left: `${floatingTag.x}px`,
               top: `${floatingTag.y}px`,
             }}
             data-testid="colony3d-floating-tag"
           >
-            <strong>{activeTagMeta.label[lang]}</strong>
-            <span>{activeTagStatus.text}</span>
+            <strong>{activeAnomalyTag.title}</strong>
+            <span>{activeAnomalyTag.subtitle}</span>
+          </div>
+        )}
+
+        {webglSupported &&
+          floatingTag &&
+          floatingTag.kind === 'module' &&
+          activeTagMeta &&
+          activeTagStatus && (
+            <div
+              className={`colony3d-floating-tag tone-${activeTagStatus.tone}`}
+              style={{
+                left: `${floatingTag.x}px`,
+                top: `${floatingTag.y}px`,
+              }}
+              data-testid="colony3d-floating-tag"
+            >
+              <strong>{activeTagMeta.label[lang]}</strong>
+              <span>{activeTagStatus.text}</span>
+            </div>
+          )}
+
+        {tacticalNotice && (
+          <div
+            className={`colony3d-tactical-toast tone-${tacticalNotice.tone}`}
+            role="status"
+            aria-live="polite"
+            data-testid="colony3d-tactical-notice"
+          >
+            <div className="colony3d-tactical-copy">
+              <strong>{tacticalNotice.badge}</strong>
+              <span>{tacticalNotice.text}</span>
+            </div>
+            <button
+              type="button"
+              className="colony3d-toast-close"
+              onClick={() => {
+                missionAudio.playClick();
+                setTacticalNotice(null);
+              }}
+              aria-label={es ? 'Cerrar aviso táctico' : 'Dismiss tactical notice'}
+            >
+              <CloseIcon size={14} />
+            </button>
           </div>
         )}
 
@@ -946,6 +1312,36 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       <span className="sr-only" aria-live="polite">
         {focusedAnnouncement}
       </span>
+
+      {/* Barra rápida de anomalías escaneables (accesible en mouse y teclado) */}
+      <div
+        className="colony-anomalies-bar"
+        data-testid="colony-anomalies-bar"
+        role="group"
+        aria-label={es ? 'Expediciones del Rover' : 'Rover expeditions'}
+      >
+        <span className="colony-anomalies-label">
+          <ScienceIcon size={14} />
+          <span>{es ? 'Muestras del terreno:' : 'Surface samples:'}</span>
+        </span>
+        {turnAnomalies.map((anom) => {
+          const scanned = scannedSet.has(anom.id);
+          return (
+            <button
+              key={anom.id}
+              type="button"
+              id={`colony-anomaly-btn-${anom.kind}`}
+              className={`viewer3d-btn colony-anomaly-btn ${scanned ? 'colony-anomaly-scanned' : ''}`.trim()}
+              onClick={() => handleInspectAnomaly(anom.id)}
+              aria-pressed={scanned}
+            >
+              {scanned ? <CheckIcon size={13} /> : <AlertIcon size={13} />}
+              <span>{anom.title[lang]}</span>
+              <span className="colony-anomaly-pts">{scanned ? 'OK' : '+3'}</span>
+            </button>
+          );
+        })}
+      </div>
 
       <div className="viewer3d-toolbar">
         <div className="viewer3d-controls-group">
@@ -1052,8 +1448,8 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
 
         <span className="viewer3d-hint">
           {es
-            ? 'Arrastra para orbitar · Clic derecho mueve · Tab cambia módulo · R centrar'
-            : 'Drag to orbit · Right-drag pans · Tab switches module · R reset'}
+            ? 'Arrastra para orbitar · C cámara Rover · Tab cambia módulo · R centrar'
+            : 'Drag to orbit · C Rover cam · Tab switches module · R reset'}
         </span>
       </div>
     </div>

@@ -199,13 +199,13 @@ describe('NASA 3D Models & CAD Viewer (M01–M04)', () => {
     expect(resolveViewerKeyCommand('Escape')).toBeNull();
   });
 
-  it('M02: OutpostMap incluye conmutador accesible VISTA 2D / VISTA 3D y acceso a módulos conservando data-tutorial-id', () => {
+  it('M02/M03: OutpostMap incluye conmutador accesible de 3 vistas (2D, Orbital, Rover) y acceso a módulos conservando data-tutorial-id', () => {
     const site = OUTPOST_SITES['mars-jezero'];
     const weather = selectStartingWeather('mars-jezero', VERIFIED_NASA_WEATHER_EVENTS, 20260415);
     const mission = createInitialMissionState('mars-jezero', weather, 20260415);
     const projection = projectSystemsTurn(mission, mission.powerAllocation);
 
-    // En vista 2D / sin WebGL muestra diagrama SVG + conmutador
+    // En vista 2D / sin WebGL muestra diagrama SVG + conmutador de 3 modos
     const html2D = renderToStaticMarkup(
       React.createElement(OutpostMap, {
         lang: 'es',
@@ -221,36 +221,41 @@ describe('NASA 3D Models & CAD Viewer (M01–M04)', () => {
     expect(html2D).toContain('data-tutorial-id="outpost-map"');
     expect(html2D).toContain('id="outpost-view-2d-btn"');
     expect(html2D).toContain('id="outpost-view-3d-btn"');
+    expect(html2D).toContain('id="outpost-cam-rover-btn"');
     expect(html2D).toContain('VISTA 2D');
-    expect(html2D).toContain('VISTA 3D');
+    expect(html2D).toContain('CÁMARA ORBITAL');
+    expect(html2D).toContain('CÁMARA ROVER');
     expect(html2D).toContain('class="outpost-svg"');
 
-    // En vista 3D muestra el entorno interactivo ColonyWorld3D (o su respaldo SVG limpio sin WebGL) y los 5 botones de módulos
-    const html3D = renderToStaticMarkup(
-      React.createElement(OutpostMap, {
-        lang: 'en',
-        site,
-        currentDay: 1,
-        resources: mission.resources,
-        allocation: mission.powerAllocation,
-        weather,
-        projection,
-        defaultViewMode: '3d',
-      }),
-    );
-    expect(html3D).toContain('data-tutorial-id="outpost-map"');
-    expect(html3D).toContain('2D VIEW');
-    expect(html3D).toContain('3D VIEW');
-    expect(html3D).toContain('Inspect 5 Outpost Modules');
-    expect(html3D).toContain('data-testid="outpost-3d-stage"');
-    expect(html3D).toContain('data-testid="colony-world-3d"');
-    expect(html3D).toContain('data-testid="colony-world-svg-fallback"');
-    expect(html3D).toContain('id="colony-3d-btn-power-grid"');
-    expect(html3D).toContain('id="colony-3d-btn-oxygen-module"');
-    expect(html3D).toContain('id="colony-3d-btn-greenhouse"');
-    expect(html3D).toContain('id="colony-3d-btn-comms-array"');
-    expect(html3D).toContain('id="colony-3d-btn-rover-moxie"');
-    expect(html3D).toContain('data-testid="viewer3d-svg-fallback-colony-base"');
+    // En vista Orbital y Cámara Rover muestra el entorno ColonyWorld3D (o su respaldo SVG sin WebGL) y los 5 módulos
+    for (const mode of ['orbital', 'rover'] as const) {
+      const html3D = renderToStaticMarkup(
+        React.createElement(OutpostMap, {
+          lang: 'en',
+          site,
+          currentDay: 1,
+          resources: mission.resources,
+          allocation: mission.powerAllocation,
+          weather,
+          projection,
+          defaultViewMode: mode,
+        }),
+      );
+      expect(html3D).toContain('data-tutorial-id="outpost-map"');
+      expect(html3D).toContain('2D VIEW');
+      expect(html3D).toContain('ORBITAL CAMERA');
+      expect(html3D).toContain('ROVER CAMERA');
+      expect(html3D).toContain('Inspect 5 Outpost Modules');
+      expect(html3D).toContain('data-testid="outpost-3d-stage"');
+      expect(html3D).toContain('data-testid="colony-world-3d"');
+      expect(html3D).toContain('data-testid="colony-world-svg-fallback"');
+      expect(html3D).toContain('id="colony-3d-btn-power-grid"');
+      expect(html3D).toContain('id="colony-3d-btn-oxygen-module"');
+      expect(html3D).toContain('id="colony-3d-btn-greenhouse"');
+      expect(html3D).toContain('id="colony-3d-btn-comms-array"');
+      expect(html3D).toContain('id="colony-3d-btn-rover-moxie"');
+      expect(html3D).toContain('data-testid="viewer3d-svg-fallback-colony-base"');
+    }
   });
 
   it('M03: ScienceModal expone la pestaña MODELO 3D / 3D MODEL con Rover MOXIE, Hábitat y 3 hotspots <= 15 palabras', () => {
