@@ -180,6 +180,12 @@ export interface MissionState {
     resourceDelta: Partial<CoreResources>;
   }>;
   logs: MissionLogEntry[];
+  /** R06: IDs de muestras científicas 3D recolectadas con el Rover durante la misión */
+  collectedSampleIds?: string[];
+  /** R06: Conteo total de muestras recolectadas por el Rover en la partida */
+  roverSamplesCollected?: number;
+  /** R06: Puntos de ciencia acumulados por muestras recolectadas con el Rover */
+  roverScienceEarned?: number;
   /**
    * Telemetría interna del motor (semilla RNG, historial de decisiones, mínimos alcanzados).
    * La escribe SOLO `src/engine/*`. La UI debe conservarla al copiar el estado (`{ ...state }`)

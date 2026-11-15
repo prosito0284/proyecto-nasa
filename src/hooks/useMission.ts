@@ -28,7 +28,9 @@ import {
   createInitialMissionState,
   evaluateCommanderPerformance,
   evaluateTurnPatchUnlocks,
+  getScienceBonusTier,
   projectSystemsTurn,
+  type ScienceBonusTier,
   selectNextWeather,
   selectStartingWeather,
 } from '../engine/simulationEngine';
@@ -36,6 +38,7 @@ import {
   COLONY_WORLD_MODULES,
   type ColonyWorldModuleId,
   getMaintenanceConfirmation,
+  type SurfaceSampleSpec,
   type WorldAnomalySpec,
 } from '../components/Three/proceduralModels';
 
@@ -52,6 +55,9 @@ export interface TurnSummary {
   logs: MissionLogEntry[];
   scenarioId?: OutpostSiteId;
   unlockedPatchIds?: string[];
+  scienceBonus?: ScienceBonusTier;
+  roverSamplesCollected?: number;
+  roverScienceEarned?: number;
 }
 
 interface SavedGame {
@@ -122,24 +128,37 @@ function loadSavedGame(): SavedGame | null {
     const saved = JSON.parse(raw) as SavedGame;
     const m = saved?.mission;
     const valid = m?.status === 'playing' && m.engine && m.currentDilemma && m.resources;
-    return valid
-      ? {
-          mission: m,
-          challengeSeed: saved.challengeSeed ?? null,
-          terrainSeed:
-            typeof saved.terrainSeed === 'number'
-              ? saved.terrainSeed
-              : saved.challengeSeed ?? m.engine?.rngState,
-          scannedAnomalyIds: Array.isArray(saved.scannedAnomalyIds)
-            ? saved.scannedAnomalyIds.filter((id): id is string => typeof id === 'string')
-            : [],
-          maintainedModules: Array.isArray(saved.maintainedModules)
-            ? saved.maintainedModules.filter((id): id is ColonyWorldModuleId =>
-                typeof id === 'string' && id in COLONY_WORLD_MODULES,
-              )
-            : [],
-        }
-      : null;
+    if (!valid) return null;
+    const normalizedMission: MissionState = {
+      ...m,
+      collectedSampleIds: Array.isArray(m.collectedSampleIds)
+        ? m.collectedSampleIds.filter((id): id is string => typeof id === 'string')
+        : [],
+      roverSamplesCollected:
+        typeof m.roverSamplesCollected === 'number' && Number.isFinite(m.roverSamplesCollected)
+          ? Math.max(0, Math.round(m.roverSamplesCollected))
+          : 0,
+      roverScienceEarned:
+        typeof m.roverScienceEarned === 'number' && Number.isFinite(m.roverScienceEarned)
+          ? Math.max(0, Math.round(m.roverScienceEarned))
+          : 0,
+    };
+    return {
+      mission: normalizedMission,
+      challengeSeed: saved.challengeSeed ?? null,
+      terrainSeed:
+        typeof saved.terrainSeed === 'number'
+          ? saved.terrainSeed
+          : saved.challengeSeed ?? m.engine?.rngState,
+      scannedAnomalyIds: Array.isArray(saved.scannedAnomalyIds)
+        ? saved.scannedAnomalyIds.filter((id): id is string => typeof id === 'string')
+        : [],
+      maintainedModules: Array.isArray(saved.maintainedModules)
+        ? saved.maintainedModules.filter((id): id is ColonyWorldModuleId =>
+            typeof id === 'string' && id in COLONY_WORLD_MODULES,
+          )
+        : [],
+    };
   } catch {
     return null;
   }
@@ -157,7 +176,10 @@ function saveGame(game: SavedGame | null): void {
   }
 }
 
-const hasStarted = (state: MissionState) => (state.engine?.history.length ?? 0) > 0;
+const hasStarted = (state: MissionState) =>
+  (state.engine?.history.length ?? 0) > 0 ||
+  (state.roverSamplesCollected ?? 0) > 0 ||
+  (state.collectedSampleIds?.length ?? 0) > 0;
 
 interface InitialGame extends SavedGame {
   /** true si hay una partida que mostrar de inmediato (guardada o abierta desde un enlace de reto). */
@@ -197,6 +219,48 @@ function initGame(defaultSite: OutpostSiteId): InitialGame {
     scannedAnomalyIds: [],
     maintainedModules: [],
     inProgress: false,
+  };
+}
+
+export function applySampleCollectToMission(
+  prev: MissionState,
+  sample: SurfaceSampleSpec,
+): MissionState {
+  if (prev.status !== 'playing') return prev;
+  const existingIds = prev.collectedSampleIds ?? [];
+  if (existingIds.includes(sample.id)) return prev;
+
+  const nextScience = prev.resources.sciencePoints + sample.points;
+  const prevTier = getScienceBonusTier(prev.resources.sciencePoints);
+  const nextTier = getScienceBonusTier(nextScience);
+
+  const entry: MissionLogEntry = {
+    day: prev.currentDay,
+    title: {
+      es: `Muestra Rover ${sample.code}: ${sample.title.es} (+${sample.points} ciencia)`,
+      en: `Rover Sample ${sample.code}: ${sample.title.en} (+${sample.points} science)`,
+    },
+    detail:
+      nextTier.tier > prevTier.tier
+        ? {
+            es: `${sample.finding.es} ¡Desbloqueado ${nextTier.title.es}!`,
+            en: `${sample.finding.en} Unlocked ${nextTier.title.en}!`,
+          }
+        : sample.finding,
+    severity: 'nominal',
+    nasaTag: sample.nasaSource === 'ARTEMIS' ? 'ARTEMIS / LRO' : 'Mars 2020 / Perseverance',
+  };
+
+  return {
+    ...prev,
+    resources: {
+      ...prev.resources,
+      sciencePoints: nextScience,
+    },
+    collectedSampleIds: [...existingIds, sample.id],
+    roverSamplesCollected: (prev.roverSamplesCollected ?? 0) + 1,
+    roverScienceEarned: (prev.roverScienceEarned ?? 0) + sample.points,
+    logs: [entry, ...prev.logs],
   };
 }
 
@@ -312,6 +376,7 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
   const [terrainSeed, setTerrainSeed] = useState<number>(initial.terrainSeed);
   const [scannedAnomalyIds, setScannedAnomalyIds] = useState<string[]>(initial.scannedAnomalyIds);
   const scannedAnomalyRef = useRef<string[]>(initial.scannedAnomalyIds);
+  const collectedSamplesRef = useRef<string[]>(initial.mission.collectedSampleIds ?? []);
   const [maintainedModules, setMaintainedModules] = useState<ColonyWorldModuleId[]>(
     initial.maintainedModules,
   );
@@ -362,6 +427,7 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
       setTerrainSeed(nextTerrainSeed);
       scannedAnomalyRef.current = [];
       setScannedAnomalyIds([]);
+      collectedSamplesRef.current = [];
       maintainedModulesRef.current = [];
       setMaintainedModules([]);
       setMission(newMission(siteId, weatherPool, seed, nextTerrainSeed));
@@ -385,6 +451,18 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
       scannedAnomalyRef.current = nextIds;
       setScannedAnomalyIds(nextIds);
       setMission((prev) => applyAnomalyScanToMission(prev, anomaly));
+      return true;
+    },
+    [mission.status],
+  );
+
+  /** R06: Registra la recolección física 3D de una muestra por el Rover y suma sus puntos de ciencia. */
+  const recordSampleCollection = useCallback(
+    (sample: SurfaceSampleSpec): boolean => {
+      if (mission.status !== 'playing') return false;
+      if (collectedSamplesRef.current.includes(sample.id)) return false;
+      collectedSamplesRef.current = [...collectedSamplesRef.current, sample.id];
+      setMission((prev) => applySampleCollectToMission(prev, sample));
       return true;
     },
     [mission.status],
@@ -417,6 +495,7 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
       const pool = challengeSeed === null ? weatherPool : VERIFIED_NASA_WEATHER_EVENTS;
       const nextWeather = selectNextWeather(mission, pool);
       const updated = advanceMissionTurn(mission, choice, nextWeather, mission.powerAllocation);
+      const activeBonus = getScienceBonusTier(updated.resources.sciencePoints);
       const unlockedPatchIds = evaluateTurnPatchUnlocks(mission, updated);
       maintainedModulesRef.current = [];
       setMaintainedModules([]);
@@ -428,6 +507,9 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
         logs: updated.logs.slice(0, updated.logs.length - mission.logs.length),
         scenarioId: updated.siteId,
         unlockedPatchIds,
+        scienceBonus: activeBonus,
+        roverSamplesCollected: updated.roverSamplesCollected ?? 0,
+        roverScienceEarned: updated.roverScienceEarned ?? 0,
       });
       setMission(updated);
       return updated;
@@ -459,6 +541,7 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
     scannedAnomalyIds,
     maintainedModules,
     recordAnomalyScan,
+    recordSampleCollection,
     recordModuleMaintenance,
     lastTurn,
     dismissTurnReport: useCallback(() => setLastTurn(null), []),

@@ -167,8 +167,8 @@ export const PATCH_CATALOG: PatchDefinition[] = [
     category: 'science',
     title: { es: 'Pionero ISRU', en: 'ISRU Pioneer' },
     unlockHint: {
-      es: 'Aprovecha recursos locales (hielo o regolito) al menos 2 veces en una misión.',
-      en: 'Use local resources (ice or regolith) at least 2 times in a mission.',
+      es: 'Aprovecha recursos locales 2+ veces o recolecta 4+ muestras con el Rover en una misión completada.',
+      en: 'Use local resources 2+ times or collect 4+ Rover samples in a completed mission.',
     },
   },
   {

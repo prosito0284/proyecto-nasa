@@ -91,6 +91,17 @@ class MissionSoundController {
     setTimeout(() => this.playTone(659.25, 140, 'sine', 0.08), 120);
     setTimeout(() => this.playTone(783.99, 220, 'sine', 0.08), 250);
   }
+
+  /**
+   * R07: Chirp técnico de adquisición científica al recolectar muestra con el Rover.
+   * Respeta this.muted automáticamente mediante getContext().
+   */
+  playSampleCollect() {
+    if (this.muted) return;
+    this.playTone(987.77, 65, 'triangle', 0.065);
+    setTimeout(() => this.playTone(1318.51, 85, 'sine', 0.065), 65);
+    setTimeout(() => this.playTone(2525, 130, 'sine', 0.055), 145);
+  }
 }
 
 export const missionAudio = new MissionSoundController();

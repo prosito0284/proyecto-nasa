@@ -501,9 +501,13 @@ body {
     padding: 0.38rem 0.45rem;
   }
 
+  .outpost-3d-stage .viewer3d-canvas-shell {
+    --viewer-h: 236px !important;
+  }
+
   .outpost-3d-stage .viewer3d-viewport {
-    height: 215px !important;
-    min-height: 215px;
+    height: 236px !important;
+    min-height: 236px;
   }
 }
 
@@ -1299,6 +1303,139 @@ body {
 
 .svg-module-node:hover {
   opacity: 0.88;
+}
+
+.svg-sample-node {
+  cursor: pointer;
+}
+
+.svg-sample-node:hover {
+  opacity: 0.9;
+}
+
+.svg-sample-node:focus-visible {
+  outline: 3px solid #FC3D21;
+  outline-offset: 2px;
+}
+
+.outpost-2d-telemetry-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  padding: 0.38rem 0.6rem;
+  background-color: #080E1A;
+  color: #F8F3E8;
+  border-top: 1.5px solid #6794C1;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.svg-env-mars .outpost-2d-telemetry-bar {
+  background-color: #210F09;
+  border-top-color: #C87D52;
+}
+
+.outpost-2d-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.14rem 0.42rem;
+  background-color: #101A2B;
+  color: #B8D8F8;
+  border: 1px solid #486B8F;
+  border-radius: 2px;
+}
+
+.svg-env-mars .outpost-2d-chip {
+  background-color: #34190F;
+  color: #F4C39B;
+  border-color: #9C5B38;
+}
+
+.outpost-2d-science,
+.svg-env-mars .outpost-2d-science {
+  background-color: #0B3D91;
+  color: #FFFFFF;
+  border-color: #38BDF8;
+}
+
+.outpost-2d-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  background-color: #0B121E;
+  color: #F8F3E8;
+  border: 2px solid #2E7D4F;
+  border-radius: 2px;
+}
+
+.svg-env-mars .outpost-2d-notice {
+  background-color: #24110A;
+}
+
+.outpost-2d-notice.tone-warn {
+  border-color: #FFB300;
+}
+
+.outpost-2d-notice.tone-info {
+  border-color: #38BDF8;
+}
+
+.outpost-2d-notice-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.16rem;
+  flex: 1 1 260px;
+}
+
+.outpost-2d-notice-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.outpost-2d-notice-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #F8F3E8;
+}
+
+.outpost-2d-notice-badge {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: #4ADE80;
+  padding: 0.06rem 0.36rem;
+  border: 1px solid #2E7D4F;
+  border-radius: 2px;
+}
+
+.outpost-2d-notice.tone-warn .outpost-2d-notice-badge {
+  color: #FFB300;
+  border-color: #FFB300;
+}
+
+.outpost-2d-notice.tone-info .outpost-2d-notice-badge {
+  color: #38BDF8;
+  border-color: #38BDF8;
+}
+
+.outpost-2d-notice-copy > span {
+  font-size: 1rem;
+  line-height: 1.3;
+  color: #F8F3E8;
+}
+
+.outpost-2d-notice-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 @keyframes pulseSun {
@@ -3418,4 +3555,186 @@ button:active,
   font-size: 0.72rem;
   color: var(--ink-secondary);
 }
+
+/* ============================================================================
+   R06: Bono de eficiencia científica y muestras del Rover (HUD, Reporte y Diploma)
+   ============================================================================ */
+.science-bonus-readout {
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  border-left: 4px solid var(--nasa-blue);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.72rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.science-bonus-readout.science-bonus-active {
+  background: var(--paper-sheet);
+  border-color: var(--ok-green);
+  border-left: 4px solid var(--ok-green);
+}
+
+.science-bonus-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.science-bonus-head strong {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--nasa-blue);
+}
+
+.science-bonus-readout.science-bonus-active .science-bonus-head strong {
+  color: var(--ok-green);
+}
+
+.science-tier-meta {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 0.08rem 0.38rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.science-bonus-summary {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.32;
+  color: var(--ink-secondary);
+  max-width: 65ch;
+}
+
+.science-rover-tally {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--nasa-blue);
+}
+
+.turn-science-bonus-box {
+  background: var(--paper);
+  border: 1.5px solid var(--ok-green);
+  border-left: 4px solid var(--ok-green);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.turn-science-bonus-box strong {
+  color: var(--ok-green);
+  font-family: var(--font-display);
+  font-size: 1.04rem;
+}
+
+.turn-science-bonus-box p {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.cert-science-highlight {
+  background: var(--paper-sheet);
+  border: 1.5px solid var(--nasa-blue);
+  border-left: 4px solid var(--nasa-blue);
+  border-radius: var(--radius);
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.cert-science-highlight-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.16rem;
+  flex: 1 1 260px;
+}
+
+.cert-science-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--nasa-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cert-science-highlight-main strong {
+  font-family: var(--font-display);
+  font-size: 1.06rem;
+  color: var(--ink);
+}
+
+.cert-science-summary {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--ink-secondary);
+  line-height: 1.32;
+}
+
+.cert-science-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.cert-science-pill {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.22rem 0.52rem;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.cert-science-pill-accent {
+  border-color: var(--nasa-blue);
+  color: var(--nasa-blue);
+  background: var(--paper-sheet);
+}
+
+@media print {
+  .cert-science-highlight {
+    background: #FFFFFF !important;
+    border: 1px solid #1B1F2A !important;
+    padding: 1.6mm 2.5mm !important;
+    gap: 1.5mm !important;
+    break-inside: avoid;
+  }
+
+  .cert-science-summary {
+    font-size: 0.7rem !important;
+    line-height: 1.18 !important;
+  }
+
+  .cert-science-pill {
+    background: #FFFFFF !important;
+    padding: 0.6mm 1.5mm !important;
+    font-size: 0.66rem !important;
+  }
+}
+
 

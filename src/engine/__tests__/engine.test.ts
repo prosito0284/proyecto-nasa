@@ -14,6 +14,8 @@ import {
   evaluateCommanderPerformance,
   getCrewReaction,
   getCrewStatus,
+  getScienceBonusTier,
+  projectSystemsTurn,
   selectNextWeather,
   selectStartingWeather,
 } from '../simulationEngine';
@@ -359,3 +361,75 @@ describe('insignias (F04: exigen misión completada y ganada)', () => {
     }
   });
 });
+
+describe('R06: umbrales científicos y eficiencia en el motor', () => {
+  it('getScienceBonusTier escala correctamente en niveles 0, 1 (75), 2 (115) y 3 (155)', () => {
+    expect(getScienceBonusTier(10).tier).toBe(0);
+    expect(getScienceBonusTier(74).tier).toBe(0);
+
+    const t1 = getScienceBonusTier(75);
+    expect(t1.tier).toBe(1);
+    expect(t1.delta.lifeSupport).toBe(2);
+    expect(t1.delta.food).toBe(1);
+
+    const t2 = getScienceBonusTier(115);
+    expect(t2.tier).toBe(2);
+    expect(t2.delta.lifeSupport).toBe(3);
+    expect(t2.delta.food).toBe(2);
+    expect(t2.delta.shielding).toBe(1);
+
+    const t3 = getScienceBonusTier(155);
+    expect(t3.tier).toBe(3);
+    expect(t3.delta.power).toBe(2);
+    expect(t3.delta.lifeSupport).toBe(3);
+    expect(t3.delta.food).toBe(2);
+    expect(t3.delta.shielding).toBe(2);
+  });
+
+  it('projectSystemsTurn y advanceMissionTurn aplican los bonos activos de eficiencia científica', () => {
+    const base = createInitialMissionState('moon-shackleton', POOL[0], 11);
+    const boosted: MissionState = {
+      ...base,
+      resources: {
+        ...base.resources,
+        sciencePoints: 120,
+      },
+    };
+    const neutralChoice = base.currentDilemma!.choices[0];
+
+    const projBase = projectSystemsTurn(base, DEFAULT_POWER_ALLOCATION);
+    const projBoosted = projectSystemsTurn(boosted, DEFAULT_POWER_ALLOCATION);
+    expect(projBase.scienceBonus.tier).toBe(0);
+    expect(projBoosted.scienceBonus.tier).toBe(2);
+    expect(projBoosted.delta.lifeSupport - projBase.delta.lifeSupport).toBe(3);
+    expect(projBoosted.delta.food - projBase.delta.food).toBe(2);
+    expect(projBoosted.delta.shielding - projBase.delta.shielding).toBe(1);
+
+    const nextBase = advanceMissionTurn(base, neutralChoice, POOL[0], DEFAULT_POWER_ALLOCATION);
+    const nextBoosted = advanceMissionTurn(boosted, neutralChoice, POOL[0], DEFAULT_POWER_ALLOCATION);
+    expect(nextBoosted.resources.lifeSupport - nextBase.resources.lifeSupport).toBe(3);
+    expect(nextBoosted.resources.food - nextBase.resources.food).toBe(2);
+    expect(nextBoosted.logs.some((l) => l.title.es.includes('Eficiencia científica'))).toBe(true);
+  });
+
+  it('permite desbloquear isru-pioneer con 4+ muestras del Rover solo al ganar la misión', () => {
+    const base = createInitialMissionState('mars-jezero', POOL[0], 33);
+    const roverCollector: MissionState = {
+      ...base,
+      roverSamplesCollected: 4,
+      roverScienceEarned: 65,
+      status: 'playing',
+    };
+    expect(
+      evaluateCommanderPerformance(roverCollector).badges.find((b) => b.id === 'isru-pioneer')
+        ?.earned,
+    ).toBe(false);
+
+    const wonCollector = evaluateCommanderPerformance({
+      ...roverCollector,
+      status: 'won',
+    });
+    expect(wonCollector.badges.find((b) => b.id === 'isru-pioneer')?.earned).toBe(true);
+  });
+});
+

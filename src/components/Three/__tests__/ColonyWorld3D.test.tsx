@@ -24,7 +24,12 @@ import {
   getMaintenanceDelayedBonus,
 } from '../../../hooks/useMission';
 import { OutpostMap } from '../../OutpostView/OutpostMap';
-import { ColonyWorld3D, resolveColonyKeyCommand } from '../ColonyWorld3D';
+import {
+  ColonyWorld3D,
+  getNextCameraMode,
+  normalizeCameraMode,
+  resolveColonyKeyCommand,
+} from '../ColonyWorld3D';
 import {
   ANOMALY_GLOSSARY_TERM_MAP,
   buildColonyWorld,
@@ -52,6 +57,8 @@ import {
   getWorldAtmosphere,
   isStormShieldDeployed,
   resolveColonyModuleGlbUrl,
+  SAMPLE_COLLECT_RADIUS,
+  SAMPLE_COLLECTION_DURATION,
   sampleWorldTerrainHeight,
   softClampColonyTarget,
   type WorldAnomalyKind,
@@ -830,5 +837,257 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
       }),
     );
     expect(htmlWithCallback).toContain('data-testid="colony-world-3d"');
+  });
+
+  it('R04: sistema de 3 cámaras dinámicas (Seguir, Cabina Mastcam 1ra persona con brazo visible y Orbital), atajo C y OutpostMap', () => {
+    expect(normalizeCameraMode(undefined)).toBe('orbital');
+    expect(normalizeCameraMode('rover')).toBe('chase');
+    expect(normalizeCameraMode('chase')).toBe('chase');
+    expect(normalizeCameraMode('mastcam')).toBe('mastcam');
+
+    expect(getNextCameraMode('orbital')).toBe('chase');
+    expect(getNextCameraMode('chase')).toBe('mastcam');
+    expect(getNextCameraMode('mastcam')).toBe('orbital');
+    expect(getNextCameraMode('rover')).toBe('mastcam');
+
+    const world = buildColonyWorld({ siteId: 'mars-jezero', terrainSeed: 20260415 });
+    const mastPivot = world.group.getObjectByName('rover-mastcam-pivot')!;
+    const armPivot = world.group.getObjectByName('rover-scanner-arm')!;
+    expect(mastPivot.visible).toBe(true);
+
+    world.setFirstPersonMastcam(true);
+    expect(mastPivot.visible).toBe(false);
+    world.setRoverControlInput({ forward: true, backward: false, left: false, right: false });
+    world.animate(0.5, 0.25);
+    world.animate(0.8, 0.25);
+
+    const roverPos = new THREE.Vector3();
+    const roverFwd = new THREE.Vector3();
+    world.getRoverPose(roverPos, roverFwd);
+
+    const mastPos = new THREE.Vector3();
+    const mastTarget = new THREE.Vector3();
+    const mastUp = new THREE.Vector3();
+    world.getMastcamPose(mastPos, mastTarget, mastUp);
+
+    const lookDir = mastTarget.clone().sub(mastPos).normalize();
+    expect(lookDir.dot(roverFwd)).toBeGreaterThan(0.75);
+    expect(mastPos.y).toBeGreaterThanOrEqual(
+      sampleWorldTerrainHeight(mastPos.x, mastPos.z, 'mars-jezero', 20260415) + 1.4,
+    );
+    expect(mastUp.length()).toBeCloseTo(1, 3);
+    expect(mastUp.y).toBeGreaterThan(0.25);
+    expect(armPivot.rotation.z).toBeGreaterThan(0.15);
+
+    world.setFirstPersonMastcam(false);
+    expect(mastPivot.visible).toBe(true);
+    disposeObject3D(world.group);
+
+    const site = OUTPOST_SITES['moon-shackleton'];
+    const weather = selectStartingWeather('moon-shackleton', VERIFIED_NASA_WEATHER_EVENTS, 20260415);
+    const mission = createInitialMissionState('moon-shackleton', weather, 20260415);
+    const projection = projectSystemsTurn(mission, mission.powerAllocation);
+
+    for (const defaultViewMode of ['chase', 'mastcam'] as const) {
+      const html = renderToStaticMarkup(
+        React.createElement(OutpostMap, {
+          lang: 'en',
+          site,
+          currentDay: 1,
+          resources: mission.resources,
+          allocation: mission.powerAllocation,
+          weather,
+          projection,
+          defaultViewMode,
+          terrainSeed: 20260415,
+        }),
+      );
+      expect(html).toMatch(/id="outpost-cam-rover-btn"[^>]*aria-pressed="true"/);
+      expect(html).not.toMatch(/id="outpost-view-3d-btn"[^>]*aria-pressed="true"/);
+    }
+  });
+
+  it('R05: muestras 3D procedurales, balizas pulsantes, recolección animada con brazo y barra táctica en ES/EN', () => {
+    expect(SAMPLE_COLLECT_RADIUS).toBeCloseTo(2.2, 2);
+    expect(SAMPLE_COLLECTION_DURATION).toBeCloseTo(0.88, 2);
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    for (const siteId of ['moon-shackleton', 'mars-jezero'] as const) {
+      const world = buildColonyWorld({ siteId, terrainSeed: 20260415, currentDay: 1 });
+      const samplesContainer = world.group.getObjectByName('world-samples');
+      expect(samplesContainer).toBeTruthy();
+
+      const samples = world.getSamples();
+      expect(samples.length).toBeGreaterThanOrEqual(4);
+      expect(samples.length).toBeLessThanOrEqual(6);
+      expect(world.samplePickables).toHaveLength(samples.length);
+
+      // Animación de baliza pulsante y rotación del diamante
+      const first = samples[0];
+      const beamMesh = world.group.getObjectByName(`sample-beacon-beam-${first.id}`) as THREE.Mesh;
+      const diamondMesh = world.group.getObjectByName(
+        `sample-beacon-diamond-${first.id}`,
+      ) as THREE.Mesh;
+      const rockGroup = world.group.getObjectByName(`sample-rock-${first.id}`) as THREE.Group;
+      const ringMesh = world.group.getObjectByName(`sample-ring-${first.id}`) as THREE.Mesh;
+      expect(beamMesh).toBeTruthy();
+      expect(diamondMesh).toBeTruthy();
+      expect(rockGroup).toBeTruthy();
+      expect(ringMesh).toBeTruthy();
+
+      const diamondYaw0 = diamondMesh.rotation.y;
+      world.animate(0.6, 0.2);
+      expect(diamondMesh.rotation.y).toBeGreaterThan(diamondYaw0);
+
+      // Autonomía hacia la muestra (driving-sample -> collecting-sample -> guardada)
+      const armPivot = world.group.getObjectByName('rover-scanner-arm') as THREE.Object3D;
+      const laserBeam = world.group.getObjectByName('rover-scanner-beam') as THREE.Mesh;
+      const laserRing = world.group.getObjectByName('rover-scanner-ring') as THREE.Mesh;
+
+      expect(world.dispatchRoverToSample(first.id)).toBe(true);
+      let sawCollecting = false;
+      let sawArmDeployed = false;
+      let sawLaser = false;
+      let sawShrinkingRock = false;
+      let t = 0.6;
+      for (let step = 0; step < 95; step++) {
+        t += 0.1;
+        world.animate(t, 0.1);
+        const tele = world.getRoverTelemetry();
+        if (tele.collectingSampleId === first.id) {
+          sawCollecting = true;
+          if (armPivot.rotation.z < -0.15) sawArmDeployed = true;
+          if (laserBeam.visible && laserRing.visible) sawLaser = true;
+          if (rockGroup.scale.x < 0.95) sawShrinkingRock = true;
+        }
+      }
+
+      expect(sawCollecting).toBe(true);
+      expect(sawArmDeployed).toBe(true);
+      expect(sawLaser).toBe(true);
+      expect(sawShrinkingRock).toBe(true);
+
+      // Tras finalizar la recolección: roca oculta, baliza apagada y anillo verde
+      expect(rockGroup.visible).toBe(false);
+      expect(beamMesh.visible).toBe(false);
+      expect(diamondMesh.visible).toBe(false);
+      expect((ringMesh.material as THREE.MeshBasicMaterial).color.getHex()).toBe(0x2e7d4f);
+
+      // Segunda recolección manual directa mediante proximidad (< 2.2) o collectSample(id)
+      const second = samples[1];
+      expect(world.collectSample(second.id)).toBe(true);
+      expect(world.getRoverTelemetry().collectingSampleId).toBe(second.id);
+      for (let s = 0; s < 12; s++) {
+        t += 0.1;
+        world.animate(t, 0.1);
+      }
+      expect(world.getRoverTelemetry().collectingSampleId).toBeNull();
+      expect(world.getSamples()[1].id).toBe(second.id);
+      const secondBeam = world.group.getObjectByName(
+        `sample-beacon-beam-${second.id}`,
+      ) as THREE.Mesh;
+      expect(secondBeam.visible).toBe(false);
+
+      // Conducción manual pura hacia la 3ra muestra (< 2.2 u) activa auto-recolección y frenado
+      const manualTarget = samples[2];
+      let manualTriggered = false;
+      const rPos = new THREE.Vector3();
+      const rFwd = new THREE.Vector3();
+      for (let step = 0; step < 360; step++) {
+        world.getRoverPose(rPos, rFwd);
+        const curYaw = Math.atan2(-rFwd.z, rFwd.x);
+        const goalYaw = Math.atan2(-(manualTarget.position[2] - rPos.z), manualTarget.position[0] - rPos.x);
+        let diff = (goalYaw - curYaw + Math.PI) % (Math.PI * 2);
+        if (diff < 0) diff += Math.PI * 2;
+        diff -= Math.PI;
+        world.setRoverControlInput({
+          forward: Math.abs(diff) < 1.25,
+          backward: false,
+          left: diff > 0.07,
+          right: diff < -0.07,
+        });
+        t += 0.05;
+        world.animate(t, 0.05);
+        const tele = world.getRoverTelemetry();
+        if (tele.collectingSampleId === manualTarget.id) {
+          manualTriggered = true;
+          const speedBeforeBrake = Math.abs(tele.linearVelocity);
+          world.animate(t + 0.12, 0.12);
+          world.animate(t + 0.24, 0.12);
+          expect(Math.abs(world.getRoverTelemetry().linearVelocity)).toBeLessThanOrEqual(
+            speedBeforeBrake,
+          );
+          expect(Math.abs(world.getRoverTelemetry().linearVelocity)).toBeLessThan(0.5);
+          break;
+        }
+      }
+      expect(manualTriggered).toBe(true);
+      world.setRoverControlInput({ forward: false, backward: false, left: false, right: false });
+
+      // Cambio de Día/Sol rota la generación determinista de muestras
+      world.updateState({ currentDay: 2 });
+      const day2Samples = world.getSamples();
+      expect(day2Samples.length).toBeGreaterThanOrEqual(4);
+      expect(day2Samples[0].id).not.toBe(first.id);
+
+      const day2Beam = world.group.getObjectByName(
+        `sample-beacon-beam-${day2Samples[0].id}`,
+      ) as THREE.Mesh;
+      const geoDisposeSpy = vi.spyOn(day2Beam.geometry, 'dispose');
+      disposeObject3D(world.group);
+      expect(geoDisposeSpy).toHaveBeenCalledTimes(1);
+    }
+
+    // Renderizado React / SVG fallback sin WebGL en ES y EN (incluyendo OutpostMap)
+    const site = OUTPOST_SITES['moon-shackleton'];
+    const weather = selectStartingWeather('moon-shackleton', VERIFIED_NASA_WEATHER_EVENTS, 20260415);
+    const mission = createInitialMissionState('moon-shackleton', weather, 20260415);
+    const projection = projectSystemsTurn(mission, mission.powerAllocation);
+
+    for (const lang of ['es', 'en'] as const) {
+      const worldHtml = renderToStaticMarkup(
+        React.createElement(ColonyWorld3D, {
+          lang,
+          forceFallback: true,
+          options: {
+            siteId: 'moon-shackleton',
+            terrainSeed: 20260415,
+            currentDay: 1,
+            collectedSampleIds: [],
+          },
+          onCollectSample: () => {},
+        }),
+      );
+      expect(EMOJI_REGEX.test(worldHtml)).toBe(false);
+      expect(worldHtml).toContain('data-testid="colony-samples-bar"');
+      expect(worldHtml).toContain('data-testid="colony-samples-counter"');
+      expect(worldHtml).toContain('0/');
+      expect(worldHtml).toContain('data-testid="svg-sample-');
+
+      const mapHtml = renderToStaticMarkup(
+        React.createElement(OutpostMap, {
+          lang,
+          site,
+          currentDay: 1,
+          resources: mission.resources,
+          allocation: mission.powerAllocation,
+          weather,
+          projection,
+          defaultViewMode: 'orbital',
+          terrainSeed: 20260415,
+          collectedSampleIds: [],
+          onCollectSample: () => {},
+        }),
+      );
+      expect(EMOJI_REGEX.test(mapHtml)).toBe(false);
+      expect(mapHtml).toContain('data-testid="colony-samples-bar"');
+    }
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 });
