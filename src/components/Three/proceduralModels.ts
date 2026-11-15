@@ -14,7 +14,12 @@ import {
 import {
   createSampleVisualRuntime,
   findSampleId,
+  formatMissionSampleSlotKey,
+  formatSampleSlotId,
   generateTurnSamples,
+  isSampleSlotCollected,
+  parseSampleDayAndSlot,
+  resolveSampleSlotId,
   SAMPLE_COLLECT_RADIUS,
   SAMPLE_COLLECTION_DURATION,
   SAMPLE_MANUAL_RADIUS,
@@ -24,7 +29,12 @@ import {
 
 export {
   findSampleId,
+  formatMissionSampleSlotKey,
+  formatSampleSlotId,
   generateTurnSamples,
+  isSampleSlotCollected,
+  parseSampleDayAndSlot,
+  resolveSampleSlotId,
   SAMPLE_COLLECT_RADIUS,
   SAMPLE_COLLECTION_DURATION,
   SAMPLE_MANUAL_RADIUS,
@@ -2100,6 +2110,8 @@ export interface ColonyWorldStateOptions extends Model3DStateOptions {
   scannedAnomalyIds?: string[];
   /** Muestras geológicas recolectadas con el brazo del Rover */
   collectedSampleIds?: string[];
+  /** Ranuras de muestras ya recolectadas por Sol (ej. "day-1-slot-0" / "sol-1-slot-0") */
+  collectedSampleSlots?: string[];
   /** Módulos ya limpiados o calibrados durante el turno actual */
   maintainedModuleIds?: ColonyWorldModuleId[];
   /** Alerta ambiental de entrenamiento (p. ej. caída térmica del onboarding) */
@@ -2674,7 +2686,7 @@ export function findAnomalyId(obj: THREE.Object3D | null): string | null {
 
 export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyWorldHandle {
   const siteId: OutpostSiteId = options.siteId ?? 'moon-shackleton';
-  const terrainSeed = normalizeTerrainSeed(options.terrainSeed);
+  let terrainSeed = normalizeTerrainSeed(options.terrainSeed);
   const atmo = getWorldAtmosphere(siteId);
   const isLunar = atmo.kind === 'lunar';
   const wire = atmo.wireTint;
@@ -3600,7 +3612,10 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   let currentSamples: SurfaceSampleSpec[] = [];
   let loadedSampleDay = -1;
   let hoveredSampleId: string | null = null;
-  const collectedSampleVisualIds = new Set<string>(options.collectedSampleIds ?? []);
+  const collectedSampleVisualIds = new Set<string>([
+    ...(options.collectedSampleIds ?? []),
+    ...(options.collectedSampleSlots ?? []),
+  ]);
   const sampleRuntimes = new Map<string, SampleVisualRuntime>();
 
   interface ActiveSampleCollection {
@@ -3617,9 +3632,10 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   const refreshSampleAppearance = () => {
     for (const [id, rt] of sampleRuntimes.entries()) {
       const isCollecting = activeSampleCollection?.sampleId === id;
-      const isCollected = collectedSampleVisualIds.has(id);
+      const isCollected = isSampleSlotCollected(rt.spec, collectedSampleVisualIds);
       const isHover = hoveredSampleId === id;
       rt.collected = isCollected && !isCollecting;
+      rt.spec.collected = rt.collected;
 
       if (isCollecting) {
         rt.rockGroup.visible = true;
@@ -3664,8 +3680,13 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
         z: a.position[2],
         minDist: 4.6,
       })),
+      collectedSampleIds: Array.from(collectedSampleVisualIds),
     });
     currentSamples.forEach((spec, idx) => {
+      if (spec.collected) {
+        collectedSampleVisualIds.add(spec.id);
+        if (spec.slotId) collectedSampleVisualIds.add(spec.slotId);
+      }
       const rt = createSampleVisualRuntime(spec, wire, idx);
       sampleRuntimes.set(spec.id, rt);
       sampleContainer.add(rt.group);
@@ -3798,7 +3819,15 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   };
 
   const updateState = (next: ColonyWorldStateOptions) => {
-    state = { ...state, ...next, siteId };
+    if (next.terrainSeed !== undefined) {
+      const nextSeed = normalizeTerrainSeed(next.terrainSeed);
+      if (nextSeed !== terrainSeed) {
+        terrainSeed = nextSeed;
+        loadedAnomalyDay = -1;
+        loadedSampleDay = -1;
+      }
+    }
+    state = { ...state, ...next, siteId, terrainSeed };
     evoState = computeColonyEvolutionState(state);
     activeObstacles = getColonyObstacleColliders(evoState);
     syncEvolutionPart(evoSolarWingLeft, evoState.solarWingLeft);
@@ -3821,14 +3850,22 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     }
     refreshAnomalyAppearance();
 
-    syncTurnSamples(state.currentDay ?? 1);
-    if (Array.isArray(state.collectedSampleIds)) {
-      if (state.collectedSampleIds.length === 0) {
+    if (Array.isArray(state.collectedSampleIds) || Array.isArray(state.collectedSampleSlots)) {
+      const hasIds = (state.collectedSampleIds?.length ?? 0) > 0;
+      const hasSlots = (state.collectedSampleSlots?.length ?? 0) > 0;
+      if (
+        !hasIds &&
+        !hasSlots &&
+        state.collectedSampleIds !== undefined &&
+        (state.collectedSampleSlots === undefined || state.collectedSampleSlots.length === 0)
+      ) {
         collectedSampleVisualIds.clear();
       } else {
-        for (const sid of state.collectedSampleIds) collectedSampleVisualIds.add(sid);
+        for (const sid of state.collectedSampleIds ?? []) collectedSampleVisualIds.add(sid);
+        for (const slot of state.collectedSampleSlots ?? []) collectedSampleVisualIds.add(slot);
       }
     }
+    syncTurnSamples(state.currentDay ?? 1);
     refreshSampleAppearance();
 
     const activeIssues = new Set(
@@ -4048,7 +4085,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
 
     for (const spec of currentSamples) {
       const d = Math.hypot(spec.position[0] - roverWorldX, spec.position[2] - roverWorldZ);
-      const collected = collectedSampleVisualIds.has(spec.id);
+      const collected = isSampleSlotCollected(spec, collectedSampleVisualIds);
       if (!collected && d < nearestUncollectedDist) {
         nearestUncollectedDist = d;
         nearestUncollectedId = spec.id;
@@ -4168,9 +4205,14 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   const collectSample = (sampleId: string): boolean => {
     if (!roverMoving) return false;
     const rt = sampleRuntimes.get(sampleId);
-    if (!rt || collectedSampleVisualIds.has(sampleId)) return false;
+    if (!rt || isSampleSlotCollected(rt.spec, collectedSampleVisualIds)) return false;
     if (activeSampleCollection?.sampleId === sampleId) return false;
     collectedSampleVisualIds.add(sampleId);
+    if (rt.spec.slotId) collectedSampleVisualIds.add(rt.spec.slotId);
+    if (typeof rt.spec.slotIndex === 'number') {
+      collectedSampleVisualIds.add(formatMissionSampleSlotKey(rt.spec.day, rt.spec.slotIndex));
+    }
+    rt.spec.collected = true;
     activeSampleCollection = {
       sampleId,
       elapsed: 0,
@@ -4213,7 +4255,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   const dispatchRoverToSample = (sampleId: string): boolean => {
     if (!roverMoving) return false;
     const rt = sampleRuntimes.get(sampleId);
-    if (!rt || collectedSampleVisualIds.has(sampleId)) return false;
+    if (!rt || isSampleSlotCollected(rt.spec, collectedSampleVisualIds)) return false;
     const sx = rt.spec.position[0];
     const sz = rt.spec.position[2];
     if (Math.hypot(sx - roverWorldX, sz - roverWorldZ) < SAMPLE_COLLECT_RADIUS) {

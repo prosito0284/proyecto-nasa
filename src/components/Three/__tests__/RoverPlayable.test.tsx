@@ -582,4 +582,95 @@ describe('RoverPlayable (R09: Kinematics, Controls, Samples, Telemetry & Return 
       }
     }
   });
+
+  it('S01–S03: pulsar Nueva topografía en 3D/2D reposiciona muestras pero preserva ranuras recolectadas y evita puntos de ciencia infinitos', () => {
+    const seed1 = 20260415;
+    const seed2 = 20260415 + 7919;
+    const weather = selectStartingWeather('mars-jezero', VERIFIED_NASA_WEATHER_EVENTS, seed1);
+    let mission = createInitialMissionState('mars-jezero', weather, seed1);
+
+    const world = buildColonyWorld({
+      siteId: 'mars-jezero',
+      terrainSeed: seed1,
+      currentDay: 1,
+    });
+    const samplesSeed1 = world.getSamples();
+    expect(samplesSeed1.length).toBeGreaterThanOrEqual(4);
+    const maxSol1Science =
+      mission.resources.sciencePoints + samplesSeed1.reduce((sum, s) => sum + s.points, 0);
+
+    // Recolectar todas las muestras del Sol 1 en el mundo 3D y en el estado de misión
+    for (const smp of samplesSeed1) {
+      expect(world.collectSample(smp.id)).toBe(true);
+      mission = applySampleCollectToMission(mission, smp);
+    }
+    expect(mission.resources.sciencePoints).toBe(maxSol1Science);
+    expect(mission.roverSamplesCollected).toBe(samplesSeed1.length);
+
+    // Regenerar topografía en el mismo Sol (seed2)
+    world.updateState({
+      siteId: 'mars-jezero',
+      terrainSeed: seed2,
+      currentDay: 1,
+      collectedSampleIds: mission.collectedSampleIds,
+      collectedSampleSlots: mission.collectedSampleSlots,
+    });
+
+    const samplesSeed2 = world.getSamples();
+    expect(samplesSeed2).toHaveLength(samplesSeed1.length);
+    expect(samplesSeed2[0].position).not.toEqual(samplesSeed1[0].position);
+    expect(samplesSeed2.every((s) => s.collected === true)).toBe(true);
+
+    // Intentar recolectar de nuevo en 3D o sumar al estado de misión tras regenerar topografía queda bloqueado
+    for (const smp of samplesSeed2) {
+      expect(world.collectSample(smp.id)).toBe(false);
+      expect(world.dispatchRoverToSample(smp.id)).toBe(false);
+      mission = applySampleCollectToMission(mission, smp);
+    }
+    expect(mission.resources.sciencePoints).toBe(maxSol1Science);
+    expect(mission.roverSamplesCollected).toBe(samplesSeed1.length);
+
+    // Verificar que OutpostMap 2D y ColonyWorld3D muestran N/N recolectadas tras cambiar terrainSeed a seed2
+    const projection = projectSystemsTurn(mission, mission.powerAllocation);
+    const map2DAfterReseedHtml = renderToStaticMarkup(
+      React.createElement(OutpostMap, {
+        lang: 'es',
+        site: OUTPOST_SITES['mars-jezero'],
+        currentDay: 1,
+        resources: mission.resources,
+        allocation: mission.powerAllocation,
+        weather,
+        projection,
+        defaultViewMode: '2d',
+        terrainSeed: seed2,
+        collectedSampleIds: mission.collectedSampleIds,
+        collectedSampleSlots: mission.collectedSampleSlots,
+        onCollectSample: () => {},
+      }),
+    );
+    expect(map2DAfterReseedHtml).toContain(
+      `MUESTRAS: ${samplesSeed2.length}/${samplesSeed2.length}`,
+    );
+
+    const fallbackAfterReseedHtml = renderToStaticMarkup(
+      React.createElement(ColonyWorld3D, {
+        lang: 'es',
+        forceFallback: true,
+        terrainSeed: seed2,
+        options: {
+          siteId: 'mars-jezero',
+          terrainSeed: seed2,
+          currentDay: 1,
+          sciencePoints: mission.resources.sciencePoints,
+          collectedSampleIds: mission.collectedSampleIds,
+          collectedSampleSlots: mission.collectedSampleSlots,
+        },
+        onCollectSample: () => {},
+      }),
+    );
+    expect(fallbackAfterReseedHtml).toContain(`${samplesSeed2.length}/${samplesSeed2.length}`);
+
+    disposeObject3D(world.group);
+  });
 });
+

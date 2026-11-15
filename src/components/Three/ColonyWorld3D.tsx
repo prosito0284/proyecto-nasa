@@ -55,6 +55,10 @@ import {
   softClampColonyTarget,
   type SurfaceSampleSpec,
   type WorldAnomalySpec,
+  formatMissionSampleSlotKey,
+  formatSampleSlotId,
+  isSampleSlotCollected,
+  resolveSampleSlotId,
 } from './proceduralModels';
 import { formatSampleBadge } from './sampleManager';
 import {
@@ -80,6 +84,8 @@ export type ColonyCameraModeInput = ColonyCameraMode | 'rover';
 interface PersistedColonySessionState {
   localSeedBump: number;
   roverPose?: { x: number; z: number; heading: number };
+  day?: number;
+  collectedSlotIds?: string[];
 }
 
 const persistedColonySessionBySite = new Map<string, PersistedColonySessionState>();
@@ -268,6 +274,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   const isMars = siteId === 'mars-jezero';
   const atmo = getWorldAtmosphere(siteId);
   const baseSeed = normalizeTerrainSeed(options.terrainSeed ?? terrainSeed ?? DEFAULT_TERRAIN_SEED);
+  const currentDay = options.currentDay ?? 1;
   const sessionKey = `${siteId}:${baseSeed}`;
   const [localSeedBump, setLocalSeedBump] = useState(
     () => persistedColonySessionBySite.get(sessionKey)?.localSeedBump ?? 0,
@@ -278,9 +285,6 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     const cachedBump = persistedColonySessionBySite.get(sessionKey)?.localSeedBump ?? 0;
     setLocalSeedBump(cachedBump);
   }, [sessionKey]);
-
-  const latestOptionsRef = useRef<ColonyWorldStateOptions>(options);
-  latestOptionsRef.current = { ...options, terrainSeed: effectiveSeed };
 
   const frameRef = useRef<HTMLDivElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -308,10 +312,19 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     nearestSampleDistance: number | null;
   }>({ x: 11.4, z: 12.5, nearestSampleDistance: null });
   const autoScannedIdsRef = useRef<Set<string>>(new Set());
-  const collectedLocalIdsRef = useRef<Set<string>>(new Set(options.collectedSampleIds ?? []));
-  const [localCollectedIds, setLocalCollectedIds] = useState<string[]>(
-    options.collectedSampleIds ?? [],
-  );
+  const initialCollectedTokens = () => {
+    const cached = persistedColonySessionBySite.get(sessionKey);
+    const fromCache = cached?.day === currentDay ? (cached.collectedSlotIds ?? []) : [];
+    return Array.from(
+      new Set([
+        ...(options.collectedSampleIds ?? []),
+        ...(options.collectedSampleSlots ?? []),
+        ...fromCache,
+      ]),
+    );
+  };
+  const collectedLocalIdsRef = useRef<Set<string>>(new Set(initialCollectedTokens()));
+  const [localCollectedIds, setLocalCollectedIds] = useState<string[]>(initialCollectedTokens);
   const [nearbySample, setNearbySample] = useState<NearbySamplePrompt | null>(null);
   const nearbySampleRef = useRef<NearbySamplePrompt | null>(null);
 
@@ -378,35 +391,49 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     [forceFallback],
   );
 
+  const collectedKey = [
+    ...(options.collectedSampleIds ?? []),
+    ...(options.collectedSampleSlots ?? []),
+  ].join(',');
+  const scannedSet = useMemo(
+    () => new Set(options.scannedAnomalyIds ?? []),
+    [options.scannedAnomalyIds],
+  );
+  const collectedSamplesSet = useMemo(() => {
+    const merged = new Set<string>([
+      ...(options.collectedSampleIds ?? []),
+      ...(options.collectedSampleSlots ?? []),
+    ]);
+    for (const sid of localCollectedIds) merged.add(sid);
+    return merged;
+  }, [options.collectedSampleIds, options.collectedSampleSlots, localCollectedIds]);
+
   const turnAnomalies = useMemo(
-    () => generateTurnAnomalies(siteId, effectiveSeed, options.currentDay ?? 1),
-    [siteId, effectiveSeed, options.currentDay],
+    () => generateTurnAnomalies(siteId, effectiveSeed, currentDay),
+    [siteId, effectiveSeed, currentDay],
   );
   const turnSamples = useMemo(
     () =>
-      generateTurnSamples(siteId, effectiveSeed, options.currentDay ?? 1, {
+      generateTurnSamples(siteId, effectiveSeed, currentDay, {
         getTerrainHeight: (x, z) => sampleWorldTerrainHeight(x, z, siteId, effectiveSeed),
         avoidPositions: turnAnomalies.map((a) => ({
           x: a.position[0],
           z: a.position[2],
           minDist: 4.6,
         })),
+        collectedSampleIds: Array.from(collectedSamplesSet),
       }),
-    [siteId, effectiveSeed, options.currentDay, turnAnomalies],
+    [siteId, effectiveSeed, currentDay, turnAnomalies, collectedSamplesSet],
   );
   const turnSamplesRef = useRef(turnSamples);
   turnSamplesRef.current = turnSamples;
 
-  const collectedKey = (options.collectedSampleIds ?? []).join(',');
-  const scannedSet = useMemo(
-    () => new Set(options.scannedAnomalyIds ?? []),
-    [options.scannedAnomalyIds],
-  );
-  const collectedSamplesSet = useMemo(() => {
-    const merged = new Set(options.collectedSampleIds ?? []);
-    for (const sid of localCollectedIds) merged.add(sid);
-    return merged;
-  }, [options.collectedSampleIds, localCollectedIds]);
+  const latestOptionsRef = useRef<ColonyWorldStateOptions>(options);
+  latestOptionsRef.current = {
+    ...options,
+    terrainSeed: effectiveSeed,
+    collectedSampleIds: Array.from(collectedSamplesSet),
+  };
 
   const maintenanceIssues = useMemo(
     () => getModulesNeedingMaintenance(options, options.maintainedModuleIds),
@@ -533,25 +560,48 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     autoScannedIdsRef.current = new Set(options.scannedAnomalyIds ?? []);
   }, [siteId, effectiveSeed, options.currentDay, options.scannedAnomalyIds]);
 
-  const prevMissionCtxRef = useRef<string>('');
+  useEffect(() => {
+    nearbySampleRef.current = null;
+    setNearbySample(null);
+  }, [effectiveSeed]);
+
+  const prevMissionCtxRef = useRef<string>(`${siteId}:${currentDay}`);
   const prevCollectedPropKeyRef = useRef<string>(collectedKey);
   useEffect(() => {
-    const ctxKey = `${siteId}:${effectiveSeed}:${options.currentDay ?? 1}`;
+    const ctxKey = `${siteId}:${currentDay}`;
     const ctxChanged = prevMissionCtxRef.current !== ctxKey;
     const propChanged = prevCollectedPropKeyRef.current !== collectedKey;
     prevMissionCtxRef.current = ctxKey;
     prevCollectedPropKeyRef.current = collectedKey;
 
-    if (ctxChanged || (propChanged && options.collectedSampleIds !== undefined)) {
-      const nextList = options.collectedSampleIds ?? [];
-      collectedLocalIdsRef.current = new Set(nextList);
-      setLocalCollectedIds(nextList);
-      if (ctxChanged || (nextList.length === 0 && nearbySampleRef.current !== null)) {
+    if (
+      ctxChanged ||
+      (propChanged &&
+        (options.collectedSampleIds !== undefined || options.collectedSampleSlots !== undefined))
+    ) {
+      const propTokens = [
+        ...(options.collectedSampleIds ?? []),
+        ...(options.collectedSampleSlots ?? []),
+      ];
+      if (ctxChanged || (propChanged && propTokens.length === 0)) {
+        collectedLocalIdsRef.current = new Set(propTokens);
+        setLocalCollectedIds(propTokens);
         nearbySampleRef.current = null;
         setNearbySample(null);
+      } else {
+        for (const tok of propTokens) {
+          collectedLocalIdsRef.current.add(tok);
+        }
+        setLocalCollectedIds(Array.from(collectedLocalIdsRef.current));
       }
     }
-  }, [siteId, effectiveSeed, options.currentDay, collectedKey]);
+  }, [
+    siteId,
+    currentDay,
+    collectedKey,
+    options.collectedSampleIds,
+    options.collectedSampleSlots,
+  ]);
 
   useEffect(() => {
     if (options.isLowPowerBlackout || isPaused) {
@@ -569,22 +619,73 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     return () => window.clearTimeout(timer);
   }, [tacticalNotice?.id, tacticalNotice?.autoDismissMs]);
 
+  const isSpecCollectedLocal = (specOrId: SurfaceSampleSpec | string): boolean => {
+    if (typeof specOrId === 'string') {
+      if (collectedLocalIdsRef.current.has(specOrId)) return true;
+      const resolved = resolveSampleSlotId(specOrId, latestOptionsRef.current.currentDay ?? 1);
+      if (resolved && collectedLocalIdsRef.current.has(resolved)) return true;
+      const spec =
+        (worldRef.current?.getSamples() ?? turnSamplesRef.current).find((s) => s.id === specOrId) ??
+        null;
+      return spec
+        ? Boolean(spec.collected) ||
+            isSampleSlotCollected(spec, collectedLocalIdsRef.current) ||
+            isSampleSlotCollected(spec, latestOptionsRef.current.collectedSampleIds) ||
+            isSampleSlotCollected(spec, latestOptionsRef.current.collectedSampleSlots)
+        : false;
+    }
+    return (
+      Boolean(specOrId.collected) ||
+      isSampleSlotCollected(specOrId, collectedLocalIdsRef.current) ||
+      isSampleSlotCollected(specOrId, latestOptionsRef.current.collectedSampleIds) ||
+      isSampleSlotCollected(specOrId, latestOptionsRef.current.collectedSampleSlots)
+    );
+  };
+  const isSpecCollectedLocalRef = useRef(isSpecCollectedLocal);
+  isSpecCollectedLocalRef.current = isSpecCollectedLocal;
+
   const notifySampleCollected = (sampleId: string) => {
-    if (collectedLocalIdsRef.current.has(sampleId)) return;
     const curOpts = latestOptionsRef.current;
     if (curOpts.isLowPowerBlackout) return;
     const list = worldRef.current?.getSamples() ?? turnSamplesRef.current;
-    const spec = list.find((s) => s.id === sampleId);
+    const targetSlot = resolveSampleSlotId(sampleId, curOpts.currentDay ?? 1);
+    const spec =
+      list.find((s) => s.id === sampleId) ??
+      (targetSlot
+        ? list.find((s) => resolveSampleSlotId(s, curOpts.currentDay ?? 1) === targetSlot)
+        : undefined);
     if (!spec) return;
+    if (isSpecCollectedLocal(spec)) return;
 
-    collectedLocalIdsRef.current.add(sampleId);
-    setLocalCollectedIds((prev) => (prev.includes(sampleId) ? prev : [...prev, sampleId]));
-    if (nearbySampleRef.current?.id === sampleId) {
+    const slotId =
+      spec.slotId ??
+      resolveSampleSlotId(spec, spec.day) ??
+      formatSampleSlotId(spec.day, spec.slotIndex ?? 0);
+    const missionSlotKey = formatMissionSampleSlotKey(spec.day, spec.slotIndex ?? 0);
+
+    collectedLocalIdsRef.current.add(spec.id);
+    collectedLocalIdsRef.current.add(slotId);
+    collectedLocalIdsRef.current.add(missionSlotKey);
+    const nextTokens = Array.from(collectedLocalIdsRef.current);
+    setLocalCollectedIds(nextTokens);
+
+    const prevSession = persistedColonySessionBySite.get(sessionKey);
+    persistedColonySessionBySite.set(sessionKey, {
+      localSeedBump: prevSession?.localSeedBump ?? localSeedBump,
+      roverPose: prevSession?.roverPose,
+      day: curOpts.currentDay ?? 1,
+      collectedSlotIds: nextTokens,
+    });
+
+    if (
+      nearbySampleRef.current &&
+      (nearbySampleRef.current.id === sampleId || nearbySampleRef.current.id === spec.id)
+    ) {
       nearbySampleRef.current = null;
       setNearbySample(null);
     }
     missionAudio.playSampleCollect();
-    onCollectSampleRef.current?.(spec);
+    onCollectSampleRef.current?.({ ...spec, collected: true, slotId });
     setTacticalNotice({
       id: `sample-${spec.id}`,
       tone: 'ok',
@@ -612,7 +713,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       });
       return false;
     }
-    if (collectedLocalIdsRef.current.has(sampleId)) return false;
+    if (isSpecCollectedLocal(sampleId)) return false;
     if (worldRef.current) {
       const started = worldRef.current.collectSample(sampleId);
       if (!started) return false;
@@ -754,6 +855,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
 
   const scannedKey = (options.scannedAnomalyIds ?? []).join(',');
   const maintainedKey = (options.maintainedModuleIds ?? []).join(',');
+  const localCollectedKey = localCollectedIds.join(',');
 
   const optionsKeyDeps = [
     siteId,
@@ -781,6 +883,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     options.commDelaySeconds,
     scannedKey,
     collectedKey,
+    localCollectedKey,
     maintainedKey,
   ];
 
@@ -869,7 +972,12 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   const handleInspectSample = (sampleId: string) => {
     const curOpts = latestOptionsRef.current;
     const list = worldRef.current?.getSamples() ?? turnSamplesRef.current;
-    const spec = list.find((s) => s.id === sampleId);
+    const targetSlot = resolveSampleSlotId(sampleId, curOpts.currentDay ?? 1);
+    const spec =
+      list.find((s) => s.id === sampleId) ??
+      (targetSlot
+        ? list.find((s) => resolveSampleSlotId(s, curOpts.currentDay ?? 1) === targetSlot)
+        : undefined);
     if (!spec) return;
 
     if (curOpts.isLowPowerBlackout) {
@@ -885,9 +993,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       return;
     }
 
-    const alreadyCollected =
-      collectedLocalIdsRef.current.has(spec.id) ||
-      Boolean(curOpts.collectedSampleIds?.includes(spec.id));
+    const alreadyCollected = isSpecCollectedLocal(spec);
     if (alreadyCollected) {
       missionAudio.playClick();
       setTacticalNotice({
@@ -1440,7 +1546,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       nearestSampleDistance:
         initTele.nearestSampleId &&
         !initTele.nearestSampleCollected &&
-        !collectedLocalIdsRef.current.has(initTele.nearestSampleId) &&
+        !isSpecCollectedLocalRef.current(initTele.nearestSampleId) &&
         Number.isFinite(initTele.nearestSampleDistance)
           ? Math.round(initTele.nearestSampleDistance * 10) / 10
           : null,
@@ -1498,7 +1604,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       const rawNearest =
         nextTele.nearestSampleId &&
         !nextTele.nearestSampleCollected &&
-        !collectedLocalIdsRef.current.has(nextTele.nearestSampleId) &&
+        !isSpecCollectedLocalRef.current(nextTele.nearestSampleId) &&
         Number.isFinite(nextTele.nearestSampleDistance)
           ? Math.round(nextTele.nearestSampleDistance * 10) / 10
           : null;
@@ -1535,7 +1641,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
         !latestOptionsRef.current.isLowPowerBlackout &&
         nextTele.nearestSampleId &&
         !nextTele.nearestSampleCollected &&
-        !collectedLocalIdsRef.current.has(nextTele.nearestSampleId) &&
+        !isSpecCollectedLocalRef.current(nextTele.nearestSampleId) &&
         nextTele.nearestSampleDistance <= SAMPLE_MANUAL_RADIUS
       ) {
         if (nearbySampleRef.current?.id !== nextTele.nearestSampleId) {
@@ -1760,6 +1866,8 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           z: finalTele.z,
           heading: finalTele.heading,
         },
+        day: latestOptionsRef.current.currentDay ?? 1,
+        collectedSlotIds: Array.from(collectedLocalIdsRef.current),
       });
       ro?.disconnect();
       window.removeEventListener('resize', resizeRenderer);
@@ -1794,7 +1902,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     if (!hoveredSampleId) return null;
     const spec = turnSamples.find((s) => s.id === hoveredSampleId);
     if (!spec) return null;
-    const isCollected = collectedSamplesSet.has(spec.id);
+    const isCollected = Boolean(spec.collected) || isSampleSlotCollected(spec, collectedSamplesSet);
     return {
       title: spec.title[lang],
       subtitle: isCollected
@@ -2071,7 +2179,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           {turnSamples.map((smp) => {
             const sx = Math.max(20, Math.min(340, Math.round(185 + smp.position[0] * 7.6)));
             const sy = Math.max(72, Math.min(174, Math.round(112 + smp.position[2] * 3.0)));
-            const collected = collectedSamplesSet.has(smp.id);
+            const collected = Boolean(smp.collected) || isSampleSlotCollected(smp, collectedSamplesSet);
             const sampleHex = collected ? '#2E7D4F' : smp.accentHex === 0x00e5ff ? '#00E5FF' : '#FFB300';
             return (
               <g
@@ -2135,7 +2243,9 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
 
   const seedBadgeCode = formatTerrainSeedBadge(effectiveSeed);
   const evoSummary = getColonyEvolutionSummary(computeColonyEvolutionState(options), lang);
-  const collectedSampleCount = turnSamples.filter((s) => collectedSamplesSet.has(s.id)).length;
+  const collectedSampleCount = turnSamples.filter(
+    (s) => Boolean(s.collected) || isSampleSlotCollected(s, collectedSamplesSet),
+  ).length;
 
   return (
     <div
@@ -2289,7 +2399,10 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
                 sciencePoints:
                   options.sciencePoints ??
                   turnSamples.reduce(
-                    (sum, smp) => (collectedSamplesSet.has(smp.id) ? sum + smp.points : sum),
+                    (sum, smp) =>
+                      Boolean(smp.collected) || isSampleSlotCollected(smp, collectedSamplesSet)
+                        ? sum + smp.points
+                        : sum,
                     0,
                   ),
                 collectedCount: collectedSampleCount,
@@ -2369,7 +2482,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           </span>
         </span>
         {turnSamples.map((smp) => {
-          const collected = collectedSamplesSet.has(smp.id);
+          const collected = Boolean(smp.collected) || isSampleSlotCollected(smp, collectedSamplesSet);
           return (
             <button
               key={smp.id}

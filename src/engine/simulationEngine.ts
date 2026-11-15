@@ -242,6 +242,7 @@ export function createInitialMissionState(
     currentDilemma: firstCard,
     pendingDelayedEffects: [],
     collectedSampleIds: [],
+    collectedSampleSlots: [],
     roverSamplesCollected: 0,
     roverScienceEarned: 0,
     logs: [

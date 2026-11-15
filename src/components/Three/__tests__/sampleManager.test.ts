@@ -270,5 +270,81 @@ describe('sampleManager (R05 procedural surface samples)', () => {
     expect(certEs).toContain(`Ciencia total: ${active.resources.sciencePoints} pts`);
     expect(EMOJI_REGEX.test(certEs)).toBe(false);
   });
+
+  it('S01–S03: regenerar topografía (nueva semilla) preserva ranuras recolectadas (2/N y N/N) y bloquea exploit de ciencia infinita', () => {
+    const initialSeed = 20260415;
+    const bumpedSeedA = 20260415 + 7919;
+    const bumpedSeedB = 20260415 + 7919 * 2;
+
+    const base = createInitialMissionState(
+      'moon-shackleton',
+      VERIFIED_NASA_WEATHER_EVENTS[0],
+      initialSeed,
+    );
+    const initialSamples = generateTurnSamples('moon-shackleton', initialSeed, 1, {
+      getTerrainHeight: (x, z) => sampleWorldTerrainHeight(x, z, 'moon-shackleton', initialSeed),
+    });
+    const maxSol1Science =
+      base.resources.sciencePoints + initialSamples.reduce((acc, s) => acc + s.points, 0);
+
+    // 1. Recolectar 2 muestras en Sol 1 y pulsar "Nueva topografía" (bumpedSeedA)
+    let stateAfter2 = applySampleCollectToMission(base, initialSamples[0]);
+    stateAfter2 = applySampleCollectToMission(stateAfter2, initialSamples[1]);
+    expect(stateAfter2.roverSamplesCollected).toBe(2);
+
+    const regenAfter2 = generateTurnSamples('moon-shackleton', bumpedSeedA, 1, {
+      getTerrainHeight: (x, z) => sampleWorldTerrainHeight(x, z, 'moon-shackleton', bumpedSeedA),
+      collectedSampleIds: [
+        ...(stateAfter2.collectedSampleIds ?? []),
+        ...(stateAfter2.collectedSampleSlots ?? []),
+      ],
+    });
+    expect(regenAfter2).toHaveLength(initialSamples.length);
+    // Coordenadas (x, z) cambian con la nueva topografía, pero las ranuras 0 y 1 siguen recolectadas (2/N)
+    expect(regenAfter2[0].position).not.toEqual(initialSamples[0].position);
+    expect(regenAfter2[0].collected).toBe(true);
+    expect(regenAfter2[1].collected).toBe(true);
+    expect(regenAfter2.filter((s) => s.collected)).toHaveLength(2);
+
+    // Intentar recolectar de nuevo las ranuras 0 y 1 con los nuevos IDs de topografía NO suma ciencia
+    const afterExploitAttemptPartial = applySampleCollectToMission(
+      applySampleCollectToMission(stateAfter2, regenAfter2[0]),
+      regenAfter2[1],
+    );
+    expect(afterExploitAttemptPartial.resources.sciencePoints).toBe(
+      stateAfter2.resources.sciencePoints,
+    );
+    expect(afterExploitAttemptPartial.roverSamplesCollected).toBe(2);
+
+    // 2. Completar todas las muestras del Sol 1 (N/N) y volver a pulsar "Nueva topografía" (bumpedSeedB)
+    let stateAllCollected = stateAfter2;
+    for (const smp of regenAfter2.slice(2)) {
+      stateAllCollected = applySampleCollectToMission(stateAllCollected, smp);
+    }
+    expect(stateAllCollected.resources.sciencePoints).toBe(maxSol1Science);
+    expect(stateAllCollected.roverSamplesCollected).toBe(initialSamples.length);
+
+    const regenAfterAll = generateTurnSamples('moon-shackleton', bumpedSeedB, 1, {
+      getTerrainHeight: (x, z) => sampleWorldTerrainHeight(x, z, 'moon-shackleton', bumpedSeedB),
+      collectedSampleIds: [
+        ...(stateAllCollected.collectedSampleIds ?? []),
+        ...(stateAllCollected.collectedSampleSlots ?? []),
+      ],
+    });
+    expect(regenAfterAll).toHaveLength(initialSamples.length);
+    expect(regenAfterAll.every((s) => s.collected === true)).toBe(true);
+
+    // Intentar recolectar cualquiera de las muestras regeneradas en el mismo Sol mantiene sciencePoints en el máximo del Sol 1
+    let stateAfterFullExploitAttempt = stateAllCollected;
+    for (const smp of regenAfterAll) {
+      stateAfterFullExploitAttempt = applySampleCollectToMission(
+        stateAfterFullExploitAttempt,
+        smp,
+      );
+    }
+    expect(stateAfterFullExploitAttempt.resources.sciencePoints).toBe(maxSol1Science);
+    expect(stateAfterFullExploitAttempt.roverSamplesCollected).toBe(initialSamples.length);
+  });
 });
+
 
