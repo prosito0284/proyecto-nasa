@@ -79,6 +79,7 @@ export const App: React.FC = () => {
     lastTurn,
     dismissTurnReport,
     openBriefing,
+    resumeMission,
     startMission,
     restartMission,
     setAllocation,
@@ -187,9 +188,11 @@ export const App: React.FC = () => {
     missionAudio.playClick();
     setIsScienceOpen(false);
     setIsBadgesOpen(false);
-    if (isBriefing || mission.status !== 'playing') {
+    if (mission.status !== 'playing') {
       startMission(mission.siteId, challengeSeed);
       window.scrollTo({ top: 0 });
+    } else if (isBriefing) {
+      resumeMission();
     } else if (lastTurn) {
       dismissTurnReport();
     }
@@ -315,11 +318,11 @@ export const App: React.FC = () => {
           )}
           <button
             id="start-tutorial-btn"
-            className="btn-secondary"
+            className="btn-secondary tutorial-launch-btn"
             onClick={handleLaunchTutorial}
           >
             <HelmetIcon size={16} />{' '}
-            {es ? 'Entrenamiento guiado' : 'Guided training'}
+            <span>{es ? 'Entrenamiento' : 'Training'}</span>
           </button>
           <button
             id="open-science-modal-btn"
