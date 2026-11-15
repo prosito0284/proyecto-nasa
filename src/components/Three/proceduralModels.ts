@@ -1825,12 +1825,84 @@ function createCornerBracketGeometry(box: THREE.Box3, armRatio = 0.22): THREE.Bu
 export interface ColonyWorldStateOptions extends Model3DStateOptions {
   /** Semilla determinista para generar cráteres, dunas y rocas únicas en cada partida */
   terrainSeed?: number;
+  /** Día o Sol actual de la misión (1..8+) */
+  currentDay?: number;
+  /** Duración total planificada de la misión */
+  totalDays?: number;
+  /** Puntos científicos acumulados */
+  sciencePoints?: number;
+  /** Asignación actual a soporte vital (%) */
+  lifeSupportAllocPercent?: number;
+  /** Asignación actual al invernadero (%) */
+  greenhouseAllocPercent?: number;
+  /** Asignación actual a ciencia y comunicaciones (%) */
+  scienceAllocPercent?: number;
   /** Alerta ambiental de entrenamiento (p. ej. caída térmica del onboarding) */
   isEnvironmentalAlert?: boolean;
   /** Transmisión activa hacia la Tierra (simulador de retraso) */
   commsActive?: boolean;
   /** Retraso de señal en segundos para la etiqueta de la antena */
   commDelaySeconds?: number;
+}
+
+export interface ColonyEvolutionState {
+  day: number;
+  solarWingLeft: boolean;
+  solarWingRight: boolean;
+  tunnelAirlockSpur: boolean;
+  tunnelNorthUmbilical: boolean;
+  greenhouseTier2: boolean;
+  greenhouseTier3: boolean;
+  regolithWall: boolean;
+  regolithArches: boolean;
+}
+
+export function computeColonyEvolutionState(opts: ColonyWorldStateOptions): ColonyEvolutionState {
+  const day = Math.max(1, Math.round(opts.currentDay ?? 1));
+  const sciencePoints = Math.max(0, opts.sciencePoints ?? 0);
+  const solarAlloc = opts.solarAllocPercent ?? 50;
+  const shieldAlloc = opts.shieldingAllocPercent ?? 25;
+  const greenhouseAlloc = opts.greenhouseAllocPercent ?? 25;
+  const lifeSupportVal = opts.lifeSupportPercent ?? 80;
+  const powerVal = opts.powerPercent ?? 80;
+  const foodVal = opts.foodPercent ?? 80;
+  const stormDeployed = isStormShieldDeployed(opts);
+
+  return {
+    day,
+    solarWingLeft: day >= 2 || solarAlloc >= 55,
+    solarWingRight: day >= 4 || (day >= 3 && powerVal >= 75),
+    tunnelAirlockSpur: day >= 3 || sciencePoints >= 35,
+    tunnelNorthUmbilical: day >= 5 || (day >= 3 && lifeSupportVal >= 75),
+    greenhouseTier2: day >= 2 || greenhouseAlloc >= 25,
+    greenhouseTier3: (day >= 4 || greenhouseAlloc >= 35) && !opts.isGreenhouseWilted && foodVal >= 50,
+    regolithWall: day >= 2 || shieldAlloc >= 30 || stormDeployed,
+    regolithArches: day >= 4 || shieldAlloc >= 40 || stormDeployed,
+  };
+}
+
+export function computeDynamicSunDirection(
+  siteId: OutpostSiteId | undefined,
+  opts: ColonyWorldStateOptions,
+): [number, number, number] {
+  const isMars = siteId === 'mars-jezero';
+  const day = Math.max(1, opts.currentDay ?? 1);
+  if (isMars) {
+    const baseAz = Math.atan2(0.42, 0.3);
+    const az = baseAz + (day - 1) * 0.34;
+    const elev = opts.isDustStorm
+      ? 0.38
+      : Math.max(0.32, Math.min(0.84, 0.5 + Math.sin(day * 0.72) * 0.24));
+    const horiz = Math.sqrt(Math.max(0.05, 1 - elev * elev));
+    return [horiz * Math.sin(az), elev, horiz * Math.cos(az)];
+  }
+  const baseAz = Math.atan2(0.78, -0.6);
+  const az = baseAz + (day - 1) * 0.26;
+  const elev = opts.isRimShadowPass
+    ? 0.075
+    : 0.14 + 0.05 * Math.sin(day * 0.85);
+  const horiz = Math.sqrt(Math.max(0.05, 1 - elev * elev));
+  return [horiz * Math.sin(az), elev, horiz * Math.cos(az)];
 }
 
 export function isStormShieldDeployed(opts: ColonyWorldStateOptions): boolean {
@@ -1932,6 +2004,8 @@ export interface ColonyWorldHandle {
   setSelected: (id: ColonyWorldModuleId | null) => void;
   pulse: (id: ColonyWorldModuleId) => void;
   getModuleAnchor: (id: ColonyWorldModuleId, out: THREE.Vector3) => THREE.Vector3;
+  getSunDirection: (out: THREE.Vector3) => THREE.Vector3;
+  getEvolutionState: () => ColonyEvolutionState;
   replaceModuleVisual: (id: ColonyWorldModuleId, object: THREE.Object3D) => void;
   animate: (elapsedSec: number, dtSec: number) => void;
 }
@@ -1959,9 +2033,9 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
 
   const ambient = new THREE.AmbientLight(atmo.ambientColor, atmo.ambientIntensity);
   const hemi = new THREE.HemisphereLight(atmo.hemiSkyColor, atmo.hemiGroundColor, atmo.hemiIntensity);
+  const sunDirVec = new THREE.Vector3(...computeDynamicSunDirection(siteId, options)).normalize();
   const sun = new THREE.DirectionalLight(atmo.sunColor, atmo.sunIntensity);
-  const sunDir = new THREE.Vector3(...atmo.sunDirection).normalize();
-  sun.position.copy(sunDir).multiplyScalar(80);
+  sun.position.copy(sunDirVec).multiplyScalar(80);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.camera.left = -42;
@@ -1975,7 +2049,9 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
 
   if (atmo.showStars) root.add(buildStarField());
   if (atmo.showEarth) root.add(buildEarth());
-  root.add(buildSunDisc(atmo));
+  const sunDisc = buildSunDisc(atmo);
+  sunDisc.position.copy(sunDirVec).multiplyScalar(1300);
+  root.add(sunDisc);
 
   root.add(buildWorldTerrain(atmo, siteId, terrainSeed));
   root.add(buildRockField(atmo, siteId, terrainSeed));
@@ -1992,6 +2068,28 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   addConnector(connectors, [4.6, 0.9, 1.4], [9.4, 0.9, 2.4], 0.8, atmo.hullColor, wire);
   addConnector(connectors, [-4.8, 0.15, 1.2], [-9.4, 0.15, 4.2], 0.14, 0x475569, wire);
   addConnector(connectors, [-2.6, 0.15, -4.2], [-5.4, 0.15, -11.6], 0.14, 0x475569, wire);
+
+  // M02: Túnel presurizado hacia nodo del rover y umbilical norte hacia la antena
+  const evoTunnelAirlock = new THREE.Group();
+  evoTunnelAirlock.name = 'evo-tunnel-airlock';
+  addConnector(evoTunnelAirlock, [1.5, 0.8, 4.7], [4.8, 0.8, 8.8], 0.52, atmo.hullColor, wire);
+  addWorldMesh(evoTunnelAirlock, new THREE.CylinderGeometry(0.95, 1.05, 1.56, 14), 0x475569, wire, {
+    pos: [4.8, 0.78, 8.8],
+  });
+  addWorldMesh(evoTunnelAirlock, new THREE.CylinderGeometry(1.0, 1.0, 0.24, 14), atmo.accentColor, wire, {
+    pos: [4.8, 0.92, 8.8],
+    emissive: atmo.accentColor,
+    emissiveIntensity: 0.22,
+  });
+
+  const evoTunnelNorth = new THREE.Group();
+  evoTunnelNorth.name = 'evo-tunnel-north';
+  addConnector(evoTunnelNorth, [-1.9, 0.82, -3.7], [-4.8, 0.82, -10.8], 0.56, atmo.hullColor, wire);
+  addWorldMesh(evoTunnelNorth, new THREE.BoxGeometry(1.5, 1.3, 1.5), 0x3b4656, wire, {
+    pos: [-4.8, 0.65, -10.8],
+  });
+
+  connectors.add(evoTunnelAirlock, evoTunnelNorth);
   connectors.traverse((o) => {
     o.raycast = () => undefined;
   });
@@ -1999,6 +2097,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
 
   const runtimes = {} as Record<ColonyWorldModuleId, ColonyModuleRuntime>;
   const modules = {} as Record<ColonyWorldModuleId, THREE.Group>;
+  const expansionAdditions: Partial<Record<ColonyWorldModuleId, THREE.Group[]>> = {};
 
   const createModuleShell = (id: ColonyWorldModuleId): ColonyModuleRuntime => {
     const meta = COLONY_WORLD_MODULES[id];
@@ -2023,15 +2122,8 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   // 1. MATRIZ DE PANELES SOLARES (power-grid)
   const power = createModuleShell('power-grid');
   const panelPivots: Array<{ yaw: THREE.Group; tilt: THREE.Group }> = [];
-  for (const [px, pz] of [
-    [-3.3, -2.2],
-    [0, -2.2],
-    [3.3, -2.2],
-    [-3.3, 1.7],
-    [0, 1.7],
-    [3.3, 1.7],
-  ] as Array<[number, number]>) {
-    addWorldMesh(power.visual, new THREE.CylinderGeometry(0.14, 0.22, 3.4, 8), 0x9aa5b4, wire, {
+  const addSolarUnit = (parent: THREE.Object3D, px: number, pz: number) => {
+    addWorldMesh(parent, new THREE.CylinderGeometry(0.14, 0.22, 3.4, 8), 0x9aa5b4, wire, {
       pos: [px, 1.7, pz],
     });
     const yaw = new THREE.Group();
@@ -2043,14 +2135,48 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       emissiveIntensity: 0.22,
     });
     addWorldMesh(tilt, new THREE.BoxGeometry(2.9, 0.1, 0.05), 0x93c5fd, 0x93c5fd, { pos: [0, 0.02, 0] });
-    power.visual.add(yaw);
+    parent.add(yaw);
     panelPivots.push({ yaw, tilt });
+  };
+  for (const [px, pz] of [
+    [-3.3, -2.2],
+    [0, -2.2],
+    [3.3, -2.2],
+    [-3.3, 1.7],
+    [0, 1.7],
+    [3.3, 1.7],
+  ] as Array<[number, number]>) {
+    addSolarUnit(power.visual, px, pz);
   }
   const batteryMesh = addWorldMesh(power.visual, new THREE.BoxGeometry(3.4, 1.2, 1.4), 0x2e7d4f, wire, {
     pos: [0, 0.6, 4.3],
     emissive: 0x2e7d4f,
     emissiveIntensity: 0.3,
   });
+
+  // M02: Alas solares de expansión (mantienen límites dentro de [-24, 24] sin invadir el hábitat)
+  const evoSolarWingLeft = new THREE.Group();
+  evoSolarWingLeft.name = 'evo-solar-wing-left';
+  addWorldMesh(evoSolarWingLeft, new THREE.BoxGeometry(2.6, 0.22, 0.35), 0x64748b, wire, {
+    pos: [-4.55, 0.95, -0.4],
+  });
+  addSolarUnit(evoSolarWingLeft, -5.8, -2.1);
+  addSolarUnit(evoSolarWingLeft, -5.8, 1.3);
+
+  const evoSolarWingRight = new THREE.Group();
+  evoSolarWingRight.name = 'evo-solar-wing-right';
+  addWorldMesh(evoSolarWingRight, new THREE.BoxGeometry(0.35, 0.22, 2.6), 0x64748b, wire, {
+    pos: [0, 0.95, -3.6],
+  });
+  addSolarUnit(evoSolarWingRight, -1.9, -5.0);
+  addSolarUnit(evoSolarWingRight, 1.9, -5.0);
+  const auxBatteryMesh = addWorldMesh(evoSolarWingRight, new THREE.BoxGeometry(2.2, 0.95, 1.1), 0x2e7d4f, wire, {
+    pos: [0, 0.48, -3.5],
+    emissive: 0x2e7d4f,
+    emissiveIntensity: 0.3,
+  });
+
+  expansionAdditions['power-grid'] = [evoSolarWingLeft, evoSolarWingRight];
   runtimes['power-grid'] = power;
 
   // 2. HÁBITAT + SOPORTE VITAL ECLSS + ESCUDO (oxygen-module)
@@ -2125,6 +2251,46 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   shieldDome.add(shieldWire);
   shieldDome.scale.set(1, 0.06, 1);
   hab.visual.add(shieldDome);
+
+  // M02: Bloques y arcos físicos de regolito sinterizado contra radiación
+  const regolithArmorColor = isLunar ? 0x6c7a89 : 0x8b4a2b;
+  const evoRegolithWall = new THREE.Group();
+  evoRegolithWall.name = 'evo-regolith-wall';
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    if (Math.abs(Math.atan2(Math.sin(a), Math.cos(a))) < 0.46) continue;
+    addWorldMesh(evoRegolithWall, new THREE.BoxGeometry(1.55, 0.85, 0.65), regolithArmorColor, wire, {
+      pos: [Math.sin(a) * 5.2, 0.82, Math.cos(a) * 5.2],
+      rot: [0, a, 0],
+    });
+    if (i % 2 === 0) {
+      addWorldMesh(evoRegolithWall, new THREE.BoxGeometry(1.35, 0.65, 0.55), atmo.terrainDark, wire, {
+        pos: [Math.sin(a) * 5.15, 1.54, Math.cos(a) * 5.15],
+        rot: [0, a, 0],
+      });
+    }
+  }
+
+  const evoRegolithArches = new THREE.Group();
+  evoRegolithArches.name = 'evo-regolith-arches';
+  for (const archAngle of [0.38, 1.18, 1.98, 2.78]) {
+    addWorldMesh(
+      evoRegolithArches,
+      new THREE.TorusGeometry(4.42, 0.24, 6, 18, Math.PI),
+      regolithArmorColor,
+      wire,
+      {
+        pos: [0, 0.6, 0],
+        rot: [0, archAngle, 0],
+        edgeThreshold: 26,
+      },
+    );
+  }
+  addWorldMesh(evoRegolithArches, new THREE.CylinderGeometry(1.45, 1.85, 0.42, 16), regolithArmorColor, wire, {
+    pos: [0, 4.72, 0],
+  });
+
+  expansionAdditions['oxygen-module'] = [evoRegolithWall, evoRegolithArches];
   runtimes['oxygen-module'] = hab;
 
   // 3. INVERNADERO HIDROPÓNICO (greenhouse)
@@ -2135,6 +2301,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     emissive: 0x2e7d4f,
     emissiveIntensity: 0.5,
   });
+  const cropMeshes: THREE.Mesh[] = [cropMesh];
   addWorldMesh(
     gh.visual,
     new THREE.CylinderGeometry(1.75, 1.75, 6.0, 18, 1, false, 0, Math.PI),
@@ -2155,6 +2322,82 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   const growLight = new THREE.PointLight(0xd946ef, 2.4, 10, 2);
   growLight.position.set(0, 1.4, 0);
   gh.visual.add(growLight);
+
+  // M02: Niveles de cultivo y módulos anexos del invernadero
+  const evoGreenhouseTier2 = new THREE.Group();
+  evoGreenhouseTier2.name = 'evo-greenhouse-tier2';
+  for (const [rx, rz] of [
+    [-1.4, -0.55],
+    [1.4, 0.55],
+  ] as Array<[number, number]>) {
+    cropMeshes.push(
+      addWorldMesh(evoGreenhouseTier2, new THREE.BoxGeometry(2.1, 0.28, 0.8), 0x2e7d4f, 0x14532d, {
+        pos: [rx, 1.24, rz],
+        emissive: 0x2e7d4f,
+        emissiveIntensity: 0.52,
+      }),
+    );
+  }
+  addWorldMesh(evoGreenhouseTier2, new THREE.BoxGeometry(4.4, 0.38, 1.9), 0x334155, wire, {
+    pos: [0, 0.19, 2.65],
+  });
+  cropMeshes.push(
+    addWorldMesh(evoGreenhouseTier2, new THREE.BoxGeometry(3.7, 0.42, 1.3), 0x2e7d4f, 0x14532d, {
+      pos: [0, 0.58, 2.65],
+      emissive: 0x2e7d4f,
+      emissiveIntensity: 0.5,
+    }),
+  );
+  addWorldMesh(
+    evoGreenhouseTier2,
+    new THREE.CylinderGeometry(1.02, 1.02, 4.1, 14, 1, false, 0, Math.PI),
+    0xdbeafe,
+    COLONY_HIGHLIGHT_HEX,
+    { pos: [0, 0.38, 2.65], rot: [0, 0, Math.PI / 2], opacity: 0.3 },
+  );
+  ledMeshes.push(
+    addWorldMesh(evoGreenhouseTier2, new THREE.BoxGeometry(3.4, 0.06, 0.1), 0xf0abfc, 0xf0abfc, {
+      pos: [0, 1.22, 2.65],
+      emissive: 0xd946ef,
+      emissiveIntensity: 1.0,
+    }),
+  );
+
+  const evoGreenhouseTier3 = new THREE.Group();
+  evoGreenhouseTier3.name = 'evo-greenhouse-tier3';
+  addWorldMesh(evoGreenhouseTier3, new THREE.BoxGeometry(4.4, 0.38, 1.9), 0x334155, wire, {
+    pos: [0, 0.19, -2.65],
+  });
+  cropMeshes.push(
+    addWorldMesh(evoGreenhouseTier3, new THREE.BoxGeometry(3.7, 0.46, 1.3), 0x2e7d4f, 0x14532d, {
+      pos: [0, 0.6, -2.65],
+      emissive: 0x2e7d4f,
+      emissiveIntensity: 0.55,
+    }),
+  );
+  for (const fx of [-1.2, 0, 1.2]) {
+    addWorldMesh(evoGreenhouseTier3, new THREE.SphereGeometry(0.18, 8, 8), 0xfc3d21, 0xfde68a, {
+      pos: [fx, 0.92, -2.65],
+      emissive: 0xd97706,
+      emissiveIntensity: 0.4,
+    });
+  }
+  addWorldMesh(
+    evoGreenhouseTier3,
+    new THREE.CylinderGeometry(1.02, 1.02, 4.1, 14, 1, false, 0, Math.PI),
+    0xdbeafe,
+    COLONY_HIGHLIGHT_HEX,
+    { pos: [0, 0.38, -2.65], rot: [0, 0, Math.PI / 2], opacity: 0.3 },
+  );
+  ledMeshes.push(
+    addWorldMesh(evoGreenhouseTier3, new THREE.BoxGeometry(3.4, 0.06, 0.1), 0xf0abfc, 0xf0abfc, {
+      pos: [0, 1.22, -2.65],
+      emissive: 0xd946ef,
+      emissiveIntensity: 1.0,
+    }),
+  );
+
+  expansionAdditions.greenhouse = [evoGreenhouseTier2, evoGreenhouseTier3];
   runtimes.greenhouse = gh;
 
   // 4. ANTENA DE COMUNICACIONES (comms-array)
@@ -2248,15 +2491,23 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   for (const id of COLONY_WORLD_MODULE_IDS) {
     const rt = runtimes[id];
     const meta = COLONY_WORLD_MODULES[id];
+
+    // Calcular caja delimitadora sobre el núcleo base para que los corchetes queden ajustados en Día 1
+    rt.group.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(rt.visual);
+    box.translate(rt.group.position.clone().negate());
+    box.expandByScalar(0.35);
+
+    const extras = expansionAdditions[id];
+    if (extras) {
+      for (const ex of extras) rt.visual.add(ex);
+    }
+
     rt.group.userData.worldModuleId = id;
     rt.group.traverse((o) => {
       o.userData.worldModuleId = id;
     });
 
-    rt.group.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(rt.visual);
-    box.translate(rt.group.position.clone().negate());
-    box.expandByScalar(0.35);
     const bracketMat = new THREE.LineBasicMaterial({
       color: COLONY_HIGHLIGHT_HEX,
       transparent: true,
@@ -2299,6 +2550,8 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   let hoveredId: ColonyWorldModuleId | null = null;
   let selectedId: ColonyWorldModuleId | null = null;
   let state: ColonyWorldStateOptions = { ...options, siteId };
+  let evoState: ColonyEvolutionState = computeColonyEvolutionState(state);
+  let hasInitializedState = false;
   let shieldTarget = 0.06;
   let panelTiltTarget = isLunar ? 1.35 : 0.38;
   let dustTarget = atmo.dustBaseCount;
@@ -2309,6 +2562,16 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   let sunTarget = atmo.sunIntensity;
   let roverAngle = 0;
   let roverMoving = true;
+
+  const syncEvolutionPart = (obj: THREE.Group, visible: boolean) => {
+    const wasVisible = obj.visible;
+    obj.visible = visible;
+    if (visible && !wasVisible && hasInitializedState) {
+      obj.scale.set(0.95, 0.2, 0.95);
+    } else if (visible && !hasInitializedState) {
+      obj.scale.set(1, 1, 1);
+    }
+  };
 
   const applyBaseEmissive = (mat: THREE.MeshStandardMaterial, hex: number, intensity: number, owner: ColonyWorldModuleId) => {
     mat.userData.baseEmissive = { hex, intensity };
@@ -2350,6 +2613,32 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
 
   const updateState = (next: ColonyWorldStateOptions) => {
     state = { ...state, ...next, siteId };
+    evoState = computeColonyEvolutionState(state);
+    syncEvolutionPart(evoSolarWingLeft, evoState.solarWingLeft);
+    syncEvolutionPart(evoSolarWingRight, evoState.solarWingRight);
+    syncEvolutionPart(evoTunnelAirlock, evoState.tunnelAirlockSpur);
+    syncEvolutionPart(evoTunnelNorth, evoState.tunnelNorthUmbilical);
+    syncEvolutionPart(evoGreenhouseTier2, evoState.greenhouseTier2);
+    syncEvolutionPart(evoGreenhouseTier3, evoState.greenhouseTier3);
+    syncEvolutionPart(evoRegolithWall, evoState.regolithWall);
+    syncEvolutionPart(evoRegolithArches, evoState.regolithArches);
+    hasInitializedState = true;
+
+    const [sx, sy, sz] = computeDynamicSunDirection(siteId, state);
+    sunDirVec.set(sx, sy, sz).normalize();
+    sun.position.copy(sunDirVec).multiplyScalar(80);
+    sunDisc.position.copy(sunDirVec).multiplyScalar(1300);
+    sun.updateMatrixWorld();
+    const dynamicSunHex = state.isDustStorm
+      ? 0xf59e0b
+      : state.isSolarStorm
+        ? 0xfff3c4
+        : atmo.sunColor;
+    sun.color.setHex(dynamicSunHex);
+    (sunDisc.material as THREE.MeshBasicMaterial).color.setHex(
+      state.isSolarStorm ? 0xffffff : atmo.kind === 'mars' ? 0xfff1dc : 0xfffbeb,
+    );
+
     const deployed = isStormShieldDeployed(state);
     const powerVal = state.powerPercent ?? 80;
     const isBlackout = Boolean(state.isLowPowerBlackout);
@@ -2372,9 +2661,11 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     }
 
     const battHex = powerVal < 15 ? 0xfc3d21 : powerVal < 40 ? 0xd97706 : 0x2e7d4f;
-    const battMat = batteryMesh.material as THREE.MeshStandardMaterial;
-    battMat.color.setHex(battHex);
-    applyBaseEmissive(battMat, battHex, 0.35, 'power-grid');
+    for (const bMesh of [batteryMesh, auxBatteryMesh]) {
+      const battMat = bMesh.material as THREE.MeshStandardMaterial;
+      battMat.color.setHex(battHex);
+      applyBaseEmissive(battMat, battHex, 0.35, 'power-grid');
+    }
 
     for (const w of portholes) {
       const mat = w.material as THREE.MeshStandardMaterial;
@@ -2383,14 +2674,21 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     }
     for (const rad of radiators) {
       const mat = rad.material as THREE.MeshStandardMaterial;
-      applyBaseEmissive(mat, state.isEnvironmentalAlert ? 0xffb300 : 0x000000, state.isEnvironmentalAlert ? 0.6 : 0, 'oxygen-module');
+      applyBaseEmissive(
+        mat,
+        state.isEnvironmentalAlert ? 0xffb300 : 0x000000,
+        state.isEnvironmentalAlert ? 0.6 : 0,
+        'oxygen-module',
+      );
     }
 
     const wilted = Boolean(state.isGreenhouseWilted);
-    const cropMat = cropMesh.material as THREE.MeshStandardMaterial;
-    cropMat.color.setHex(wilted ? 0x991b1b : 0x2e7d4f);
-    applyBaseEmissive(cropMat, wilted ? 0xfc3d21 : 0x2e7d4f, wilted ? 0.3 : 0.55, 'greenhouse');
-    growLight.intensity = isBlackout ? 0 : 2.4;
+    for (const cm of cropMeshes) {
+      const cropMat = cm.material as THREE.MeshStandardMaterial;
+      cropMat.color.setHex(wilted ? 0x991b1b : 0x2e7d4f);
+      applyBaseEmissive(cropMat, wilted ? 0xfc3d21 : 0x2e7d4f, wilted ? 0.3 : 0.55, 'greenhouse');
+    }
+    growLight.intensity = isBlackout ? 0 : evoState.greenhouseTier3 ? 3.2 : 2.4;
     for (const led of ledMeshes) {
       applyBaseEmissive(led.material as THREE.MeshStandardMaterial, 0xd946ef, isBlackout ? 0.05 : 1.1, 'greenhouse');
     }
@@ -2442,6 +2740,10 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     return out;
   };
 
+  const getSunDirection = (out: THREE.Vector3) => out.copy(sunDirVec);
+
+  const getEvolutionState = () => ({ ...evoState });
+
   const replaceModuleVisual = (id: ColonyWorldModuleId, object: THREE.Object3D) => {
     const rt = runtimes[id];
     const meta = COLONY_WORLD_MODULES[id];
@@ -2471,17 +2773,38 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     rt.motionRoot.add(wrapper);
   };
 
+  const evolutionGroups = [
+    evoSolarWingLeft,
+    evoSolarWingRight,
+    evoTunnelAirlock,
+    evoTunnelNorth,
+    evoGreenhouseTier2,
+    evoGreenhouseTier3,
+    evoRegolithWall,
+    evoRegolithArches,
+  ];
+
   const animate = (elapsedSec: number, dtSec: number) => {
     const k = Math.min(1, dtSec * 3);
+
+    for (const eg of evolutionGroups) {
+      if (!eg.visible) continue;
+      if (eg.scale.y < 0.999) {
+        eg.scale.x += (1 - eg.scale.x) * Math.min(1, dtSec * 5);
+        eg.scale.y += (1 - eg.scale.y) * Math.min(1, dtSec * 5);
+        eg.scale.z += (1 - eg.scale.z) * Math.min(1, dtSec * 5);
+      }
+    }
 
     shieldDome.scale.y += (shieldTarget - shieldDome.scale.y) * k;
     shieldMat.opacity = shieldTarget > 0.5 ? 0.24 + Math.sin(elapsedSec * 4) * 0.06 : 0.18;
 
+    const sunAzimuth = Math.atan2(sunDirVec.x, sunDirVec.z);
     for (let i = 0; i < panelPivots.length; i++) {
       const p = panelPivots[i];
       p.tilt.rotation.x += (panelTiltTarget - p.tilt.rotation.x) * k;
-      const trackYaw = isLunar ? Math.atan2(sunDir.x, sunDir.z) - Math.PI : Math.sin(elapsedSec * 0.05) * 0.5;
-      p.yaw.rotation.y += (trackYaw - p.yaw.rotation.y) * Math.min(1, dtSec * 0.8);
+      const trackYaw = isLunar ? sunAzimuth - Math.PI : sunAzimuth * 0.35 + Math.sin(elapsedSec * 0.05) * 0.2;
+      p.yaw.rotation.y += (trackYaw - p.yaw.rotation.y) * Math.min(1, dtSec * 1.1);
     }
 
     const earthYaw = Math.atan2(WORLD_EARTH_DIRECTION[0], WORLD_EARTH_DIRECTION[2]);
@@ -2558,6 +2881,8 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     setSelected,
     pulse,
     getModuleAnchor,
+    getSunDirection,
+    getEvolutionState,
     replaceModuleVisual,
     animate,
   };

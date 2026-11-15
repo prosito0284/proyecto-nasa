@@ -19,7 +19,9 @@ import {
   type ColonyWorldHandle,
   type ColonyWorldModuleId,
   type ColonyWorldStateOptions,
+  computeColonyEvolutionState,
   computeColonyFocusPose,
+  computeDynamicSunDirection,
   createSeededPrng,
   DEFAULT_TERRAIN_SEED,
   disposeObject3D,
@@ -204,12 +206,18 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   const optionsKeyDeps = [
     siteId,
     effectiveSeed,
+    options.currentDay,
+    options.totalDays,
+    options.sciencePoints,
     options.powerPercent,
     options.lifeSupportPercent,
     options.shieldingPercent,
     options.foodPercent,
     options.solarAllocPercent,
+    options.lifeSupportAllocPercent,
     options.shieldingAllocPercent,
+    options.greenhouseAllocPercent,
+    options.scienceAllocPercent,
     options.weatherType,
     options.isDustStorm,
     options.isSolarStorm,
@@ -695,6 +703,10 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     const skyBg = isMars ? '#2D160E' : '#03060C';
     const horizonBg = isMars ? '#4E2417' : '#15273E';
     const shieldDeployed = isStormShieldDeployed(options);
+    const evo = computeColonyEvolutionState(options);
+    const sunDir = computeDynamicSunDirection(siteId, options);
+    const sunX = Math.round(Math.max(24, Math.min(336, 180 + sunDir[0] * 130)));
+    const sunY = Math.round(Math.max(16, Math.min(48, 50 - sunDir[1] * 38)));
     const rng = createSeededPrng(effectiveSeed ^ (isMars ? 0x22af : 0x91e3));
     const ridgeY1 = Math.round(62 + rng() * 14);
     const ridgeY2 = Math.round(58 + rng() * 16);
@@ -726,12 +738,43 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           ) : (
             <ellipse cx="180" cy="64" rx="180" ry="20" fill="#6E2D18" opacity="0.28" />
           )}
+          <circle
+            cx={sunX}
+            cy={sunY}
+            r="6"
+            fill={options.isSolarStorm ? '#FFFFFF' : isMars ? '#FFF1DC' : '#FFFBEB'}
+            stroke={options.isDustStorm ? '#F59E0B' : inkSecondary}
+            strokeWidth="1"
+          />
           <path
             d={`M0,76 L55,${ridgeY1} L130,74 L195,${ridgeY2} L285,${ridgeY3} L360,76 L360,190 L0,190 Z`}
             fill={horizonBg}
           />
           <ellipse cx={craterX1} cy="96" rx="16" ry="5" fill="none" stroke={inkSecondary} strokeWidth="0.9" opacity="0.55" />
           <ellipse cx={craterX2} cy="92" rx="14" ry="4.5" fill="none" stroke={inkSecondary} strokeWidth="0.9" opacity="0.55" />
+
+          {evo.tunnelAirlockSpur && (
+            <line
+              x1={SVG_MODULE_COORDS['oxygen-module'].x}
+              y1={SVG_MODULE_COORDS['oxygen-module'].y + 8}
+              x2={SVG_MODULE_COORDS['rover-moxie'].x - 16}
+              y2={SVG_MODULE_COORDS['rover-moxie'].y - 4}
+              stroke={inkPrimary}
+              strokeWidth="3"
+              data-evo="tunnel-airlock"
+            />
+          )}
+          {evo.tunnelNorthUmbilical && (
+            <line
+              x1={SVG_MODULE_COORDS['oxygen-module'].x - 10}
+              y1={SVG_MODULE_COORDS['oxygen-module'].y - 6}
+              x2={SVG_MODULE_COORDS['comms-array'].x + 6}
+              y2={SVG_MODULE_COORDS['comms-array'].y + 10}
+              stroke={inkPrimary}
+              strokeWidth="3"
+              data-evo="tunnel-north"
+            />
+          )}
 
           {COLONY_WORLD_MODULE_IDS.map((modId) => {
             const c = SVG_MODULE_COORDS[modId];
@@ -763,11 +806,36 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
                   strokeDasharray={active ? undefined : '4 3'}
                 />
                 {modId === 'power-grid' && (
-                  <rect x="-18" y="-12" width="36" height="24" fill="#1E3A8A" stroke={inkPrimary} strokeWidth="1.5" />
+                  <>
+                    <rect x="-18" y="-12" width="36" height="24" fill="#1E3A8A" stroke={inkPrimary} strokeWidth="1.5" />
+                    {evo.solarWingLeft && (
+                      <rect x="-32" y="-9" width="12" height="18" fill="#1D4ED8" stroke={inkPrimary} strokeWidth="1.2" data-evo="solar-left" />
+                    )}
+                    {evo.solarWingRight && (
+                      <rect x="-14" y="-24" width="28" height="10" fill="#1D4ED8" stroke={inkPrimary} strokeWidth="1.2" data-evo="solar-right" />
+                    )}
+                  </>
                 )}
                 {modId === 'oxygen-module' && (
                   <>
+                    {evo.regolithWall && (
+                      <path
+                        d="M-24,8 L-24,-2 M24,8 L24,-2"
+                        stroke={isMars ? '#A0522D' : '#94A3B8'}
+                        strokeWidth="3"
+                        data-evo="regolith-wall"
+                      />
+                    )}
                     <path d="M-20,6 A20,18 0 0,1 20,6 Z" fill="#E8E2D5" stroke={inkPrimary} strokeWidth="1.5" />
+                    {evo.regolithArches && (
+                      <path
+                        d="M-21,6 A21,19 0 0,1 21,6"
+                        fill="none"
+                        stroke={isMars ? '#A0522D' : '#64748B'}
+                        strokeWidth="3.5"
+                        data-evo="regolith-arches"
+                      />
+                    )}
                     {shieldDeployed && (
                       <path
                         d="M-26,8 A26,24 0 0,1 26,8"
@@ -779,7 +847,15 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
                   </>
                 )}
                 {modId === 'greenhouse' && (
-                  <rect x="-18" y="-10" width="36" height="20" fill="#14532D" stroke="#2E7D4F" strokeWidth="1.5" />
+                  <>
+                    <rect x="-18" y="-10" width="36" height="20" fill="#14532D" stroke="#2E7D4F" strokeWidth="1.5" />
+                    {evo.greenhouseTier2 && (
+                      <rect x="-14" y="12" width="28" height="8" fill="#166534" stroke="#4ADE80" strokeWidth="1.2" data-evo="greenhouse-tier2" />
+                    )}
+                    {evo.greenhouseTier3 && (
+                      <rect x="-14" y="-20" width="28" height="8" fill="#166534" stroke="#F87171" strokeWidth="1.2" data-evo="greenhouse-tier3" />
+                    )}
+                  </>
                 )}
                 {modId === 'comms-array' && (
                   <>

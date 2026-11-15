@@ -22,7 +22,9 @@ import {
   COLONY_WORLD_MODULE_IDS,
   COLONY_WORLD_MODULES,
   type ColonyWorldModuleId,
+  computeColonyEvolutionState,
   computeColonyFocusPose,
+  computeDynamicSunDirection,
   disposeObject3D,
   findColonyModuleId,
   getColonyModuleStatus,
@@ -296,6 +298,128 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
     }
 
     disposeObject3D(world.group);
+  });
+
+  it('M02: evoluciona la colonia por día/asignación (alas solares, túneles, invernadero y regolito) y varía el ángulo solar', () => {
+    const evoDay1 = computeColonyEvolutionState({
+      currentDay: 1,
+      solarAllocPercent: 30,
+      shieldingAllocPercent: 20,
+      greenhouseAllocPercent: 15,
+      sciencePoints: 10,
+      lifeSupportPercent: 60,
+      powerPercent: 60,
+      foodPercent: 60,
+    });
+    expect(evoDay1.solarWingLeft).toBe(false);
+    expect(evoDay1.solarWingRight).toBe(false);
+    expect(evoDay1.tunnelAirlockSpur).toBe(false);
+    expect(evoDay1.tunnelNorthUmbilical).toBe(false);
+    expect(evoDay1.greenhouseTier2).toBe(false);
+    expect(evoDay1.greenhouseTier3).toBe(false);
+    expect(evoDay1.regolithWall).toBe(false);
+    expect(evoDay1.regolithArches).toBe(false);
+
+    const world = buildColonyWorld({
+      siteId: 'moon-shackleton',
+      currentDay: 1,
+      solarAllocPercent: 30,
+      shieldingAllocPercent: 20,
+      greenhouseAllocPercent: 15,
+      sciencePoints: 10,
+      lifeSupportPercent: 60,
+      powerPercent: 60,
+      foodPercent: 60,
+    });
+
+    expect(world.getEvolutionState()).toEqual(evoDay1);
+    expect(world.group.getObjectByName('evo-solar-wing-left')?.visible).toBe(false);
+    expect(world.group.getObjectByName('evo-tunnel-airlock')?.visible).toBe(false);
+    expect(world.group.getObjectByName('evo-regolith-wall')?.visible).toBe(false);
+    expect(world.group.getObjectByName('evo-greenhouse-tier2')?.visible).toBe(false);
+
+    const sunDay1 = new THREE.Vector3();
+    world.getSunDirection(sunDay1);
+
+    // Al avanzar a Sol/Día 5 con ciencia y blindaje, despliega todas las expansiones y rota el Sol
+    world.updateState({
+      siteId: 'moon-shackleton',
+      currentDay: 5,
+      sciencePoints: 50,
+      powerPercent: 85,
+      lifeSupportPercent: 82,
+      foodPercent: 78,
+      solarAllocPercent: 70,
+      shieldingAllocPercent: 45,
+      greenhouseAllocPercent: 40,
+      isGreenhouseWilted: false,
+    });
+
+    const evoDay5 = world.getEvolutionState();
+    expect(evoDay5.solarWingLeft).toBe(true);
+    expect(evoDay5.solarWingRight).toBe(true);
+    expect(evoDay5.tunnelAirlockSpur).toBe(true);
+    expect(evoDay5.tunnelNorthUmbilical).toBe(true);
+    expect(evoDay5.greenhouseTier2).toBe(true);
+    expect(evoDay5.greenhouseTier3).toBe(true);
+    expect(evoDay5.regolithWall).toBe(true);
+    expect(evoDay5.regolithArches).toBe(true);
+
+    for (const partName of [
+      'evo-solar-wing-left',
+      'evo-solar-wing-right',
+      'evo-tunnel-airlock',
+      'evo-tunnel-north',
+      'evo-greenhouse-tier2',
+      'evo-greenhouse-tier3',
+      'evo-regolith-wall',
+      'evo-regolith-arches',
+    ]) {
+      const obj = world.group.getObjectByName(partName);
+      expect(obj).toBeTruthy();
+      expect(obj?.visible).toBe(true);
+    }
+
+    // Todas las alas nuevas de módulos siguen siendo seleccionables por Raycaster
+    expect(findColonyModuleId(world.group.getObjectByName('evo-solar-wing-left') ?? null)).toBe('power-grid');
+    expect(findColonyModuleId(world.group.getObjectByName('evo-regolith-arches') ?? null)).toBe('oxygen-module');
+    expect(findColonyModuleId(world.group.getObjectByName('evo-greenhouse-tier3') ?? null)).toBe('greenhouse');
+
+    const sunDay5 = new THREE.Vector3();
+    world.getSunDirection(sunDay5);
+    expect(sunDay5.distanceTo(sunDay1)).toBeGreaterThan(0.2);
+
+    const rimSun = computeDynamicSunDirection('moon-shackleton', { currentDay: 2, isRimShadowPass: true });
+    expect(rimSun[1]).toBeLessThan(0.1);
+    const marsDustSun = computeDynamicSunDirection('mars-jezero', { currentDay: 4, isDustStorm: true });
+    expect(marsDustSun[1]).toBeCloseTo(0.38, 3);
+
+    world.animate(2.0, 0.2);
+    disposeObject3D(world.group);
+
+    // Respaldo SVG sin WebGL también refleja evolución por día
+    const htmlEvo = renderToStaticMarkup(
+      React.createElement(ColonyWorld3D, {
+        lang: 'es',
+        forceFallback: true,
+        options: {
+          siteId: 'mars-jezero',
+          currentDay: 5,
+          sciencePoints: 50,
+          powerPercent: 85,
+          lifeSupportPercent: 85,
+          foodPercent: 75,
+          solarAllocPercent: 70,
+          shieldingAllocPercent: 45,
+          greenhouseAllocPercent: 40,
+        },
+      }),
+    );
+    expect(htmlEvo).toContain('data-evo="solar-left"');
+    expect(htmlEvo).toContain('data-evo="solar-right"');
+    expect(htmlEvo).toContain('data-evo="regolith-arches"');
+    expect(htmlEvo).toContain('data-evo="greenhouse-tier3"');
+    expect(htmlEvo).toContain('data-evo="tunnel-north"');
   });
 
   it('M04: resolveColonyKeyCommand soporta órbita, paneo (Shift/WASD), zoom, Tab, Enter, Espacio y R', () => {
