@@ -359,6 +359,7 @@ export const App: React.FC = () => {
         <>
           <div
             className="timeline-bar"
+            data-tutorial-id="timeline-bar"
             aria-label={es ? 'Progreso de la misión' : 'Mission progress'}
           >
             <div className="timeline-label">
@@ -470,7 +471,7 @@ export const App: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="crew-strip">
+                  <div className="crew-strip" data-tutorial-id="crew-status">
                     <CrewRoster lang={lang} crew={crew} />
                   </div>
 
@@ -486,6 +487,7 @@ export const App: React.FC = () => {
                         disabled={executingId !== null}
                         onPreview={setPreviewChoice}
                         onExecute={handleExecute}
+                        tutorialId={i === 0 ? 'primary-work-order' : undefined}
                       />
                     ))}
                   </div>

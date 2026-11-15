@@ -1,11 +1,14 @@
 /**
- * Guion Bilingüe del Sistema de Entrenamiento Guiado (T04)
+ * Guion Bilingüe del Sistema de Entrenamiento Guiado (T04 & T07)
  * Reto NASA Space Apps 2026: Build a Junior Astronaut Mission Trainer
  *
- * Diseñado para cadetes de 7 a 12 años siguiendo la regla de dieta de texto (Ronda 4):
- * - Títulos en tipo oración.
- * - Cuerpo de máximo 2 frases por paso en Español (ES) e Inglés (EN).
- * - Conectado a los atributos reales `data-tutorial-id` del HUD, Mapa, Dilemas y Ciencia.
+ * Cubre los 5 contenedores reales instrumentados en el HUD (T07):
+ * 1. Panel de recursos vitales (O2, agua, energía, radiación): `vitals-checklist`
+ * 2. Presupuesto y controles de energía de la base: `power-presets`
+ * 3. Vista principal de la misión/colonia y sus controles: `outpost-map`
+ * 4. Estado de la tripulación y salud/fatiga: `crew-status`
+ * 5. Controles de avance de ciclo/tiempo y órdenes de misión con datos NASA: `work-orders`
+ * 6. Botón de acceso al modal de ciencia y datos reales de la NASA: `science-button`
  */
 
 import type { TutorialStep } from '../types/tutorial';
@@ -15,12 +18,12 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: 'step-vitals-checklist',
     targetSelector: 'vitals-checklist',
     title: {
-      es: 'Tu hoja de vitales y tripulación',
-      en: 'Your vitals checklist and crew',
+      es: 'Panel de recursos vitales y radiación',
+      en: 'Vitals and radiation telemetry panel',
     },
     body: {
-      es: 'Cada miembro de tu tripulación vigila un recurso vital como batería, oxígeno, comida o blindaje. Si cualquier vital cae a cero antes del octavo día, la misión se interrumpe.',
-      en: 'Each crew member watches over a vital resource like battery, oxygen, food, or shielding. If any vital drops to zero before day eight, the mission ends early.',
+      es: 'Aquí controlas el oxígeno, agua reciclada, energía, comida y la dosis de radiación en mSv. Si cualquiera de los vitales cae a cero antes del octavo día, la misión fracasa.',
+      en: 'Here you monitor oxygen, recycled water, battery power, food, and radiation dose in mSv. If any vital drops to zero before day eight, the mission fails.',
     },
     placement: 'right',
     spotlightPadding: 8,
@@ -51,12 +54,12 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: 'step-outpost-map',
     targetSelector: 'outpost-map',
     title: {
-      es: 'Diagrama técnico de la base y radio',
-      en: 'Outpost technical schematic and radio',
+      es: 'Vista de la colonia y controles de módulos',
+      en: 'Outpost schematic view and module controls',
     },
     body: {
-      es: 'Este plano muestra en tiempo real tus paneles solares, el refugio de agua y el clima espacial de hoy. Aquí también puedes probar cuánto tarda tu voz en llegar a Houston a la velocidad de la luz.',
-      en: 'This schematic shows your solar arrays, water shelter, and today’s space weather in real time. You can also test how long your voice takes to reach Houston at the speed of light.',
+      es: 'Este diagrama técnico muestra en tiempo real los paneles solares, el refugio de agua y el clima espacial. También puedes tocar cada módulo o probar el retraso de señal con Houston.',
+      en: 'This technical schematic displays solar arrays, the water shelter, and space weather in real time. You can also inspect each module or test the signal delay to Houston.',
     },
     placement: 'bottom',
     spotlightPadding: 6,
@@ -64,31 +67,31 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     tone: 'info',
   },
   {
-    id: 'step-dilemma-weather',
-    targetSelector: 'dilemma-weather',
+    id: 'step-crew-status',
+    targetSelector: 'crew-status',
     title: {
-      es: 'Clima espacial real de la NASA',
-      en: 'Real NASA space weather',
+      es: 'Estado y salud de la tripulación',
+      en: 'Crew status and health monitor',
     },
     body: {
-      es: 'Cada día enfrentas un evento respaldado por datos reales de las misiones DONKI, OSDR, Artemis o Marte. El sello de tinta indica de qué archivo científico proviene el dato de hoy.',
-      en: 'Each day brings an event backed by real data from NASA DONKI, OSDR, Artemis, or Mars missions. The ink stamp shows which scientific archive provides today’s telemetry.',
+      es: 'Tus cuatro especialistas reportan aquí su nivel de fatiga, ánimo y alertas sobre el sistema que vigilan. Mantén todos los sistemas estables para alcanzar el rango de Comandante Estelar.',
+      en: 'Your four specialists report their fatigue, mood, and alerts for the system they watch here. Keep every system stable to earn the top Star Commander rank.',
     },
-    placement: 'bottom',
+    placement: 'top',
     spotlightPadding: 8,
     requireAction: false,
-    tone: 'caution',
+    tone: 'info',
   },
   {
     id: 'step-work-orders',
     targetSelector: 'work-orders',
     title: {
-      es: 'Órdenes de trabajo: nada es gratis',
-      en: 'Work orders: no decision is free',
+      es: 'Órdenes de misión y avance de ciclo',
+      en: 'Mission work orders and cycle advance',
     },
     body: {
-      es: 'En ingeniería espacial toda decisión tiene un costo: revisa las columnas Ganas y Pagas antes de firmar. Pasa el cursor sobre una orden para previsualizar su impacto en tu hoja de vitales.',
-      en: 'In space engineering every choice has a trade-off: check the You gain and You pay columns before signing. Hover or tap a work order to preview its impact on your vitals checklist.',
+      es: 'Ninguna decisión es gratis: compara las columnas Ganas y Pagas antes de firmar una orden para avanzar al siguiente día. Cada opción está respaldada por estudios reales de la NASA.',
+      en: 'No decision is free: compare the You gain and You pay columns before signing a work order to advance the day. Every option is backed by real NASA studies.',
     },
     placement: 'top',
     spotlightPadding: 8,
@@ -103,8 +106,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
       en: 'NASA science annex and quiz',
     },
     body: {
-      es: 'En este anexo puedes consultar el glosario para niños, estudios espaciales y fotos reales de la NASA. Haz clic en el botón iluminado para abrir el anexo y completar tu entrenamiento.',
-      en: 'In this annex you can explore the kid-friendly glossary, space biology studies, and real NASA photos. Click the highlighted button to open the annex and complete your training.',
+      es: 'En este anexo puedes consultar el glosario para niños, estudios OSDR y fotos reales de la NASA. Haz clic en el botón iluminado para abrir el anexo y completar tu entrenamiento.',
+      en: 'In this annex you can explore the kid-friendly glossary, OSDR studies, and real NASA photos. Click the highlighted button to open the annex and complete your training.',
     },
     actionHint: {
       es: 'Haz clic en "Ciencia NASA y quiz" para finalizar el entrenamiento.',

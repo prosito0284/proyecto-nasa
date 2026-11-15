@@ -444,7 +444,11 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
         }
       }}
     >
-      <div ref={modalCardRef} className="modal-card science-annex-sheet">
+      <div
+        ref={modalCardRef}
+        className="modal-card science-annex-sheet"
+        data-tutorial-id="science-modal-sheet"
+      >
         {/* Cabecera del Anexo del Cuaderno de Vuelo */}
         <header className="science-annex-header">
           <div>
@@ -506,6 +510,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
               : 'NASA science flight notebook annex sections'
           }
           className="science-folder-tabs"
+          data-tutorial-id="science-folder-tabs"
         >
           <button
             id="tab-donki-glossary-btn"

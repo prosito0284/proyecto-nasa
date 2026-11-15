@@ -86,6 +86,8 @@ export interface WorkOrderProps {
   disabled: boolean;
   onPreview: (choice: TradeoffChoice | null) => void;
   onExecute: (choice: TradeoffChoice) => void;
+  /** T07: Identificador opcional para instrumentación del entrenamiento guiado */
+  tutorialId?: string;
 }
 
 export const WorkOrder: React.FC<WorkOrderProps> = ({
@@ -97,6 +99,7 @@ export const WorkOrder: React.FC<WorkOrderProps> = ({
   disabled,
   onPreview,
   onExecute,
+  tutorialId,
 }) => {
   const { gains, costs } = buildLedger(choice);
   const source = inferSource(choice.nasaDataReference);
@@ -124,6 +127,7 @@ export const WorkOrder: React.FC<WorkOrderProps> = ({
   return (
     <article
       className={`work-order ${executed ? 'work-order-executed' : ''}`}
+      data-tutorial-id={tutorialId}
       onMouseEnter={() => onPreview(choice)}
       onMouseLeave={() => onPreview(null)}
       onFocus={() => onPreview(choice)}
@@ -157,6 +161,7 @@ export const WorkOrder: React.FC<WorkOrderProps> = ({
         </div>
         <button
           id={`choice-btn-${choice.id}`}
+          data-tutorial-id={tutorialId ? `${tutorialId}-sign-btn` : undefined}
           className="btn-primary wo-sign-btn"
           disabled={disabled}
           onClick={() => onExecute(choice)}
