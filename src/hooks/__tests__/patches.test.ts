@@ -379,5 +379,15 @@ describe('Persistent Mission Patches System (P01–P04)', () => {
     expect(bannerHtml).toContain('PARCHE DESBLOQUEADO');
     expect(bannerHtml).toContain('Cadete de Encendido');
     expect(EMOJI_REGEX.test(bannerHtml)).toBe(false);
+
+    const suppressedHtml = renderToStaticMarkup(
+      React.createElement(PatchUnlockBanner, {
+        lang: 'es',
+        record: unlockedById['training-graduate'],
+        suppressed: true,
+        onDismiss: () => {},
+      }),
+    );
+    expect(suppressedHtml).toBe('');
   });
 });

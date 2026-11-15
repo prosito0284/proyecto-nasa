@@ -19,6 +19,8 @@ export interface PatchUnlockBannerProps {
   onOpenShowcase?: () => void;
   /** Tiempo en ms tras el cual se cierra automáticamente (por defecto 5500 ms) */
   autoHideMs?: number;
+  /** Oculta y pausa temporalmente el aviso mientras haya otro modal abierto */
+  suppressed?: boolean;
 }
 
 export const PatchUnlockBanner: React.FC<PatchUnlockBannerProps> = ({
@@ -27,16 +29,17 @@ export const PatchUnlockBanner: React.FC<PatchUnlockBannerProps> = ({
   onDismiss,
   onOpenShowcase,
   autoHideMs = 5500,
+  suppressed = false,
 }) => {
   useEffect(() => {
-    if (!record || typeof window === 'undefined') return;
+    if (!record || suppressed || typeof window === 'undefined') return;
     const timer = window.setTimeout(() => {
       onDismiss();
     }, autoHideMs);
     return () => window.clearTimeout(timer);
-  }, [record, autoHideMs, onDismiss]);
+  }, [record, suppressed, autoHideMs, onDismiss]);
 
-  if (!record) return null;
+  if (!record || suppressed) return null;
 
   const es = lang === 'es';
   const meta = getPatchMeta(record.id);

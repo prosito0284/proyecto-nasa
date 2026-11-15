@@ -169,6 +169,9 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
   >('all');
   const [photoQuery, setPhotoQuery] = useState('');
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
+  const [loadedImageIds, setLoadedImageIds] = useState<Record<string, boolean>>(
+    {}
+  );
   const [failedImageIds, setFailedImageIds] = useState<Record<string, boolean>>(
     {}
   );
@@ -1541,7 +1544,8 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
 
             <div className="science-photo-grid">
               {galleryImages.map((img) => {
-                const imgFailed = failedImageIds[img.nasaId];
+                const imgFailed = Boolean(failedImageIds[img.nasaId]);
+                const imgLoaded = Boolean(loadedImageIds[img.nasaId]);
                 const descriptiveAlt = `${img.title[lang]} — ${img.kidCaption[lang]} (NASA ID: ${img.nasaId})`;
                 const cardKey = `photo-${img.nasaId}`;
                 const isExpanded = Boolean(expandedCardIds[cardKey]);
@@ -1549,26 +1553,11 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                 return (
                   <article key={img.nasaId} className="science-photo-card">
                     <div className="science-photo-frame">
-                      {!imgFailed ? (
-                        <img
-                          src={img.imageUrl}
-                          alt={descriptiveAlt}
-                          loading="lazy"
-                          decoding="async"
-                          width={480}
-                          height={300}
-                          className="science-photo-img"
-                          onError={() =>
-                            setFailedImageIds((prev) => ({
-                              ...prev,
-                              [img.nasaId]: true,
-                            }))
-                          }
-                        />
-                      ) : (
+                      {(!imgLoaded || imgFailed) && (
                         <div
-                          role="img"
-                          aria-label={descriptiveAlt}
+                          role={imgFailed ? 'img' : undefined}
+                          aria-label={imgFailed ? descriptiveAlt : undefined}
+                          aria-hidden={!imgFailed ? true : undefined}
                           className="science-photo-fallback"
                         >
                           <p className="science-photo-fallback-title">
@@ -1580,6 +1569,31 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
                               : `Credit: ${img.center} · NASA ID: ${img.nasaId} (${img.dateCreated})`}
                           </p>
                         </div>
+                      )}
+                      {!imgFailed && (
+                        <img
+                          src={img.imageUrl}
+                          alt={descriptiveAlt}
+                          loading="eager"
+                          decoding="async"
+                          width={480}
+                          height={300}
+                          className={`science-photo-img ${
+                            imgLoaded ? '' : 'science-photo-img--loading'
+                          }`.trim()}
+                          onLoad={() =>
+                            setLoadedImageIds((prev) => ({
+                              ...prev,
+                              [img.nasaId]: true,
+                            }))
+                          }
+                          onError={() =>
+                            setFailedImageIds((prev) => ({
+                              ...prev,
+                              [img.nasaId]: true,
+                            }))
+                          }
+                        />
                       )}
                       <span className="science-photo-stamp">
                         {img.isLiveApiResult ? 'NASA API' : img.center}

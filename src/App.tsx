@@ -210,6 +210,15 @@ export const App: React.FC = () => {
         restorePreDrillAllocation();
       }
     },
+    onFinish: () => {
+      if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+        try {
+          window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+        } catch {
+          window.scrollTo(0, 0);
+        }
+      }
+    },
     onCompleteTraining: () => {
       unlockPatch('training-graduate', mission.siteId);
     },
@@ -943,6 +952,7 @@ export const App: React.FC = () => {
       <PatchUnlockBanner
         lang={lang}
         record={patches.activeUnlockBanner}
+        suppressed={isScienceOpen || isBadgesOpen || isShowcaseOpen}
         onDismiss={patches.dismissUnlockBanner}
         onOpenShowcase={() => {
           missionAudio.playClick();
