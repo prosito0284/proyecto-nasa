@@ -4,7 +4,7 @@
  * C9: Cero emoji; usa exclusivamente iconos SVG de trazo de `src/components/icons`.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   CrewMood,
   CrewStatus,
@@ -31,6 +31,9 @@ import {
   SunIcon,
 } from '../icons';
 import { MissionPatch } from './MissionPatch';
+
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export interface CommanderCertificateProps {
   lang: Language;
@@ -65,6 +68,9 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
   crew,
 }) => {
   const [commanderName, setCommanderName] = useState(astronautName ?? '');
+  const modalCardRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (astronautName !== undefined) {
@@ -74,14 +80,59 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
+
+    const focusTimer = window.setTimeout(() => {
+      closeButtonRef.current?.focus();
+    }, 20);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
         missionAudio.playClick();
         onClose();
+        return;
+      }
+
+      if (event.key === 'Tab' && modalCardRef.current) {
+        const focusableNodeList =
+          modalCardRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+        const focusables = Array.from(focusableNodeList).filter(
+          (el) => el.offsetParent !== null || el === document.activeElement,
+        );
+
+        if (focusables.length === 0) {
+          event.preventDefault();
+          return;
+        }
+
+        const firstEl = focusables[0];
+        const lastEl = focusables[focusables.length - 1];
+        const activeEl = document.activeElement as HTMLElement | null;
+
+        if (event.shiftKey) {
+          if (activeEl === firstEl || !modalCardRef.current.contains(activeEl)) {
+            event.preventDefault();
+            lastEl.focus();
+          }
+        } else {
+          if (activeEl === lastEl || !modalCardRef.current.contains(activeEl)) {
+            event.preventDefault();
+            firstEl.focus();
+          }
+        }
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
+        previousFocusRef.current.focus();
+      }
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -201,8 +252,14 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
       aria-modal="true"
       aria-labelledby="certificate-modal-title"
       id="commander-certificate-modal"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          missionAudio.playClick();
+          onClose();
+        }
+      }}
     >
-      <div className="modal-card certificate-modal-card">
+      <div ref={modalCardRef} className="modal-card certificate-modal-card">
         <div className="cert-paper-diploma-frame">
           {/* C12: Cinta Técnica de Serie del Documento Oficial */}
           <div className="cert-serial-bar">
@@ -237,6 +294,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                 {lang === 'es' ? 'Imprimir diploma (A4/Carta)' : 'Print diploma (A4/Letter)'}
               </button>
               <button
+                ref={closeButtonRef}
                 type="button"
                 className="btn-secondary"
                 onClick={() => {

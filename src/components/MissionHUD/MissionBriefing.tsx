@@ -325,7 +325,7 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
                 >
                   <span className="telemetry-readout-tag">
                     {activeIndicator.label[lang]}
-                  </span>
+                  </span>{' '}
                   <span>{activeIndicator.insight[lang]}</span>
                 </div>
 

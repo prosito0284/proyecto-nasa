@@ -15,6 +15,7 @@ import {
   isExecutionLocked,
   resolvePostDrillAllocation,
 } from '../../App';
+import { CommanderCertificate } from '../../components/MissionHUD/CommanderCertificate';
 import { MissionBriefing } from '../../components/MissionHUD/MissionBriefing';
 import {
   BALANCED_POWER_ALLOCATION,
@@ -457,5 +458,56 @@ describe('Interactive Ignition Onboarding (T01–T05)', () => {
     expect(
       computeOutcomeFlagsAfterTutorialLaunch('playing', { linkCopied: true, boardSaved: false }),
     ).toEqual({ linkCopied: true, boardSaved: false });
+  });
+
+  it('F05: da accesibilidad de teclado/ratón a oxygen-module y separa la lectura de telemetría en Briefing', () => {
+    const weather = selectStartingWeather('moon-shackleton', VERIFIED_NASA_WEATHER_EVENTS, 20260415);
+    const mission = createInitialMissionState('moon-shackleton', weather, 20260415);
+
+    const panelHtml = renderToStaticMarkup(
+      React.createElement(ResourcePanel, {
+        lang: 'es',
+        resources: mission.resources,
+        allocation: mission.powerAllocation,
+        projection: projectSystemsTurn(mission, mission.powerAllocation),
+        hoveredChoice: null,
+        pendingEffects: [],
+        evaluation: evaluateCommanderPerformance(mission),
+        onChangeAllocation: () => {},
+        onOpenBadgesModal: () => {},
+        crew: getCrewStatus(mission),
+      }),
+    );
+
+    expect(panelHtml).toMatch(
+      /role="button"[^>]*tabindex="0"[^>]*data-onboarding-id="oxygen-module"[^>]*style="cursor:pointer"/,
+    );
+
+    const briefingHtml = renderToStaticMarkup(
+      React.createElement(MissionBriefing, {
+        lang: 'es',
+        sites: Object.values(OUTPOST_SITES),
+        onStart: () => {},
+      }),
+    );
+    expect(briefingHtml).toContain('telemetry-readout-tag">RADIACIÓN</span> <span>Medido por');
+    expect(briefingHtml).not.toContain('RADIACIÓN</span><span>');
+
+    const certHtml = renderToStaticMarkup(
+      React.createElement(CommanderCertificate, {
+        lang: 'es',
+        isOpen: true,
+        onClose: () => {},
+        evaluation: evaluateCommanderPerformance(mission),
+        site: OUTPOST_SITES['moon-shackleton'],
+        currentDay: 1,
+        totalDays: 8,
+        missionStatus: 'playing',
+        onRestartMission: () => {},
+        crew: getCrewStatus(mission),
+      }),
+    );
+    expect(certHtml).toContain('id="commander-certificate-modal"');
+    expect(certHtml).toContain('id="close-certificate-modal-btn"');
   });
 });

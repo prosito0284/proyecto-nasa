@@ -395,21 +395,39 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
               const watcher = crew?.find((c) => c.member.watches === m.id);
               const isOxygenRow = m.id === 'lifeSupport';
 
-              return (
+              const activateOxygenModule = () => {
+                missionAudio.playClick();
+                setOxygenPressurized(true);
+                onTutorialAction?.('oxygen-module');
+              };
+
+              const rowContent = (
                 <div
-                  key={m.id}
-                  role="listitem"
+                  key={isOxygenRow ? undefined : m.id}
+                  role={isOxygenRow ? 'button' : 'listitem'}
+                  tabIndex={isOxygenRow ? 0 : undefined}
                   data-onboarding-id={isOxygenRow ? 'oxygen-module' : `vital-${m.id}`}
+                  style={isOxygenRow ? { cursor: 'pointer' } : undefined}
                   className={`vital-checklist-row vital-row-${statusKey} ${
                     isOxygenRow && oxygenPressurized ? 'onboarding-oxygen-pressurized' : ''
                   }`}
-                  onClick={() => {
-                    if (isOxygenRow) {
-                      missionAudio.playClick();
-                      setOxygenPressurized(true);
-                      onTutorialAction?.('oxygen-module');
-                    }
-                  }}
+                  onClick={
+                    isOxygenRow
+                      ? () => {
+                          activateOxygenModule();
+                        }
+                      : undefined
+                  }
+                  onKeyDown={
+                    isOxygenRow
+                      ? (e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            activateOxygenModule();
+                          }
+                        }
+                      : undefined
+                  }
                 >
                   <div className="vital-checklist-main">
                     {/* Casilla de checklist con estado (bien / atención / crítico) */}
@@ -442,6 +460,13 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                     <div className="vital-label-col">
                       <span className="resource-label-inline">
                         {m.icon} {m.label}
+                        {isOxygenRow && (
+                          <span className="sr-only">
+                            {lang === 'es'
+                              ? ' — presurizar módulo de oxígeno'
+                              : ' — pressurize oxygen module'}
+                          </span>
+                        )}
                       </span>
                       {watcher && (
                         <small className="vital-watcher-name">
@@ -471,6 +496,18 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                     </span>
                   </div>
                 </div>
+              );
+
+              return isOxygenRow ? (
+                <div
+                  key={m.id}
+                  role="listitem"
+                  style={{ borderBottom: '1px solid var(--rule)' }}
+                >
+                  {rowContent}
+                </div>
+              ) : (
+                rowContent
               );
             })}
           </div>
