@@ -1027,6 +1027,11 @@ export function buildProceduralModel(
 
 export function disposeObject3D(root: THREE.Object3D): void {
   root.traverse((obj) => {
+    if (obj instanceof THREE.Light) {
+      const shadowLight = obj as THREE.Light & { shadow?: THREE.LightShadow };
+      shadowLight.shadow?.map?.dispose();
+      obj.dispose?.();
+    }
     const mesh = obj as THREE.Mesh & THREE.LineSegments & THREE.Points;
     if (mesh.geometry) {
       mesh.geometry.dispose();
@@ -1347,7 +1352,7 @@ export function getWorldAtmosphere(siteId?: OutpostSiteId): WorldAtmosphere {
 }
 
 export const WORLD_TERRAIN_SIZE = 2000;
-export const WORLD_TERRAIN_SEGMENTS = 240;
+export const WORLD_TERRAIN_SEGMENTS = 128;
 const BASE_PAD_RADIUS = 27;
 
 function hash01(n: number): number {

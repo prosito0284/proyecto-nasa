@@ -510,6 +510,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
         loadedExternalRef.current = null;
       }
       disposeObject3D(scene);
+      renderer.renderLists?.dispose?.();
       renderer.dispose();
       if (renderer.domElement.parentNode === host) {
         host.removeChild(renderer.domElement);
@@ -550,7 +551,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
   useEffect(() => {
     setHoveredPartId(null);
-  }, [modelId]);
+  }, [modelId, selectedPartId]);
 
   useEffect(() => {
     const rootTarget = loadedExternalRef.current ?? modelHandleRef.current?.group;

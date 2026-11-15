@@ -284,6 +284,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     if (!cmd) return;
 
     if (cmd.type === 'cycle-module') {
+      if (e.target !== e.currentTarget) return;
       const curIdx = keyboardModule ? COLONY_WORLD_MODULE_IDS.indexOf(keyboardModule) : -1;
       if (cmd.dir === 1) {
         if (curIdx < COLONY_WORLD_MODULE_IDS.length - 1) {
@@ -311,6 +312,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     }
 
     if (cmd.type === 'activate-module') {
+      if (e.target !== e.currentTarget) return;
       const targetMod = keyboardModule ?? hoveredModule ?? selectedModule;
       if (targetMod) {
         e.preventDefault();
@@ -617,6 +619,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       cameraRef.current = null;
       worldRef.current = null;
       disposeObject3D(scene);
+      renderer.renderLists?.dispose?.();
       renderer.dispose();
       if (renderer.domElement.parentNode === host) {
         host.removeChild(renderer.domElement);
@@ -695,6 +698,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
                 onKeyDown={(ev) => {
                   if (ev.key === 'Enter' || ev.key === ' ') {
                     ev.preventDefault();
+                    ev.stopPropagation();
                     focusAndHighlightModule(modId, true);
                   }
                 }}
