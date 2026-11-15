@@ -41,6 +41,8 @@ export interface OutpostMapProps {
   onOpenScienceModal?: () => void;
   /** Retraso orbital opcional en segundos (si no se envía, se calcula a partir de site.commDelaySeconds) */
   commDelaySeconds?: number;
+  /** T08: Callback opcional para disparar avance del tutorial al interactuar con la colonia */
+  onTutorialAction?: (stepId: string) => void;
 }
 
 type ModuleKey = 'solar' | 'eclss' | 'shielding' | 'greenhouse';
@@ -110,6 +112,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   projection,
   onOpenScienceModal,
   commDelaySeconds,
+  onTutorialAction,
 }) => {
   const [selectedModule, setSelectedModule] = useState<ModuleKey>('shielding');
   const [showSystemDetails, setShowSystemDetails] = useState(false);
@@ -142,6 +145,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
     missionAudio.playClick();
     setSelectedModule(mod);
     setShowSystemDetails(true);
+    onTutorialAction?.('step-outpost-map');
   };
 
   const handleSvgKeyDown = (e: React.KeyboardEvent, mod: ModuleKey) => {
@@ -156,6 +160,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
     missionAudio.playCommPing(true);
     setCommState('transmitting');
     setCommProgress(0);
+    onTutorialAction?.('step-outpost-map');
 
     const totalSimMs = isLunar ? 1300 : 3600;
     const stepMs = 60;

@@ -183,6 +183,7 @@ export const App: React.FC = () => {
   const handleExecute = (choice: TradeoffChoice) => {
     if (executingId) return;
     missionAudio.playClick();
+    tutorial.completeActionTrigger('step-work-orders');
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (reduceMotion) {
       applyDecision(choice);
@@ -417,6 +418,7 @@ export const App: React.FC = () => {
                 projection={projection}
                 onOpenScienceModal={() => openScience()}
                 commDelaySeconds={getCommDelaySeconds(mission.siteId, mission.currentDay)}
+                onTutorialAction={tutorial.completeActionTrigger}
               />
 
               {lastTurn && (
@@ -488,6 +490,7 @@ export const App: React.FC = () => {
                         onPreview={setPreviewChoice}
                         onExecute={handleExecute}
                         tutorialId={i === 0 ? 'primary-work-order' : undefined}
+                        onTutorialAction={tutorial.completeActionTrigger}
                       />
                     ))}
                   </div>
@@ -677,6 +680,7 @@ export const App: React.FC = () => {
         focusTermId={focusTermId}
         siteId={mission.siteId}
         onQuizComplete={handleQuizComplete}
+        onTutorialAction={tutorial.completeActionTrigger}
       />
 
       <CommanderCertificate

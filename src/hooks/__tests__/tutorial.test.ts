@@ -1,18 +1,32 @@
 /**
- * Pruebas de contrato y renderizado del Sistema de Entrenamiento Guiado (T01–T04)
- * Verifican la estructura bilingüe (máximo 2 frases por paso), la presencia real de
- * `data-tutorial-id` en el DOM renderizado, la persistencia en `localStorage`
- * ('jamt_tutorial_completed') y el motor Spotlight de 4 cuadrantes.
+ * Pruebas de contrato y renderizado del Sistema de Entrenamiento Guiado (T01–T08)
+ * Verifican:
+ * - T01 & T04: Estructura bilingüe (máximo 2 frases por paso) y cero emoji.
+ * - T02: Persistencia en `localStorage` ('jamt_tutorial_completed') y búsqueda segura de objetivos DOM.
+ * - T03: Motor Spotlight de 4 cuadrantes oscuros e independencia de clics.
+ * - T05: `TutorialCallout` con inversión inteligente de bordes (`computeCalloutPosition`) y botones >=44x44 px.
+ * - T06: `TutorialPointer` con conector SVG ortogonal de 90° (`buildOrthogonalConnector`) y 4 escuadras (`buildCornerBrackets`).
+ * - T07 & T08: Instrumentación real `data-tutorial-id` en el HUD y triggers de aprendizaje activo.
  */
 
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../../App';
+import { WorkOrder } from '../../components/Mission/WorkOrder';
 import { ResourcePanel } from '../../components/MissionHUD/ResourcePanel';
 import { OutpostMap } from '../../components/OutpostView/OutpostMap';
+import { ScienceModal } from '../../components/ScienceTraceability/ScienceModal';
+import { computeCalloutPosition } from '../../components/Tutorial/TutorialCallout';
+import {
+  buildCornerBrackets,
+  buildOrthogonalConnector,
+} from '../../components/Tutorial/TutorialPointer';
 import { TutorialSpotlight } from '../../components/Tutorial/TutorialSpotlight';
-import { VERIFIED_NASA_WEATHER_EVENTS } from '../../data/nasa-datasets';
+import {
+  KID_SCIENCE_GLOSSARY,
+  VERIFIED_NASA_WEATHER_EVENTS,
+} from '../../data/nasa-datasets';
 import { OUTPOST_SITES } from '../../data/scenarios';
 import { TUTORIAL_STEPS } from '../../data/tutorial-steps';
 import {
@@ -38,7 +52,7 @@ function countSentences(text: string): number {
 
 const EMOJI_REGEX = /\p{Extended_Pictographic}/u;
 
-describe('Interactive Tutorial System (T01–T04)', () => {
+describe('Interactive Tutorial System (T01–T08)', () => {
   beforeEach(() => {
     const store = new Map<string, string>();
     Object.defineProperty(globalThis, 'window', {
@@ -69,7 +83,7 @@ describe('Interactive Tutorial System (T01–T04)', () => {
   });
 
   it('T01 & T04: TUTORIAL_STEPS cumple el contrato bilingüe, <= 2 frases por paso y cero emoji', () => {
-    expect(TUTORIAL_STEPS.length).toBeGreaterThanOrEqual(5);
+    expect(TUTORIAL_STEPS.length).toBeGreaterThanOrEqual(6);
     const seenIds = new Set<string>();
 
     for (const step of TUTORIAL_STEPS) {
@@ -110,7 +124,7 @@ describe('Interactive Tutorial System (T01–T04)', () => {
     expect(findTutorialTargetElement('non-existent-selector')).toBeNull();
   });
 
-  it('T03: TutorialSpotlight renderiza los 4 cuadrantes oscuros, el marco de 2px y oculta Siguiente cuando requireAction es true', () => {
+  it('T03, T05 & T06: TutorialSpotlight renderiza 4 cuadrantes, TutorialPointer (90° + 4 escuadras) y TutorialCallout', () => {
     const infoStep = TUTORIAL_STEPS.find((s) => !s.requireAction && s.tone === 'info')!;
     const actionStep = TUTORIAL_STEPS.find((s) => s.requireAction && s.tone === 'caution')!;
     const rect = { top: 100, left: 120, width: 300, height: 180, right: 420, bottom: 280 };
@@ -134,7 +148,15 @@ describe('Interactive Tutorial System (T01–T04)', () => {
     expect(htmlInfo).toContain('data-quadrant="left"');
     expect(htmlInfo).toContain('data-quadrant="right"');
     expect(htmlInfo).toContain('tutorial-tone-info');
+    expect(htmlInfo).toContain('data-testid="tutorial-callout-box"');
+    expect(htmlInfo).toContain('data-testid="tutorial-pointer-svg"');
+    expect(htmlInfo).toContain('data-corner-bracket="top-left"');
+    expect(htmlInfo).toContain('data-corner-bracket="top-right"');
+    expect(htmlInfo).toContain('data-corner-bracket="bottom-left"');
+    expect(htmlInfo).toContain('data-corner-bracket="bottom-right"');
+    expect(htmlInfo).toContain('id="tutorial-prev-btn"');
     expect(htmlInfo).toContain('id="tutorial-next-btn"');
+    expect(htmlInfo).toContain('id="tutorial-skip-btn"');
     expect(htmlInfo).toContain(infoStep.title.es);
 
     const htmlAction = renderToStaticMarkup(
@@ -152,13 +174,54 @@ describe('Interactive Tutorial System (T01–T04)', () => {
     );
 
     expect(htmlAction).toContain('tutorial-tone-caution');
-    expect(htmlAction).toContain('tutorial-action-prompt');
-    // Cuando requireAction es true, el botón "Next" se omite para exigir clic en el elemento real
+    expect(htmlAction).toContain('data-testid="tutorial-action-indicator"');
     expect(htmlAction).not.toContain('id="tutorial-next-btn"');
     expect(htmlAction).toContain(actionStep.title.en);
   });
 
-  it('T04: los componentes reales renderizan todos los atributos data-tutorial-id requeridos por TUTORIAL_STEPS', () => {
+  it('T05 & T06: computeCalloutPosition invierte bordes al salirse del viewport y buildOrthogonalConnector genera ángulos de 90°', () => {
+    // Recorte pegado al borde inferior de una pantalla móvil (360x640) con placement preferido 'bottom'
+    const bottomEdgeCutout = {
+      top: 520,
+      left: 20,
+      width: 320,
+      height: 100,
+      right: 340,
+      bottom: 620,
+    };
+    const flipped = computeCalloutPosition(
+      bottomEdgeCutout,
+      'bottom',
+      330,
+      210,
+      360,
+      640,
+    );
+    expect(flipped.resolvedPlacement).toBe('top');
+    expect(flipped.left).toBeGreaterThanOrEqual(12);
+    expect(flipped.right).toBeLessThanOrEqual(348);
+    expect(flipped.top).toBeGreaterThanOrEqual(12);
+
+    const brackets = buildCornerBrackets(bottomEdgeCutout);
+    expect(brackets).toHaveLength(4);
+
+    const vector = buildOrthogonalConnector(
+      bottomEdgeCutout,
+      {
+        top: flipped.top,
+        left: flipped.left,
+        width: flipped.width,
+        height: flipped.height,
+        right: flipped.right,
+        bottom: flipped.bottom,
+      },
+      flipped.resolvedPlacement,
+    );
+    expect(vector.pathD).toMatch(/^M \d+ \d+ L \d+ \d+ L \d+ \d+ L \d+ \d+$/);
+    expect(vector.arrowPoints.split(' ')).toHaveLength(3);
+  });
+
+  it('T07 & T08: todos los contenedores reales del HUD y ScienceModal exponen data-tutorial-id y aceptan onTutorialAction', () => {
     const site = OUTPOST_SITES['moon-shackleton'];
     const weather = selectStartingWeather('moon-shackleton', VERIFIED_NASA_WEATHER_EVENTS, 20260415);
     const mission = createInitialMissionState('moon-shackleton', weather, 20260415);
@@ -166,7 +229,6 @@ describe('Interactive Tutorial System (T01–T04)', () => {
     const evaluation = evaluateCommanderPerformance(mission);
     const crew = getCrewStatus(mission);
 
-    // Guardamos una partida activa para que App renderice la vista de misión completa
     window.localStorage.setItem(
       'jamt-mission-v2',
       JSON.stringify({ mission, challengeSeed: null }),
@@ -185,6 +247,7 @@ describe('Interactive Tutorial System (T01–T04)', () => {
         onChangeAllocation: () => {},
         onOpenBadgesModal: () => {},
         crew,
+        onTutorialAction: () => {},
       }),
     );
     const mapMarkup = renderToStaticMarkup(
@@ -196,12 +259,50 @@ describe('Interactive Tutorial System (T01–T04)', () => {
         allocation: mission.powerAllocation,
         weather,
         projection,
+        onTutorialAction: () => {},
+      }),
+    );
+    const workOrderMarkup = renderToStaticMarkup(
+      React.createElement(WorkOrder, {
+        lang: 'es',
+        choice: mission.currentDilemma!.choices[0],
+        code: 'OT-1A',
+        weatherIsLive: false,
+        executed: false,
+        disabled: false,
+        onPreview: () => {},
+        onExecute: () => {},
+        tutorialId: 'primary-work-order',
+        onTutorialAction: () => {},
+      }),
+    );
+    const scienceMarkup = renderToStaticMarkup(
+      React.createElement(ScienceModal, {
+        lang: 'es',
+        isOpen: true,
+        onClose: () => {},
+        glossary: KID_SCIENCE_GLOSSARY,
+        currentWeather: weather,
+        siteId: 'moon-shackleton',
+        onTutorialAction: () => {},
       }),
     );
 
-    const combinedHtml = `${appMarkup}\n${panelMarkup}\n${mapMarkup}`;
+    const combinedHtml = [
+      appMarkup,
+      panelMarkup,
+      mapMarkup,
+      workOrderMarkup,
+      scienceMarkup,
+    ].join('\n');
+
     for (const step of TUTORIAL_STEPS) {
       expect(combinedHtml).toContain(`data-tutorial-id="${step.targetSelector}"`);
     }
+    expect(combinedHtml).toContain('data-tutorial-id="timeline-bar"');
+    expect(combinedHtml).toContain('data-tutorial-id="crew-status"');
+    expect(combinedHtml).toContain('data-tutorial-id="primary-work-order"');
+    expect(combinedHtml).toContain('data-tutorial-id="science-modal-sheet"');
+    expect(combinedHtml).toContain('data-tutorial-id="science-folder-tabs"');
   });
 });
