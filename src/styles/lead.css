@@ -27,22 +27,52 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
+  padding: 15px 16px;
   background: var(--paper-sheet, var(--paper));
   border: var(--border);
+  border-top: 3.5px solid var(--nasa-blue);
   border-radius: var(--radius);
-  /* Margen perforado de formulario: línea punteada a la izquierda */
+  /* Margen perforado de formulario: línea doble a la izquierda */
   border-left: 6px double var(--ink);
+}
+
+.wo-code-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px dashed var(--rule);
 }
 
 .wo-code {
   display: inline-block;
   font-family: var(--font-mono);
   font-size: 0.72rem;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--nasa-blue);
-  margin-bottom: 4px;
+}
+
+.wo-sign-status {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink-secondary, var(--ink));
+}
+
+.wo-sign-status.wo-status-signed {
+  border-color: var(--nasa-red);
+  color: var(--nasa-red);
 }
 
 .wo-head h3 {
@@ -64,6 +94,7 @@
   grid-template-columns: 1fr 1fr;
   border: var(--border);
   border-radius: var(--radius);
+  background: var(--paper);
 }
 
 .wo-col {
@@ -144,7 +175,7 @@
 .wo-foot {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   margin-top: auto;
 }
 
@@ -160,6 +191,24 @@
   font-size: 0.7rem;
   line-height: 1.35;
   color: var(--ink-muted, var(--ink));
+}
+
+.wo-signature-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px dotted var(--rule);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-secondary, var(--ink));
+}
+
+.wo-signature-rule {
+  font-weight: 700;
+  color: var(--nasa-blue);
+  letter-spacing: 0.04em;
 }
 
 .wo-sign-btn {
