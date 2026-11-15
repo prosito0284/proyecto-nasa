@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { getCrewMemberName } from '../../data/crew';
 import { CrewMood, CrewStatus, Language } from '../../types/mission';
 import { CrewPortrait } from './CrewPortrait';
 
@@ -44,21 +45,24 @@ export const CrewRoster: React.FC<CrewRosterProps> = ({
         role="group"
         aria-label={lang === 'es' ? 'Estado de la tripulación' : 'Crew status'}
       >
-        {crew.map((item) => (
-          <div
-            key={item.member.id}
-            className={`crew-compact-chip crew-chip-${item.mood}`}
-            title={`${item.member.name} (${item.member.role[lang]}): "${item.line[lang]}"`}
-          >
-            <CrewPortrait
-              memberId={item.member.id}
-              mood={item.mood}
-              size={34}
-              title={`${item.member.name} — ${getMoodLabel(item.mood, lang)}`}
-            />
-            <span className="crew-compact-name">{item.member.name}</span>
-          </div>
-        ))}
+        {crew.map((item) => {
+          const memberName = getCrewMemberName(item.member, lang);
+          return (
+            <div
+              key={item.member.id}
+              className={`crew-compact-chip crew-chip-${item.mood}`}
+              title={`${memberName} (${item.member.role[lang]}): "${item.line[lang]}"`}
+            >
+              <CrewPortrait
+                memberId={item.member.id}
+                mood={item.mood}
+                size={34}
+                title={`${memberName} — ${getMoodLabel(item.mood, lang)}`}
+              />
+              <span className="crew-compact-name">{memberName}</span>
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -69,34 +73,37 @@ export const CrewRoster: React.FC<CrewRosterProps> = ({
       aria-label={lang === 'es' ? 'Bitácora de voces de la tripulación' : 'Crew voice log'}
     >
       <div className="crew-roster-grid">
-        {crew.map((item) => (
-          <article
-            key={item.member.id}
-            className={`crew-card crew-card-${item.mood}`}
-          >
-            <div className="crew-card-header">
-              <CrewPortrait
-                memberId={item.member.id}
-                mood={item.mood}
-                size={48}
-                title={`${item.member.name} — ${item.member.role[lang]}`}
-              />
-              <div className="crew-card-identity">
-                <div className="crew-name-row">
-                  <strong className="crew-member-name">{item.member.name}</strong>
-                  <span className={`crew-mood-tag crew-mood-tag-${item.mood}`}>
-                    {getMoodLabel(item.mood, lang)}
-                  </span>
+        {crew.map((item) => {
+          const memberName = getCrewMemberName(item.member, lang);
+          return (
+            <article
+              key={item.member.id}
+              className={`crew-card crew-card-${item.mood}`}
+            >
+              <div className="crew-card-header">
+                <CrewPortrait
+                  memberId={item.member.id}
+                  mood={item.mood}
+                  size={48}
+                  title={`${memberName} — ${item.member.role[lang]}`}
+                />
+                <div className="crew-card-identity">
+                  <div className="crew-name-row">
+                    <strong className="crew-member-name">{memberName}</strong>
+                    <span className={`crew-mood-tag crew-mood-tag-${item.mood}`}>
+                      {getMoodLabel(item.mood, lang)}
+                    </span>
+                  </div>
+                  <span className="crew-member-role">{item.member.role[lang]}</span>
                 </div>
-                <span className="crew-member-role">{item.member.role[lang]}</span>
               </div>
-            </div>
 
-            <blockquote className="crew-speech-bubble">
-              <p>"{item.line[lang]}"</p>
-            </blockquote>
-          </article>
-        ))}
+              <blockquote className="crew-speech-bubble">
+                <p>"{item.line[lang]}"</p>
+              </blockquote>
+            </article>
+          );
+        })}
       </div>
     </section>
   );

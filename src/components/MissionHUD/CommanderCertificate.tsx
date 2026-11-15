@@ -14,6 +14,7 @@ import {
   SpaceWeatherEvent,
 } from '../../types/mission';
 import type { CommanderEvaluation } from '../../engine/simulationEngine';
+import { CREW_MEMBERS, getCrewMemberName } from '../../data/crew';
 import { missionAudio } from '../../utils/sound';
 import { CrewPortrait } from '../crew';
 import {
@@ -214,36 +215,16 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
     crew && crew.length > 0
       ? crew.map((c) => ({
           id: c.member.id,
-          name: c.member.name,
+          name: getCrewMemberName(c.member, lang),
           role: c.member.role[lang],
           mood: c.mood,
         }))
-      : [
-          {
-            id: 'commander',
-            name: 'Cmdr. Vega',
-            role: lang === 'es' ? 'Comandante de misión' : 'Mission commander',
-            mood: defaultCrewMood,
-          },
-          {
-            id: 'engineer',
-            name: 'Ing. Sato',
-            role: lang === 'es' ? 'Ingeniería eléctrica' : 'Power engineer',
-            mood: defaultCrewMood,
-          },
-          {
-            id: 'botanist',
-            name: 'Dra. Okafor',
-            role: lang === 'es' ? 'Botánica e invernadero' : 'Botanist & greenhouse',
-            mood: defaultCrewMood,
-          },
-          {
-            id: 'medic',
-            name: 'Dr. Ríos',
-            role: lang === 'es' ? 'Medicina y dosimetría' : 'Flight surgeon & RAD',
-            mood: defaultCrewMood,
-          },
-        ];
+      : CREW_MEMBERS.map((member) => ({
+          id: member.id,
+          name: getCrewMemberName(member, lang),
+          role: member.role[lang],
+          mood: defaultCrewMood,
+        }));
 
   return (
     <div
@@ -263,18 +244,21 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
         <div className="cert-paper-diploma-frame">
           {/* C12: Cinta Técnica de Serie del Documento Oficial */}
           <div className="cert-serial-bar">
-            <span>FORM JSC-2026-CERT</span>
+            <span>{lang === 'es' ? 'FORMULARIO JSC-2026-CERT' : 'FORM JSC-2026-CERT'}</span>
             <span>
-              SITE: {site.id.toUpperCase()} ({site.coordinates})
+              {lang === 'es' ? 'SITIO:' : 'SITE:'} {site.id.toUpperCase()} ({site.coordinates})
             </span>
             <span>
-              PATCHES: {earnedBadgesCount}/{evaluation.badges.length}
+              {lang === 'es' ? 'PARCHES:' : 'PATCHES:'} {earnedBadgesCount}/
+              {evaluation.badges.length}
             </span>
           </div>
 
           <div className="modal-header cert-diploma-header">
             <div>
-              <span className="nasa-badge">EVALUACIÓN NASA</span>
+              <span className="nasa-badge">
+                {lang === 'es' ? 'EVALUACIÓN NASA' : 'NASA EVALUATION'}
+              </span>
               <h2 id="certificate-modal-title">
                 <PatchIcon size={22} /> {evaluation.rank.title[lang]} — {evaluation.score}/100 pts
               </h2>
@@ -500,7 +484,9 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
           {/* C12: Pie de Firma Oficial del Diploma de Papel */}
           <div className="cert-signature-footer">
             <div className="cert-sig-col">
-              <span className="cert-sig-script">NASA Flight Control — Houston</span>
+              <span className="cert-sig-script">
+                {lang === 'es' ? 'Control de Vuelo NASA — Houston' : 'NASA Flight Control — Houston'}
+              </span>
               <span className="cert-sig-line">
                 {lang === 'es'
                   ? 'Dirección de entrenamiento Artemis / Marte'
@@ -508,7 +494,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
               </span>
             </div>
             <div className="cert-seal-box">
-              <span>TELEMETRY VERIFIED</span>
+              <span>{lang === 'es' ? 'TELEMETRÍA VERIFICADA' : 'TELEMETRY VERIFIED'}</span>
               <strong>DONKI + OSDR</strong>
             </div>
             <div className="cert-sig-col">

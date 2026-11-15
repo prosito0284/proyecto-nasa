@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { getCrewMemberName } from '../../data/crew';
 import {
   CoreResources,
   CrewStatus,
@@ -162,7 +163,9 @@ export const TurnReport: React.FC<TurnReportProps> = ({
           <div className="turn-crew-voice-header">
             <CrewPortrait memberId={crewLine.member.id} mood={crewLine.mood} size={52} />
             <div className="crew-card-meta">
-              <strong className="crew-name">{crewLine.member.name}</strong>
+              <strong className="crew-name">
+                {getCrewMemberName(crewLine.member, lang)}
+              </strong>{' '}
               <span className="crew-role">{crewLine.member.role[lang]}</span>
             </div>
           </div>

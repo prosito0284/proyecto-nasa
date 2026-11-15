@@ -16,6 +16,7 @@ import type {
   CommanderEvaluation,
   TurnProjection,
 } from '../../engine/simulationEngine';
+import { getCrewMemberName } from '../../data/crew';
 import { missionAudio } from '../../utils/sound';
 import {
   AlertIcon,
@@ -451,7 +452,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                         memberId={watcher.member.id}
                         mood={watcher.mood}
                         size={30}
-                        title={`${watcher.member.name} (${watcher.member.role[lang]}): "${watcher.line[lang]}"`}
+                        title={`${getCrewMemberName(watcher.member, lang)} (${watcher.member.role[lang]}): "${watcher.line[lang]}"`}
                         className="vital-watcher-portrait"
                       />
                     )}
@@ -470,7 +471,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                       </span>
                       {watcher && (
                         <small className="vital-watcher-name">
-                          {watcher.member.name} · {watcher.member.role[lang]}
+                          {getCrewMemberName(watcher.member, lang)} · {watcher.member.role[lang]}
                         </small>
                       )}
                     </div>

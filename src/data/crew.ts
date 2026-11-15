@@ -3,7 +3,7 @@
  * Convierte las barras de recursos en personas que opinan sobre las decisiones del comandante.
  * Los retratos (Bloque C) usan los mismos ids: commander, engineer, botanist, medic.
  */
-import { CrewMember, CrewMood, LocalizedText } from '../types/mission';
+import { CrewMember, CrewMood, Language, LocalizedText } from '../types/mission';
 
 const t = (es: string, en: string): LocalizedText => ({ es, en });
 
@@ -11,28 +11,39 @@ export const CREW_MEMBERS: CrewMember[] = [
   {
     id: 'commander',
     name: 'Cmdr. Vega',
+    localizedName: t('Cmdr. Vega', 'Cmdr. Vega'),
     role: t('Comandante de misión', 'Mission commander'),
     watches: 'crewHealth',
   },
   {
     id: 'engineer',
     name: 'Ing. Sato',
+    localizedName: t('Ing. Sato', 'Eng. Sato'),
     role: t('Ingeniería y energía', 'Power engineer'),
     watches: 'power',
   },
   {
     id: 'botanist',
     name: 'Dra. Okafor',
+    localizedName: t('Dra. Okafor', 'Dr. Okafor'),
     role: t('Botánica e invernadero', 'Botanist & greenhouse'),
     watches: 'food',
   },
   {
     id: 'medic',
     name: 'Dr. Ríos',
+    localizedName: t('Dr. Ríos', 'Dr. Ríos'),
     role: t('Medicina y radiación', 'Flight surgeon & radiation'),
     watches: 'shielding',
   },
 ];
+
+export function getCrewMemberName(member: CrewMember, lang: Language): string {
+  if (member.localizedName) return member.localizedName[lang];
+  const canonical = CREW_MEMBERS.find((c) => c.id === member.id);
+  if (canonical?.localizedName) return canonical.localizedName[lang];
+  return member.name;
+}
 
 /** Qué dice cada tripulante según cómo está el sistema que vigila. */
 export const CREW_LINES: Record<string, Record<CrewMood, LocalizedText>> = {

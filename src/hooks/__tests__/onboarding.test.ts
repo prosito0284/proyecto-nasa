@@ -15,6 +15,7 @@ import {
   isExecutionLocked,
   resolvePostDrillAllocation,
 } from '../../App';
+import { CrewRoster } from '../../components/crew';
 import { CommanderCertificate } from '../../components/MissionHUD/CommanderCertificate';
 import { MissionBriefing } from '../../components/MissionHUD/MissionBriefing';
 import {
@@ -22,6 +23,7 @@ import {
   ResourcePanel,
   shouldCommitPresetChange,
 } from '../../components/MissionHUD/ResourcePanel';
+import { TurnReport } from '../../components/MissionHUD/TurnReport';
 import { cancelCommIntervalRef } from '../../components/OutpostView/OutpostMap';
 import {
   computeOnboardingCutout,
@@ -29,6 +31,7 @@ import {
   countCommandWords,
   OnboardingSpotlight,
 } from '../../components/Tutorial/OnboardingSpotlight';
+import { CREW_MEMBERS, getCrewMemberName } from '../../data/crew';
 import { VERIFIED_NASA_WEATHER_EVENTS } from '../../data/nasa-datasets';
 import { OUTPOST_SITES } from '../../data/scenarios';
 import {
@@ -509,5 +512,85 @@ describe('Interactive Ignition Onboarding (T01–T05)', () => {
     );
     expect(certHtml).toContain('id="commander-certificate-modal"');
     expect(certHtml).toContain('id="close-certificate-modal-btn"');
+  });
+
+  it('F07: traduce textos fijos del diploma y nombres de tripulación (Ing./Eng. Sato, Dra./Dr. Okafor) en ES/EN', () => {
+    const engineer = CREW_MEMBERS.find((c) => c.id === 'engineer')!;
+    const botanist = CREW_MEMBERS.find((c) => c.id === 'botanist')!;
+    expect(getCrewMemberName(engineer, 'es')).toBe('Ing. Sato');
+    expect(getCrewMemberName(engineer, 'en')).toBe('Eng. Sato');
+    expect(getCrewMemberName(botanist, 'es')).toBe('Dra. Okafor');
+    expect(getCrewMemberName(botanist, 'en')).toBe('Dr. Okafor');
+
+    const weather = selectStartingWeather('moon-shackleton', VERIFIED_NASA_WEATHER_EVENTS, 20260415);
+    const mission = createInitialMissionState('moon-shackleton', weather, 20260415);
+    const crew = getCrewStatus(mission);
+    const evaluation = evaluateCommanderPerformance(mission);
+
+    const certEs = renderToStaticMarkup(
+      React.createElement(CommanderCertificate, {
+        lang: 'es',
+        isOpen: true,
+        onClose: () => {},
+        evaluation,
+        site: OUTPOST_SITES['moon-shackleton'],
+        currentDay: 1,
+        totalDays: 8,
+        missionStatus: 'playing',
+        onRestartMission: () => {},
+        crew,
+      }),
+    );
+    expect(certEs).toContain('FORMULARIO JSC-2026-CERT');
+    expect(certEs).toContain('SITIO:');
+    expect(certEs).toContain('PARCHES:');
+    expect(certEs).toContain('EVALUACIÓN NASA');
+    expect(certEs).toContain('TELEMETRÍA VERIFICADA');
+    expect(certEs).toContain('Ing. Sato');
+    expect(certEs).toContain('Dra. Okafor');
+    expect(certEs).not.toContain('TELEMETRY VERIFIED');
+
+    const certEn = renderToStaticMarkup(
+      React.createElement(CommanderCertificate, {
+        lang: 'en',
+        isOpen: true,
+        onClose: () => {},
+        evaluation,
+        site: OUTPOST_SITES['moon-shackleton'],
+        currentDay: 1,
+        totalDays: 8,
+        missionStatus: 'playing',
+        onRestartMission: () => {},
+        crew,
+      }),
+    );
+    expect(certEn).toContain('FORM JSC-2026-CERT');
+    expect(certEn).toContain('SITE:');
+    expect(certEn).toContain('PATCHES:');
+    expect(certEn).toContain('NASA EVALUATION');
+    expect(certEn).toContain('TELEMETRY VERIFIED');
+    expect(certEn).toContain('Eng. Sato');
+    expect(certEn).toContain('Dr. Okafor');
+    expect(certEn).not.toContain('Ing. Sato');
+    expect(certEn).not.toContain('Dra. Okafor');
+    expect(certEn).not.toContain('EVALUACIÓN NASA');
+
+    const rosterEn = renderToStaticMarkup(React.createElement(CrewRoster, { lang: 'en', crew }));
+    expect(rosterEn).toContain('Eng. Sato');
+    expect(rosterEn).toContain('Dr. Okafor');
+    expect(rosterEn).not.toContain('Ing. Sato');
+
+    const turnEn = renderToStaticMarkup(
+      React.createElement(TurnReport, {
+        lang: 'en',
+        previous: mission.resources,
+        current: mission.resources,
+        logs: mission.logs,
+        onContinue: () => {},
+        crewLine: crew.find((c) => c.member.id === 'engineer'),
+      }),
+    );
+    expect(turnEn).toContain('crew-name">Eng. Sato</strong> <span class="crew-role">');
+    expect(turnEn).not.toContain('Ing. Sato');
   });
 });
