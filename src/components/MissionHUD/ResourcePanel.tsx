@@ -16,7 +16,7 @@ import type {
   CommanderEvaluation,
   TurnProjection,
 } from '../../engine/simulationEngine';
-import { getCrewMemberName } from '../../data/crew';
+import { findCrewWatcherForVital, getCrewMemberName } from '../../data/crew';
 import { missionAudio } from '../../utils/sound';
 import {
   AlertIcon,
@@ -393,7 +393,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                     ? 'BIEN'
                     : 'OK';
 
-              const watcher = crew?.find((c) => c.member.watches === m.id);
+              const watcher = findCrewWatcherForVital(crew, m.id);
               const isOxygenRow = m.id === 'lifeSupport';
 
               const activateOxygenModule = () => {
@@ -449,10 +449,10 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                     {/* Retrato pequeño de quien vigila este vital (si `crew` está presente) */}
                     {watcher && (
                       <CrewPortrait
-                        memberId={watcher.member.id}
-                        mood={watcher.mood}
+                        memberId={watcher.status.member.id}
+                        mood={watcher.status.mood}
                         size={30}
-                        title={`${getCrewMemberName(watcher.member, lang)} (${watcher.member.role[lang]}): "${watcher.line[lang]}"`}
+                        title={`${getCrewMemberName(watcher.status.member, lang)} (${(watcher.roleLabel ?? watcher.status.member.role)[lang]}): "${watcher.status.line[lang]}"`}
                         className="vital-watcher-portrait"
                       />
                     )}
@@ -471,7 +471,8 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                       </span>
                       {watcher && (
                         <small className="vital-watcher-name">
-                          {getCrewMemberName(watcher.member, lang)} · {watcher.member.role[lang]}
+                          {getCrewMemberName(watcher.status.member, lang)} ·{' '}
+                          {(watcher.roleLabel ?? watcher.status.member.role)[lang]}
                         </small>
                       )}
                     </div>

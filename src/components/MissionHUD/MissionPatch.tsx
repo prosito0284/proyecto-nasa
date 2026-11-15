@@ -1,7 +1,7 @@
 /**
  * BLOQUE C (Asignado a: Antigravity Principal - Rama: feat/outpost-ui)
  * C10 — Parches Bordados de Misión (NASA Flight Patches SVG)
- * Un emblema vectorial distinto para cada una de las 9 insignias de `evaluateCommanderPerformance`.
+ * Un emblema vectorial distinto para cada una de las 10 insignias (9 de `evaluateCommanderPerformance` + `quiz-ace`).
  * - `earned === true`: parche bordado a color plano (azul NASA, rojo vector, verde misión, tinta y papel) con costura perimetral.
  * - `earned === false`: silueta técnica en contorno punteado sobre el papel del cuaderno de vuelo.
  */
@@ -376,6 +376,57 @@ export const MissionPatch: React.FC<MissionPatchProps> = ({
               fill={earned ? PAPER : 'none'}
               stroke={strokeColor}
               strokeWidth="1.3"
+            />
+          </g>
+        );
+
+      case 'quiz-ace':
+        // Hoja técnica de verificación científica + sello de calificación perfecta
+        return (
+          <g>
+            {/* Ficha técnica de laboratorio con esquina doblada */}
+            <polygon
+              points="18,17 34,17 40,23 40,45 18,45"
+              fill={primaryFill}
+              stroke={strokeColor}
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+              strokeDasharray={dashPattern}
+            />
+            <polyline
+              points="34,17 34,23 40,23"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="1.4"
+              strokeLinejoin="round"
+              strokeDasharray={dashPattern}
+            />
+            {/* Líneas de evaluación científica */}
+            <path
+              d="M22.5 26h10M22.5 31h12.5M22.5 36h8"
+              stroke={strokeColor}
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeDasharray={dashPattern}
+            />
+            {/* Sello circular de acierto perfecto */}
+            <circle
+              cx="39"
+              cy="39"
+              r="7.5"
+              fill={greenFill}
+              stroke={strokeColor}
+              strokeWidth="1.6"
+              strokeDasharray={dashPattern}
+            />
+            <path
+              d="M35.5 39l2.3 2.4 4.7-4.8"
+              fill="none"
+              stroke={earned ? PAPER : INK}
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={dashPattern}
             />
           </g>
         );

@@ -18,6 +18,7 @@ import {
 import { CrewRoster } from '../../components/crew';
 import { CommanderCertificate } from '../../components/MissionHUD/CommanderCertificate';
 import { MissionBriefing } from '../../components/MissionHUD/MissionBriefing';
+import { MissionPatch } from '../../components/MissionHUD/MissionPatch';
 import {
   BALANCED_POWER_ALLOCATION,
   ResourcePanel,
@@ -31,7 +32,7 @@ import {
   countCommandWords,
   OnboardingSpotlight,
 } from '../../components/Tutorial/OnboardingSpotlight';
-import { CREW_MEMBERS, getCrewMemberName } from '../../data/crew';
+import { CREW_MEMBERS, findCrewWatcherForVital, getCrewMemberName } from '../../data/crew';
 import { VERIFIED_NASA_WEATHER_EVENTS } from '../../data/nasa-datasets';
 import { OUTPOST_SITES } from '../../data/scenarios';
 import {
@@ -594,3 +595,86 @@ describe('Interactive Ignition Onboarding (T01–T05)', () => {
     expect(turnEn).not.toContain('Ing. Sato');
   });
 });
+
+describe('QA F08 — 5to vital, parche quiz-ace y favicon', () => {
+  it('asigna retrato de Cmdr. Vega al 5to vital (lifeSupport) manteniendo 4 tripulantes en el motor', () => {
+    const mission = createInitialMissionState('moon-shackleton', VERIFIED_NASA_WEATHER_EVENTS[0], 1);
+    const projection = projectSystemsTurn(mission, mission.powerAllocation);
+    const evaluation = evaluateCommanderPerformance(mission);
+    const crew = getCrewStatus(mission);
+
+    expect(CREW_MEMBERS).toHaveLength(4);
+    expect(findCrewWatcherForVital(undefined, 'lifeSupport')).toBeUndefined();
+
+    const lifeSupportWatcher = findCrewWatcherForVital(crew, 'lifeSupport');
+    expect(lifeSupportWatcher?.status.member.id).toBe('commander');
+    expect(lifeSupportWatcher?.roleLabel?.es).toBe('Supervisión ECLSS');
+    expect(lifeSupportWatcher?.roleLabel?.en).toBe('ECLSS oversight');
+
+    const withCrewHtml = renderToStaticMarkup(
+      React.createElement(ResourcePanel, {
+        lang: 'en',
+        resources: mission.resources,
+        allocation: mission.powerAllocation,
+        projection,
+        hoveredChoice: null,
+        pendingEffects: [],
+        evaluation,
+        crew,
+        onChangeAllocation: () => {},
+        onOpenBadgesModal: () => {},
+      }),
+    );
+    const portraitMatches = withCrewHtml.match(/vital-watcher-portrait/g) ?? [];
+    expect(portraitMatches).toHaveLength(5);
+    expect(withCrewHtml).toContain('Cmdr. Vega · ECLSS oversight');
+
+    const withoutCrewHtml = renderToStaticMarkup(
+      React.createElement(ResourcePanel, {
+        lang: 'es',
+        resources: mission.resources,
+        allocation: mission.powerAllocation,
+        projection,
+        hoveredChoice: null,
+        pendingEffects: [],
+        evaluation,
+        onChangeAllocation: () => {},
+        onOpenBadgesModal: () => {},
+      }),
+    );
+    expect(withoutCrewHtml.match(/vital-watcher-portrait/g) ?? []).toHaveLength(0);
+  });
+
+  it('MissionPatch renderiza un emblema propio para quiz-ace distinto del fallback default', () => {
+    const earnedQuizAce = renderToStaticMarkup(
+      React.createElement(MissionPatch, {
+        badgeId: 'quiz-ace',
+        earned: true,
+        size: 46,
+        title: 'Quiz ace',
+      }),
+    );
+    const lockedQuizAce = renderToStaticMarkup(
+      React.createElement(MissionPatch, {
+        badgeId: 'quiz-ace',
+        earned: false,
+        size: 46,
+        title: 'Quiz ace',
+      }),
+    );
+    const fallbackEarned = renderToStaticMarkup(
+      React.createElement(MissionPatch, {
+        badgeId: 'unknown-badge',
+        earned: true,
+        size: 46,
+        title: 'Quiz ace',
+      }),
+    );
+
+    expect(earnedQuizAce).not.toBe(fallbackEarned);
+    expect(earnedQuizAce).toContain('polyline');
+    expect(earnedQuizAce).toContain('#2E7D4F');
+    expect(lockedQuizAce).toContain('stroke-dasharray="2.5 2.5"');
+  });
+});
+
