@@ -498,6 +498,7 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
       for (let day = 1; day <= 8; day++) {
         const turnItems = generateTurnAnomalies(siteId, 20260415 + day * 13, day);
         expect(turnItems).toHaveLength(2);
+        expect(turnItems[0].kind).not.toBe(turnItems[1].kind);
         for (const anom of turnItems) {
           expect(anom.position[0]).toBeGreaterThanOrEqual(-20);
           expect(anom.position[0]).toBeLessThanOrEqual(20);

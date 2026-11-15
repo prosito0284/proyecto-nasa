@@ -145,8 +145,13 @@ function pickWeather(
   rngState: number,
   current?: SpaceWeatherEvent
 ): SpaceWeatherEvent {
-  // En la Luna no hay atmósfera: las tormentas de polvo solo existen en Marte.
-  const valid = pool.filter((w) => siteId === 'mars-jezero' || w.type !== 'DUST_STORM');
+  // En la Luna no hay atmósfera: las tormentas de polvo solo existen en Marte,
+  // y los eventos históricos específicos de un astro solo se muestran en su sitio.
+  const valid = pool.filter(
+    (w) =>
+      (siteId === 'mars-jezero' || w.type !== 'DUST_STORM') &&
+      (!w.siteRelevance || w.siteRelevance === 'both' || w.siteRelevance === siteId)
+  );
   if (valid.length === 0) return current ?? pool[0];
   const calm = valid.filter((w) => w.type === 'NOMINAL');
   const active = valid.filter((w) => w.type !== 'NOMINAL' && w.id !== current?.id);
