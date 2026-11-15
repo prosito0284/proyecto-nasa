@@ -9,7 +9,10 @@ import {
   buildProceduralModel,
   type ColonyModule3DId,
   disposeObject3D,
+  findModelPartId,
   getModelTitle,
+  HARDWARE_MODEL_HOTSPOTS,
+  highlightModelPart,
   type Model3DId,
   type Model3DStateOptions,
   resolveExternalModelUrl,
@@ -30,6 +33,8 @@ export interface ModelViewer3DProps {
   height?: number;
   compact?: boolean;
   focusPose?: ModelFocusPose | null;
+  selectedPartId?: string | null;
+  onSelectPart?: (partId: string) => void;
   onSelectModule?: (moduleId: ColonyModule3DId) => void;
   ariaLabel?: string;
   className?: string;
@@ -102,6 +107,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   height = 310,
   compact = false,
   focusPose,
+  selectedPartId = null,
+  onSelectPart,
   onSelectModule,
   ariaLabel,
   className,
@@ -111,10 +118,23 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const ambientRef = useRef<THREE.AmbientLight | null>(null);
+  const rimLightRef = useRef<THREE.DirectionalLight | null>(null);
   const modelHandleRef = useRef<ReturnType<typeof buildProceduralModel> | null>(null);
+  const loadedExternalRef = useRef<THREE.Object3D | null>(null);
   const desiredCameraRef = useRef<ModelFocusPose | null>(null);
+
   const onSelectModuleRef = useRef(onSelectModule);
   onSelectModuleRef.current = onSelectModule;
+  const onSelectPartRef = useRef(onSelectPart);
+  onSelectPartRef.current = onSelectPart;
+  const selectedPartIdRef = useRef<string | null>(selectedPartId);
+  selectedPartIdRef.current = selectedPartId;
+
+  const [hoveredPartId, setHoveredPartId] = useState<string | null>(null);
+  const hoveredPartRef = useRef<string | null>(null);
+  hoveredPartRef.current = hoveredPartId;
 
   const [isPaused, setIsPaused] = useState(false);
   const isPausedRef = useRef(isPaused);
@@ -131,6 +151,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
   const siteId = options?.siteId;
   const isMars = siteId === 'mars-jezero';
+  const sceneSiteKey = modelId === 'planet-globe' ? 'dynamic' : siteId;
   const modelTitle = getModelTitle(modelId, lang, siteId);
   const computedAriaLabel =
     ariaLabel ??
@@ -202,7 +223,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     }
   };
 
-  // Actualizar poses focales solicitadas por hotspots
+  // Actualizar poses focales solicitadas por hotspots o piezas seleccionadas
   useEffect(() => {
     if (focusPose) {
       desiredCameraRef.current = focusPose;
@@ -236,6 +257,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     renderer.setClearColor(isMars ? 0x180c08 : 0x08121e, 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     host.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(42, width / viewHeight, 0.1, 80);
@@ -244,6 +266,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     // Iluminación direccional limpia estilo NASA CAD
     const ambient = new THREE.AmbientLight(isMars ? 0xffe4d0 : 0xdbeafe, 0.65);
     scene.add(ambient);
+    ambientRef.current = ambient;
 
     const keyLight = new THREE.DirectionalLight(0xffffff, 1.35);
     keyLight.position.set(6.5, 9.5, 5.5);
@@ -252,17 +275,21 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     const rimLight = new THREE.DirectionalLight(isMars ? 0xfdba74 : 0x6794c1, 0.6);
     rimLight.position.set(-7, 4, -6);
     scene.add(rimLight);
+    rimLightRef.current = rimLight;
 
     const handle = buildProceduralModel(modelId, options);
     modelHandleRef.current = handle;
     scene.add(handle.group);
+    if (selectedPartIdRef.current) {
+      highlightModelPart(handle.group, selectedPartIdRef.current);
+    }
 
     camera.position.set(...handle.defaultCameraPos);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
-    controls.minDistance = modelId === 'colony-base' ? 4.0 : 2.1;
+    controls.minDistance = modelId === 'colony-base' ? 4.0 : 1.9;
     controls.maxDistance = modelId === 'colony-base' ? 15.0 : 8.5;
     controls.maxPolarAngle = modelId === 'planet-globe' ? Math.PI - 0.15 : Math.PI * 0.48;
     controls.minPolarAngle = modelId === 'planet-globe' ? 0.15 : 0.25;
@@ -272,7 +299,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
     // Carga opcional de .glb/.gltf real desde public/models/ usando import.meta.env.BASE_URL
     let isDisposed = false;
-    let loadedExternalRoot: THREE.Object3D | null = null;
+    loadedExternalRef.current = null;
     const glbUrl = resolveExternalModelUrl(modelId, glbFile);
     if (glbUrl) {
       const loader = new GLTFLoader();
@@ -283,7 +310,6 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
             disposeObject3D(gltf.scene);
             return;
           }
-          // Normalizar escala y centro al volumen del visor
           const box = new THREE.Box3().setFromObject(gltf.scene);
           const size = new THREE.Vector3();
           const center = new THREE.Vector3();
@@ -296,13 +322,12 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
           scene.remove(handle.group);
           disposeObject3D(handle.group);
-          loadedExternalRoot = gltf.scene;
-          scene.add(loadedExternalRoot);
+          loadedExternalRef.current = gltf.scene;
+          scene.add(loadedExternalRef.current);
           setUsingExternalGlb(true);
         },
         undefined,
         () => {
-          // Respaldo procedural ya montado; fallo silencioso si el archivo aún no existe
           setUsingExternalGlb(false);
         },
       );
@@ -310,49 +335,101 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       setUsingExternalGlb(false);
     }
 
-    // Raycaster para seleccionar módulos al hacer clic (distinguiendo del arrastre de cámara)
+    // Raycaster para inspeccionar piezas (userData.partId) o módulos al pasar/clic (sin arrastre)
     const raycaster = new THREE.Raycaster();
     const pointerNdc = new THREE.Vector2();
     let downX = 0;
     let downY = 0;
+    let isDragging = false;
+
+    const pickHit = (
+      clientX: number,
+      clientY: number,
+    ): { partId: string | null; moduleId: ColonyModule3DId | null } => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return { partId: null, moduleId: null };
+      pointerNdc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      pointerNdc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(pointerNdc, camera);
+      const rootTarget = loadedExternalRef.current ?? handle.group;
+      const hits = raycaster.intersectObjects(rootTarget.children, true);
+      for (const hit of hits) {
+        const partId = findModelPartId(hit.object);
+        let obj: THREE.Object3D | null = hit.object;
+        let modId: ColonyModule3DId | null = null;
+        while (obj) {
+          if (obj.userData?.moduleId) {
+            modId = obj.userData.moduleId as ColonyModule3DId;
+            break;
+          }
+          obj = obj.parent;
+        }
+        if (partId || modId) {
+          return { partId, moduleId: modId };
+        }
+      }
+      return { partId: null, moduleId: null };
+    };
+
+    const handlePointerMove = (ev: PointerEvent) => {
+      if (isDragging && Math.hypot(ev.clientX - downX, ev.clientY - downY) > 6) {
+        renderer.domElement.style.cursor = 'grabbing';
+        return;
+      }
+      const { partId, moduleId } = pickHit(ev.clientX, ev.clientY);
+      const interactive = Boolean((partId && onSelectPartRef.current) || (moduleId && onSelectModuleRef.current));
+      renderer.domElement.style.cursor = interactive ? 'pointer' : 'grab';
+      const nextHover = onSelectPartRef.current ? partId : null;
+      if (nextHover !== hoveredPartRef.current) {
+        setHoveredPartId(nextHover);
+        const rootTarget = loadedExternalRef.current ?? handle.group;
+        highlightModelPart(rootTarget, nextHover ?? selectedPartIdRef.current);
+      }
+    };
 
     const handlePointerDown = (ev: PointerEvent) => {
       downX = ev.clientX;
       downY = ev.clientY;
-      // Si el usuario toca controles de órbita, cancelamos interpolación automática
+      isDragging = true;
       desiredCameraRef.current = null;
     };
 
     const handlePointerUp = (ev: PointerEvent) => {
-      if (!onSelectModuleRef.current) return;
       const moveDist = Math.hypot(ev.clientX - downX, ev.clientY - downY);
+      isDragging = false;
+      const { partId, moduleId } = pickHit(ev.clientX, ev.clientY);
+      const interactive = Boolean((partId && onSelectPartRef.current) || (moduleId && onSelectModuleRef.current));
+      renderer.domElement.style.cursor = interactive ? 'pointer' : 'grab';
       if (moveDist > 6) return;
 
-      const rect = renderer.domElement.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) return;
-      pointerNdc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
-      pointerNdc.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
-
-      raycaster.setFromCamera(pointerNdc, camera);
-      const rootTarget = loadedExternalRoot ?? handle.group;
-      const hits = raycaster.intersectObjects(rootTarget.children, true);
-      for (const hit of hits) {
-        let obj: THREE.Object3D | null = hit.object;
-        while (obj) {
-          const modId = obj.userData?.moduleId as ColonyModule3DId | undefined;
-          if (modId) {
-            onSelectModuleRef.current(modId);
-            return;
-          }
-          obj = obj.parent;
-        }
+      if (partId && onSelectPartRef.current) {
+        const rootTarget = loadedExternalRef.current ?? handle.group;
+        highlightModelPart(rootTarget, partId);
+        onSelectPartRef.current(partId);
+        return;
+      }
+      if (moduleId && onSelectModuleRef.current) {
+        onSelectModuleRef.current(moduleId);
       }
     };
 
+    const handlePointerLeave = () => {
+      isDragging = false;
+      renderer.domElement.style.cursor = 'grab';
+      if (hoveredPartRef.current !== null) {
+        setHoveredPartId(null);
+        const rootTarget = loadedExternalRef.current ?? handle.group;
+        highlightModelPart(rootTarget, selectedPartIdRef.current);
+      }
+    };
+
+    renderer.domElement.style.cursor = 'grab';
+    renderer.domElement.addEventListener('pointermove', handlePointerMove);
     renderer.domElement.addEventListener('pointerdown', handlePointerDown);
     renderer.domElement.addEventListener('pointerup', handlePointerUp);
+    renderer.domElement.addEventListener('pointerleave', handlePointerLeave);
 
-    // ResizeObserver para redimensionado responsivo fluido
     const resizeRenderer = () => {
       if (!hostRef.current) return;
       const nextW = Math.max(200, hostRef.current.clientWidth);
@@ -369,7 +446,6 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     }
     window.addEventListener('resize', resizeRenderer);
 
-    // Bucle de animación
     let rafId = 0;
     let lastTime = performance.now();
     let elapsed = 0;
@@ -382,7 +458,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
         elapsed += dt;
         handle.animate?.(elapsed, dt);
         if (modelId !== 'colony-base' || compact) {
-          controls.autoRotate = !desiredCameraRef.current;
+          controls.autoRotate = !desiredCameraRef.current && !selectedPartIdRef.current;
           controls.autoRotateSpeed = modelId === 'planet-globe' ? 1.15 : 0.85;
         } else {
           controls.autoRotate = false;
@@ -418,28 +494,45 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       window.cancelAnimationFrame(rafId);
       ro?.disconnect();
       window.removeEventListener('resize', resizeRenderer);
+      renderer.domElement.removeEventListener('pointermove', handlePointerMove);
       renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
       renderer.domElement.removeEventListener('pointerup', handlePointerUp);
+      renderer.domElement.removeEventListener('pointerleave', handlePointerLeave);
       controls.dispose();
       controlsRef.current = null;
       cameraRef.current = null;
+      rendererRef.current = null;
+      ambientRef.current = null;
+      rimLightRef.current = null;
       modelHandleRef.current = null;
-      if (loadedExternalRoot) {
-        disposeObject3D(loadedExternalRoot);
+      if (loadedExternalRef.current) {
+        disposeObject3D(loadedExternalRef.current);
+        loadedExternalRef.current = null;
       }
       disposeObject3D(scene);
+      renderer.renderLists?.dispose?.();
       renderer.dispose();
       if (renderer.domElement.parentNode === host) {
         host.removeChild(renderer.domElement);
       }
     };
-  }, [modelId, glbFile, height, compact, webglSupported, isMars]);
+  }, [modelId, glbFile, height, compact, webglSupported, sceneSiteKey]);
 
   // Sincronización reactiva de estado en vivo sin recrear la escena WebGL
   useEffect(() => {
+    if (rendererRef.current) {
+      rendererRef.current.setClearColor(isMars ? 0x180c08 : 0x08121e, 1);
+    }
+    if (ambientRef.current) {
+      ambientRef.current.color.setHex(isMars ? 0xffe4d0 : 0xdbeafe);
+    }
+    if (rimLightRef.current) {
+      rimLightRef.current.color.setHex(isMars ? 0xfdba74 : 0x6794c1);
+    }
     if (!options) return;
     modelHandleRef.current?.updateState?.(options);
   }, [
+    isMars,
     options?.siteId,
     options?.powerPercent,
     options?.lifeSupportPercent,
@@ -455,6 +548,40 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     options?.isGreenhouseWilted,
     options?.selectedModule,
   ]);
+
+  useEffect(() => {
+    setHoveredPartId(null);
+  }, [modelId, selectedPartId]);
+
+  useEffect(() => {
+    const rootTarget = loadedExternalRef.current ?? modelHandleRef.current?.group;
+    if (!rootTarget) return;
+    highlightModelPart(rootTarget, hoveredPartId ?? selectedPartId ?? null);
+  }, [selectedPartId, hoveredPartId, modelId]);
+
+  const activeHotspotBadgeLabel = (() => {
+    if (modelId !== 'rover-moxie' && modelId !== 'habitat-shield') return null;
+    const partId = hoveredPartId ?? selectedPartId;
+    if (!partId) return null;
+    const match = HARDWARE_MODEL_HOTSPOTS[modelId].find((s) => s.id === partId);
+    return match ? match.label[lang] : null;
+  })();
+
+  const handleSvgPartClick = (partId: string) => {
+    onSelectPart?.(partId);
+  };
+
+  const handleSvgPartKeyDown = (e: React.KeyboardEvent, partId: string) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleSvgPartClick(partId);
+    }
+  };
+
+  const getHotspotAria = (model: 'rover-moxie' | 'habitat-shield', partId: string): string => {
+    const spot = HARDWARE_MODEL_HOTSPOTS[model].find((s) => s.id === partId);
+    return spot ? spot.label[lang] : partId;
+  };
 
   const inkPrimary = isMars ? '#F4C39B' : '#B8D8F8';
   const inkSecondary = isMars ? '#C87D52' : '#6794C1';
@@ -506,9 +633,75 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
           <g transform="translate(180, 102)">
             <line x1="-130" y1="44" x2="130" y2="44" stroke={inkSecondary} strokeWidth="1.2" />
             <rect x="-56" y="-22" width="112" height="36" fill="#263850" stroke={inkPrimary} strokeWidth="1.6" />
-            <rect x="-20" y="-16" width="40" height="24" fill="#FFB300" stroke="#00E5FF" strokeWidth="1.4" />
-            <line x1="42" y1="-22" x2="46" y2="-62" stroke={inkPrimary} strokeWidth="2.5" />
-            <rect x="34" y="-76" width="26" height="16" fill="#F2EBDD" stroke="#00E5FF" strokeWidth="1.5" />
+
+            {/* Pieza interactiva SVG: Generador MMRTG */}
+            <g
+              role="button"
+              tabIndex={0}
+              data-part-id="mmrtg"
+              aria-label={getHotspotAria('rover-moxie', 'mmrtg')}
+              style={{ cursor: 'pointer' }}
+              onClick={() => handleSvgPartClick('mmrtg')}
+              onKeyDown={(e) => handleSvgPartKeyDown(e, 'mmrtg')}
+            >
+              <rect
+                x="-88"
+                y="-18"
+                width="28"
+                height="26"
+                fill="#1E293B"
+                stroke={selectedPartId === 'mmrtg' ? '#38BDF8' : '#FC3D21'}
+                strokeWidth={selectedPartId === 'mmrtg' ? 2.4 : 1.5}
+              />
+              <line x1="-88" y1="-10" x2="-60" y2="-10" stroke="#FC3D21" strokeWidth="1" />
+              <line x1="-88" y1="0" x2="-60" y2="0" stroke="#FC3D21" strokeWidth="1" />
+            </g>
+
+            {/* Pieza interactiva SVG: Unidad MOXIE */}
+            <g
+              role="button"
+              tabIndex={0}
+              data-part-id="moxie-unit"
+              aria-label={getHotspotAria('rover-moxie', 'moxie-unit')}
+              style={{ cursor: 'pointer' }}
+              onClick={() => handleSvgPartClick('moxie-unit')}
+              onKeyDown={(e) => handleSvgPartKeyDown(e, 'moxie-unit')}
+            >
+              <rect
+                x="-20"
+                y="-18"
+                width="42"
+                height="26"
+                fill="#FFB300"
+                stroke={selectedPartId === 'moxie-unit' ? '#38BDF8' : '#00E5FF'}
+                strokeWidth={selectedPartId === 'moxie-unit' ? 2.6 : 1.4}
+              />
+            </g>
+
+            {/* Pieza interactiva SVG: Cámara Mastcam-Z */}
+            <g
+              role="button"
+              tabIndex={0}
+              data-part-id="mastcam-z"
+              aria-label={getHotspotAria('rover-moxie', 'mastcam-z')}
+              style={{ cursor: 'pointer' }}
+              onClick={() => handleSvgPartClick('mastcam-z')}
+              onKeyDown={(e) => handleSvgPartKeyDown(e, 'mastcam-z')}
+            >
+              <line x1="42" y1="-22" x2="46" y2="-62" stroke={inkPrimary} strokeWidth="2.5" />
+              <rect
+                x="34"
+                y="-76"
+                width="26"
+                height="16"
+                fill="#F2EBDD"
+                stroke={selectedPartId === 'mastcam-z' ? '#38BDF8' : '#00E5FF'}
+                strokeWidth={selectedPartId === 'mastcam-z' ? 2.6 : 1.5}
+              />
+              <circle cx="42" cy="-68" r="2.5" fill="#00E5FF" />
+              <circle cx="52" cy="-68" r="2.5" fill="#00E5FF" />
+            </g>
+
             <circle cx="-42" cy="28" r="14" fill="#1B1F2A" stroke={inkPrimary} strokeWidth="1.8" />
             <circle cx="0" cy="28" r="14" fill="#1B1F2A" stroke={inkPrimary} strokeWidth="1.8" />
             <circle cx="42" cy="28" r="14" fill="#1B1F2A" stroke={inkPrimary} strokeWidth="1.8" />
@@ -522,11 +715,56 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
         {modelId === 'habitat-shield' && (
           <g transform="translate(180, 134)">
-            <path d="M-112,0 A112,96 0 0,1 112,0 Z" fill="#5D4B3B" stroke="#FDBA74" strokeWidth="1.8" />
-            <path d="M-90,0 A90,76 0 0,1 90,0 Z" fill="#0B3D91" stroke="#00E5FF" strokeWidth="1.6" />
-            <path d="M-68,0 A68,56 0 0,1 68,0 Z" fill="#F2EBDD" stroke="#1B1F2A" strokeWidth="1.6" />
-            <rect x="-26" y="-22" width="24" height="22" fill="#0B3D91" stroke="#00E5FF" strokeWidth="1.2" />
-            <rect x="10" y="-28" width="14" height="28" fill="#2E7D4F" stroke="#1B1F2A" strokeWidth="1.2" />
+            <g
+              role="button"
+              tabIndex={0}
+              data-part-id="regolith-shell"
+              aria-label={getHotspotAria('habitat-shield', 'regolith-shell')}
+              style={{ cursor: 'pointer' }}
+              onClick={() => handleSvgPartClick('regolith-shell')}
+              onKeyDown={(e) => handleSvgPartKeyDown(e, 'regolith-shell')}
+            >
+              <path
+                d="M-112,0 A112,96 0 0,1 112,0 Z"
+                fill="#5D4B3B"
+                stroke={selectedPartId === 'regolith-shell' ? '#38BDF8' : '#FDBA74'}
+                strokeWidth={selectedPartId === 'regolith-shell' ? 2.8 : 1.8}
+              />
+            </g>
+            <g
+              role="button"
+              tabIndex={0}
+              data-part-id="water-jacket"
+              aria-label={getHotspotAria('habitat-shield', 'water-jacket')}
+              style={{ cursor: 'pointer' }}
+              onClick={() => handleSvgPartClick('water-jacket')}
+              onKeyDown={(e) => handleSvgPartKeyDown(e, 'water-jacket')}
+            >
+              <path
+                d="M-90,0 A90,76 0 0,1 90,0 Z"
+                fill="#0B3D91"
+                stroke={selectedPartId === 'water-jacket' ? '#38BDF8' : '#00E5FF'}
+                strokeWidth={selectedPartId === 'water-jacket' ? 2.8 : 1.6}
+              />
+            </g>
+            <g
+              role="button"
+              tabIndex={0}
+              data-part-id="pressurized-core"
+              aria-label={getHotspotAria('habitat-shield', 'pressurized-core')}
+              style={{ cursor: 'pointer' }}
+              onClick={() => handleSvgPartClick('pressurized-core')}
+              onKeyDown={(e) => handleSvgPartKeyDown(e, 'pressurized-core')}
+            >
+              <path
+                d="M-68,0 A68,56 0 0,1 68,0 Z"
+                fill="#F2EBDD"
+                stroke={selectedPartId === 'pressurized-core' ? '#38BDF8' : '#1B1F2A'}
+                strokeWidth={selectedPartId === 'pressurized-core' ? 2.6 : 1.6}
+              />
+              <rect x="-26" y="-22" width="24" height="22" fill="#0B3D91" stroke="#00E5FF" strokeWidth="1.2" />
+              <rect x="10" y="-28" width="14" height="28" fill="#2E7D4F" stroke="#1B1F2A" strokeWidth="1.2" />
+            </g>
             <path d="M-45,-118 L-28,-98 M0,-122 L0,-100 M45,-118 L28,-98" stroke="#FC3D21" strokeWidth="2" />
             <text x="0" y="22" textAnchor="middle" fill={inkPrimary} fontSize="9.5" fontFamily="IBM Plex Mono, monospace">
               SECTION // REGOLITH + H2O WALL + ECLSS
@@ -580,6 +818,11 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
                   : 'SVG // NO WEBGL'}
             </span>
           </span>
+          {activeHotspotBadgeLabel && (
+            <span className="viewer3d-badge viewer3d-part-badge" data-testid="viewer3d-active-part-badge">
+              {activeHotspotBadgeLabel}
+            </span>
+          )}
         </div>
 
         {!webglSupported && renderSvgBlueprintFallback()}

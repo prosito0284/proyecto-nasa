@@ -624,6 +624,7 @@ export const App: React.FC = () => {
                 onOpenScienceModal={() => openScience()}
                 commDelaySeconds={getCommDelaySeconds(mission.siteId, mission.currentDay)}
                 onTutorialAction={handleInteractiveAction}
+                isEnvironmentalAlert={isEmergencyStepActive}
               />
 
               {lastTurn && (
