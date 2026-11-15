@@ -241,6 +241,9 @@ export function createInitialMissionState(
     currentWeather: initialWeather,
     currentDilemma: firstCard,
     pendingDelayedEffects: [],
+    collectedSampleIds: [],
+    roverSamplesCollected: 0,
+    roverScienceEarned: 0,
     logs: [
       {
         day: 1,
@@ -265,18 +268,97 @@ export function createInitialMissionState(
   return state;
 }
 
-// ───────────────────────────── Física del turno ─────────────────────────────
+// ───────────────────────────── Umbrales científicos y física del turno ─────────────────────────────
+
+export interface ScienceBonusTier {
+  tier: 0 | 1 | 2 | 3;
+  threshold: number;
+  nextThreshold: number | null;
+  title: LocalizedText;
+  summary: LocalizedText;
+  delta: Partial<Pick<CoreResources, 'power' | 'lifeSupport' | 'food' | 'shielding'>>;
+}
+
+export const SCIENCE_BONUS_TIERS: readonly ScienceBonusTier[] = [
+  {
+    tier: 0,
+    threshold: 0,
+    nextThreshold: 75,
+    title: {
+      es: 'Nivel 0 · Base científica',
+      en: 'Tier 0 · Research baseline',
+    },
+    summary: {
+      es: 'Alcanza 75 pts con el Rover o ciencia para activar mejoras en sistemas vitales.',
+      en: 'Reach 75 pts via Rover samples or science to unlock habitat efficiency gains.',
+    },
+    delta: {},
+  },
+  {
+    tier: 1,
+    threshold: 75,
+    nextThreshold: 115,
+    title: {
+      es: 'Nivel 1 · Reciclaje ISRU',
+      en: 'Tier 1 · ISRU Recycling',
+    },
+    summary: {
+      es: '+2% Soporte Vital y +1% Cultivos por turno gracias a las muestras analizadas.',
+      en: '+2% Life Support and +1% Crops per turn from analyzed surface samples.',
+    },
+    delta: { lifeSupport: 2, food: 1 },
+  },
+  {
+    tier: 2,
+    threshold: 115,
+    nextThreshold: 155,
+    title: {
+      es: 'Nivel 2 · Hábitat Optimizado',
+      en: 'Tier 2 · Tuned Habitat',
+    },
+    summary: {
+      es: '+3% Soporte Vital, +2% Cultivos y +1% Blindaje por turno.',
+      en: '+3% Life Support, +2% Crops, and +1% Shielding per turn.',
+    },
+    delta: { lifeSupport: 3, food: 2, shielding: 1 },
+  },
+  {
+    tier: 3,
+    threshold: 155,
+    nextThreshold: null,
+    title: {
+      es: 'Nivel 3 · Vanguardia Científica',
+      en: 'Tier 3 · Pioneer Science',
+    },
+    summary: {
+      es: '+2% Energía, +3% O₂/Agua, +2% Cultivos y +2% Blindaje por turno.',
+      en: '+2% Power, +3% O₂/Water, +2% Crops, and +2% Shielding per turn.',
+    },
+    delta: { power: 2, lifeSupport: 3, food: 2, shielding: 2 },
+  },
+];
+
+export function getScienceBonusTier(sciencePoints: number): ScienceBonusTier {
+  const pts = Number.isFinite(sciencePoints) ? sciencePoints : 0;
+  for (let i = SCIENCE_BONUS_TIERS.length - 1; i >= 0; i--) {
+    if (pts >= SCIENCE_BONUS_TIERS[i].threshold) {
+      return SCIENCE_BONUS_TIERS[i];
+    }
+  }
+  return SCIENCE_BONUS_TIERS[0];
+}
 
 export interface TurnProjection {
-  /** Cambios por turno debidos SOLO a la energía asignada y al clima (sin la tarjeta) */
+  /** Cambios por turno debidos a la energía asignada, clima y eficiencia científica (sin la tarjeta) */
   delta: Required<Omit<CoreResources, 'radiationDoseMsv'>> & { radiationDoseMsv: number };
   solarGain: number;
   load: number;
   effectiveShielding: number;
+  scienceBonus: ScienceBonusTier;
 }
 
 /**
- * Calcula el efecto de la distribución de energía + clima espacial de HOY.
+ * Calcula el efecto de la distribución de energía + clima espacial de HOY + bono científico.
  * Se puede usar desde la UI para mostrar una vista previa antes de confirmar.
  */
 export function projectSystemsTurn(
@@ -288,23 +370,28 @@ export function projectSystemsTurn(
   const weather = state.currentWeather;
   const prev = state.resources;
   const load = totalLoad(allocation);
+  const scienceBonus = getScienceBonusTier(prev.sciencePoints);
 
-  // Energía: generación solar - consumo base - sobrecarga (o ahorro si se usa < 100%)
+  // Energía: generación solar - consumo base - sobrecarga (o ahorro si se usa < 100%) + bono científico
   const solarGain = Math.round(phys.solarGainPerTurn * weather.solarEfficiencyMultiplier);
   const loadPenalty =
     load > 100 ? (load - 100) * OVERLOAD_DRAIN : -(100 - load) * UNDERLOAD_SAVING;
-  const powerDelta = Math.round(solarGain - phys.baseHabitatLoad - loadPenalty);
+  const powerDelta =
+    Math.round(solarGain - phys.baseHabitatLoad - loadPenalty) + (scienceBonus.delta.power ?? 0);
 
-  // Soporte vital, comida, blindaje dependen de cuánta energía reciben
-  const lifeSupportDelta = Math.round(
-    -phys.lifeSupportDrainPerTurn + (allocation.lifeSupportAlloc - BASELINE_ALLOC) * ALLOC_EFFECT
-  );
-  const foodDelta = Math.round(
-    -phys.foodDrainPerTurn + (allocation.greenhouseAlloc - BASELINE_ALLOC) * ALLOC_EFFECT
-  );
-  const shieldingDelta = Math.round(
-    -phys.shieldingDecayPerTurn + (allocation.shieldingAlloc - BASELINE_ALLOC) * ALLOC_EFFECT
-  );
+  // Soporte vital, comida, blindaje dependen de energía + eficiencia científica desbloqueada
+  const lifeSupportDelta =
+    Math.round(
+      -phys.lifeSupportDrainPerTurn + (allocation.lifeSupportAlloc - BASELINE_ALLOC) * ALLOC_EFFECT
+    ) + (scienceBonus.delta.lifeSupport ?? 0);
+  const foodDelta =
+    Math.round(
+      -phys.foodDrainPerTurn + (allocation.greenhouseAlloc - BASELINE_ALLOC) * ALLOC_EFFECT
+    ) + (scienceBonus.delta.food ?? 0);
+  const shieldingDelta =
+    Math.round(
+      -phys.shieldingDecayPerTurn + (allocation.shieldingAlloc - BASELINE_ALLOC) * ALLOC_EFFECT
+    ) + (scienceBonus.delta.shielding ?? 0);
 
   // Ciencia: rovers y antenas. En tormenta de polvo los rovers rinden la mitad.
   const scienceEfficiency = weather.type === 'DUST_STORM' ? 0.5 : 1;
@@ -338,6 +425,7 @@ export function projectSystemsTurn(
     solarGain,
     load,
     effectiveShielding,
+    scienceBonus,
   };
 }
 
@@ -438,6 +526,19 @@ export function advanceMissionTurn(
     healthAdj += 3; // tripulación bien alimentada y descansada se recupera
   }
   next.crewHealth = clampPercent(next.crewHealth + healthAdj);
+
+  if (proj.scienceBonus.tier > 0) {
+    consequenceLogs.push({
+      day,
+      title: {
+        es: `Eficiencia científica (${proj.scienceBonus.title.es})`,
+        en: `Science efficiency (${proj.scienceBonus.title.en})`,
+      },
+      detail: proj.scienceBonus.summary,
+      severity: 'nominal',
+      nasaTag: state.siteId === 'moon-shackleton' ? 'ARTEMIS / OSDR' : 'MARS 2020 / OSDR',
+    });
+  }
 
   if (proj.delta.crewHealth < 0) {
     consequenceLogs.push({
@@ -813,10 +914,13 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
       id: 'isru-pioneer',
       title: { es: 'Pionero ISRU', en: 'ISRU Pioneer' },
       description: {
-        es: 'Usaste recursos locales (hielo o regolito) al menos 2 veces.',
-        en: 'Used local resources (ice or regolith) at least 2 times.',
+        es: 'Usaste recursos locales (hielo o regolito) al menos 2 veces o recolectaste 4+ muestras con el Rover.',
+        en: 'Used local resources (ice or regolith) at least 2 times or collected 4+ Rover samples.',
       },
-      earned: finished && choices.filter((c) => ISRU_CHOICES.includes(c)).length >= 2,
+      earned:
+        finished &&
+        (choices.filter((c) => ISRU_CHOICES.includes(c)).length >= 2 ||
+          (state.roverSamplesCollected ?? 0) >= 4),
     },
     {
       id: 'happy-crew',

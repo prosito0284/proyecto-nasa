@@ -1,6 +1,21 @@
 import * as THREE from 'three';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { getGlossaryTerm } from '../../../data/nasa-datasets';
+import { getGlossaryTerm, VERIFIED_NASA_WEATHER_EVENTS } from '../../../data/nasa-datasets';
+import { OUTPOST_SITES } from '../../../data/scenarios';
+import {
+  advanceMissionTurn,
+  createInitialMissionState,
+  DEFAULT_POWER_ALLOCATION,
+  evaluateCommanderPerformance,
+  getScienceBonusTier,
+  projectSystemsTurn,
+} from '../../../engine/simulationEngine';
+import { applySampleCollectToMission } from '../../../hooks/useMission';
+import { CommanderCertificate } from '../../MissionHUD/CommanderCertificate';
+import { ResourcePanel } from '../../MissionHUD/ResourcePanel';
+import { TurnReport } from '../../MissionHUD/TurnReport';
 import {
   disposeObject3D,
   generateTurnAnomalies,
@@ -150,4 +165,110 @@ describe('sampleManager (R05 procedural surface samples)', () => {
       expect(matSpy).toHaveBeenCalledTimes(1);
     });
   });
+
+  it('R06: applySampleCollectToMission suma sciencePoints de forma idempotente y persiste entre turnos', () => {
+    const base = createInitialMissionState('moon-shackleton', VERIFIED_NASA_WEATHER_EVENTS[0], 20260415);
+    const samples = generateTurnSamples('moon-shackleton', 20260415, 1);
+    expect(base.roverSamplesCollected).toBe(0);
+    expect(base.collectedSampleIds).toEqual([]);
+
+    const afterFirst = applySampleCollectToMission(base, samples[0]);
+    expect(afterFirst.resources.sciencePoints).toBe(base.resources.sciencePoints + samples[0].points);
+    expect(afterFirst.roverSamplesCollected).toBe(1);
+    expect(afterFirst.roverScienceEarned).toBe(samples[0].points);
+    expect(afterFirst.collectedSampleIds).toEqual([samples[0].id]);
+    expect(afterFirst.logs[0].nasaTag).toBe('ARTEMIS / LRO');
+
+    // Idempotencia: recolectar el mismo ID no vuelve a sumar
+    const afterDuplicate = applySampleCollectToMission(afterFirst, samples[0]);
+    expect(afterDuplicate).toBe(afterFirst);
+
+    // Recolectar varias muestras conserva el historial al avanzar de turno
+    let accumulated = afterFirst;
+    for (const smp of samples.slice(1)) {
+      accumulated = applySampleCollectToMission(accumulated, smp);
+    }
+    const nextTurn = advanceMissionTurn(
+      accumulated,
+      accumulated.currentDilemma!.choices[0],
+      VERIFIED_NASA_WEATHER_EVENTS[0],
+      DEFAULT_POWER_ALLOCATION,
+    );
+    expect(nextTurn.roverSamplesCollected).toBe(samples.length);
+    expect(nextTurn.collectedSampleIds).toHaveLength(samples.length);
+  });
+
+  it('R06: HUD, TurnReport y CommanderCertificate destacan ciencia del Rover y bonos en ES/EN sin emoji', () => {
+    const base = createInitialMissionState('mars-jezero', VERIFIED_NASA_WEATHER_EVENTS[0], 20260415);
+    const samples = generateTurnSamples('mars-jezero', 20260415, 1);
+    let active = base;
+    for (const smp of samples) active = applySampleCollectToMission(active, smp);
+    active = { ...active, resources: { ...active.resources, sciencePoints: 90 } };
+    const bonus = getScienceBonusTier(active.resources.sciencePoints);
+    expect(bonus.tier).toBe(1);
+
+    const projection = projectSystemsTurn(active, DEFAULT_POWER_ALLOCATION);
+    const evaluation = evaluateCommanderPerformance(active);
+
+    const hudEs = renderToStaticMarkup(
+      React.createElement(ResourcePanel, {
+        lang: 'es',
+        resources: active.resources,
+        allocation: DEFAULT_POWER_ALLOCATION,
+        projection,
+        hoveredChoice: null,
+        pendingEffects: [],
+        evaluation,
+        onChangeAllocation: () => {},
+        onOpenBadgesModal: () => {},
+        scienceBonus: bonus,
+        roverSamplesCollected: active.roverSamplesCollected,
+        roverScienceEarned: active.roverScienceEarned,
+      }),
+    );
+    expect(hudEs).toContain('data-testid="science-bonus-hud"');
+    expect(hudEs).toContain(bonus.title.es);
+    expect(hudEs).toContain(`Muestras Rover: ${samples.length}`);
+    expect(EMOJI_REGEX.test(hudEs)).toBe(false);
+
+    const reportEn = renderToStaticMarkup(
+      React.createElement(TurnReport, {
+        lang: 'en',
+        previous: base.resources,
+        current: active.resources,
+        logs: active.logs,
+        onContinue: () => {},
+        scienceBonus: bonus,
+        roverSamplesCollected: active.roverSamplesCollected,
+        roverScienceEarned: active.roverScienceEarned,
+      }),
+    );
+    expect(reportEn).toContain('data-testid="turn-science-bonus"');
+    expect(reportEn).toContain('data-testid="turn-rover-samples"');
+    expect(reportEn).toContain(bonus.title.en);
+    expect(EMOJI_REGEX.test(reportEn)).toBe(false);
+
+    const certEs = renderToStaticMarkup(
+      React.createElement(CommanderCertificate, {
+        lang: 'es',
+        isOpen: true,
+        onClose: () => {},
+        evaluation,
+        site: OUTPOST_SITES['mars-jezero'],
+        currentDay: 4,
+        totalDays: 8,
+        missionStatus: 'playing',
+        onRestartMission: () => {},
+        sciencePoints: active.resources.sciencePoints,
+        scienceBonus: bonus,
+        roverSamplesCollected: active.roverSamplesCollected,
+        roverScienceEarned: active.roverScienceEarned,
+      }),
+    );
+    expect(certEs).toContain('data-testid="cert-rover-science"');
+    expect(certEs).toContain(`Muestras: ${samples.length}`);
+    expect(certEs).toContain(`Ciencia total: ${active.resources.sciencePoints} pts`);
+    expect(EMOJI_REGEX.test(certEs)).toBe(false);
+  });
 });
+

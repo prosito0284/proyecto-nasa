@@ -14,6 +14,7 @@ import {
 } from '../../types/mission';
 import type {
   CommanderEvaluation,
+  ScienceBonusTier,
   TurnProjection,
 } from '../../engine/simulationEngine';
 import type { UnlockedPatchRecord } from '../../services/patchStorage';
@@ -21,6 +22,7 @@ import { findCrewWatcherForVital, getCrewMemberName } from '../../data/crew';
 import { missionAudio } from '../../utils/sound';
 import {
   AlertIcon,
+  AntennaIcon,
   ArrowIcon,
   BatteryIcon,
   CheckIcon,
@@ -58,6 +60,12 @@ export interface ResourcePanelProps {
   unlockedRecords?: Record<string, UnlockedPatchRecord>;
   /** F02: Indica si el simulacro de emergencia térmica del Paso 4 de onboarding está activo */
   isOnboardingEmergency?: boolean;
+  /** R06: Bono de eficiencia científica activo por umbral de ciencia */
+  scienceBonus?: ScienceBonusTier;
+  /** R06: Total de muestras científicas recolectadas con el Rover */
+  roverSamplesCollected?: number;
+  /** R06: Puntos de ciencia acumulados mediante el Rover */
+  roverScienceEarned?: number;
 }
 
 export const BALANCED_POWER_ALLOCATION: PowerAllocation = {
@@ -146,11 +154,15 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   onTutorialAction,
   unlockedRecords,
   isOnboardingEmergency = false,
+  scienceBonus,
+  roverSamplesCollected,
+  roverScienceEarned,
 }) => {
   const [showAdvancedSliders, setShowAdvancedSliders] = useState(false);
   const [gridIgnited, setGridIgnited] = useState(false);
   const [oxygenPressurized, setOxygenPressurized] = useState(false);
   const totalPowerUsed = projection.load;
+  const resolvedScienceBonus = scienceBonus ?? projection.scienceBonus;
 
   const updateSlider = (key: keyof PowerAllocation, val: number) => {
     missionAudio.playSliderTick();
@@ -584,6 +596,40 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
               </small>
             </strong>
           </div>
+
+          {resolvedScienceBonus && (
+            <div
+              className={`science-bonus-readout ${
+                resolvedScienceBonus.tier > 0 ? 'science-bonus-active' : 'science-bonus-idle'
+              }`}
+              data-testid="science-bonus-hud"
+            >
+              <div className="science-bonus-head">
+                <span className="resource-label-inline">
+                  <ScienceIcon size={15} />{' '}
+                  <strong>{resolvedScienceBonus.title[lang]}</strong>
+                </span>
+                <span className="science-tier-meta">
+                  {resolvedScienceBonus.nextThreshold !== null
+                    ? `${resources.sciencePoints}/${resolvedScienceBonus.nextThreshold} pts`
+                    : lang === 'es'
+                      ? 'Nivel máx.'
+                      : 'Max tier'}
+                </span>
+              </div>
+              <p className="science-bonus-summary">{resolvedScienceBonus.summary[lang]}</p>
+              {(roverSamplesCollected !== undefined || roverScienceEarned !== undefined) && (
+                <div className="science-rover-tally">
+                  <AntennaIcon size={13} />{' '}
+                  <span>
+                    {lang === 'es'
+                      ? `Muestras Rover: ${roverSamplesCollected ?? 0} (+${roverScienceEarned ?? 0} pts)`
+                      : `Rover samples: ${roverSamplesCollected ?? 0} (+${roverScienceEarned ?? 0} pts)`}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Efectos Encadenados del Día Anterior */}
           {pendingEffects.length > 0 && (

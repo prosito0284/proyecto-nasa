@@ -13,7 +13,10 @@ import {
   OutpostSiteConfig,
   SpaceWeatherEvent,
 } from '../../types/mission';
-import type { CommanderEvaluation } from '../../engine/simulationEngine';
+import type {
+  CommanderEvaluation,
+  ScienceBonusTier,
+} from '../../engine/simulationEngine';
 import type { UnlockedPatchRecord } from '../../services/patchStorage';
 import { CREW_MEMBERS, getCrewMemberName } from '../../data/crew';
 import { missionAudio } from '../../utils/sound';
@@ -30,6 +33,7 @@ import {
   PatchIcon,
   PrintIcon,
   RadiationIcon,
+  ScienceIcon,
   SunIcon,
 } from '../icons';
 import { MissionPatch } from './MissionPatch';
@@ -58,6 +62,14 @@ export interface CommanderCertificateProps {
   unlockedRecords?: Record<string, UnlockedPatchRecord>;
   /** P03: Callback opcional para abrir la Vitrina de Parches completa */
   onOpenShowcase?: () => void;
+  /** R06: Puntos totales de ciencia acumulados durante la misión */
+  sciencePoints?: number;
+  /** R06: Nivel de eficiencia científica desbloqueado */
+  scienceBonus?: ScienceBonusTier;
+  /** R06: Número de muestras científicas recolectadas con el Rover 3D */
+  roverSamplesCollected?: number;
+  /** R06: Puntos de ciencia aportados por las muestras del Rover */
+  roverScienceEarned?: number;
 }
 
 export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
@@ -75,6 +87,10 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
   crew,
   unlockedRecords,
   onOpenShowcase,
+  sciencePoints,
+  scienceBonus,
+  roverSamplesCollected,
+  roverScienceEarned,
 }) => {
   const [commanderName, setCommanderName] = useState(astronautName ?? '');
   const modalCardRef = useRef<HTMLDivElement | null>(null);
@@ -416,6 +432,48 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                 </div>
               ))}
             </div>
+
+            {(sciencePoints !== undefined ||
+              roverSamplesCollected !== undefined ||
+              scienceBonus !== undefined) && (
+              <div className="cert-science-highlight" data-testid="cert-rover-science">
+                <div className="cert-science-highlight-main">
+                  <span className="cert-science-kicker">
+                    <ScienceIcon size={15} />{' '}
+                    {lang === 'es' ? 'CIENCIA ROVER' : 'ROVER SCIENCE'}
+                  </span>
+                  <strong>
+                    {scienceBonus && scienceBonus.tier > 0
+                      ? scienceBonus.title[lang]
+                      : lang === 'es'
+                        ? 'Investigación científica de superficie'
+                        : 'Surface field research'}
+                  </strong>
+                  {scienceBonus && scienceBonus.tier > 0 && (
+                    <p className="cert-science-summary">{scienceBonus.summary[lang]}</p>
+                  )}
+                </div>
+                <div className="cert-science-metrics">
+                  <span className="cert-science-pill">
+                    {lang === 'es'
+                      ? `Muestras: ${roverSamplesCollected ?? 0}`
+                      : `Samples: ${roverSamplesCollected ?? 0}`}
+                  </span>
+                  <span className="cert-science-pill">
+                    {lang === 'es'
+                      ? `Aporte Rover: +${roverScienceEarned ?? 0} pts`
+                      : `Rover yield: +${roverScienceEarned ?? 0} pts`}
+                  </span>
+                  {sciencePoints !== undefined && (
+                    <span className="cert-science-pill cert-science-pill-accent">
+                      {lang === 'es'
+                        ? `Ciencia total: ${sciencePoints} pts`
+                        : `Total science: ${sciencePoints} pts`}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* C6: Repaso Día por Día de la Misión (history?: DecisionRecord[]) */}

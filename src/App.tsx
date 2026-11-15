@@ -100,6 +100,7 @@ export const App: React.FC = () => {
     scannedAnomalyIds,
     maintainedModules,
     recordAnomalyScan,
+    recordSampleCollection,
     recordModuleMaintenance,
     lastTurn,
     dismissTurnReport,
@@ -622,6 +623,9 @@ export const App: React.FC = () => {
               onTutorialAction={handleInteractiveAction}
               unlockedRecords={patches.unlockedById}
               isOnboardingEmergency={isOnboardingEmergency}
+              scienceBonus={projection.scienceBonus}
+              roverSamplesCollected={mission.roverSamplesCollected ?? 0}
+              roverScienceEarned={mission.roverScienceEarned ?? 0}
             />
 
             <div className="mission-center-col">
@@ -658,8 +662,10 @@ export const App: React.FC = () => {
                 canRegenerateTerrain={challengeSeed === null}
                 onRegenerateTerrain={reseedTerrain}
                 scannedAnomalyIds={scannedAnomalyIds}
+                collectedSampleIds={mission.collectedSampleIds ?? []}
                 maintainedModules={maintainedModules}
                 onScanAnomaly={recordAnomalyScan}
+                onCollectSample={recordSampleCollection}
                 onMaintainModule={recordModuleMaintenance}
               />
 
@@ -673,6 +679,13 @@ export const App: React.FC = () => {
                   siteDayName={currentSite.dayName}
                   onContinue={handleContinueAfterReport}
                   crewLine={crewReaction ?? undefined}
+                  scienceBonus={lastTurn.scienceBonus ?? projection.scienceBonus}
+                  roverSamplesCollected={
+                    lastTurn.roverSamplesCollected ?? mission.roverSamplesCollected ?? 0
+                  }
+                  roverScienceEarned={
+                    lastTurn.roverScienceEarned ?? mission.roverScienceEarned ?? 0
+                  }
                 />
               )}
 
@@ -942,6 +955,10 @@ export const App: React.FC = () => {
         history={mission.engine?.history}
         crew={crew}
         unlockedRecords={patches.unlockedById}
+        sciencePoints={mission.resources.sciencePoints}
+        scienceBonus={projection.scienceBonus}
+        roverSamplesCollected={mission.roverSamplesCollected ?? 0}
+        roverScienceEarned={mission.roverScienceEarned ?? 0}
         onOpenShowcase={() => {
           setIsBadgesOpen(false);
           setIsShowcaseOpen(true);

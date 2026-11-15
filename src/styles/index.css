@@ -3419,3 +3419,185 @@ button:active,
   color: var(--ink-secondary);
 }
 
+/* ============================================================================
+   R06: Bono de eficiencia científica y muestras del Rover (HUD, Reporte y Diploma)
+   ============================================================================ */
+.science-bonus-readout {
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  border-left: 4px solid var(--nasa-blue);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.72rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.science-bonus-readout.science-bonus-active {
+  background: var(--paper-sheet);
+  border-color: var(--ok-green);
+  border-left: 4px solid var(--ok-green);
+}
+
+.science-bonus-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.science-bonus-head strong {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--nasa-blue);
+}
+
+.science-bonus-readout.science-bonus-active .science-bonus-head strong {
+  color: var(--ok-green);
+}
+
+.science-tier-meta {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 0.08rem 0.38rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.science-bonus-summary {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.32;
+  color: var(--ink-secondary);
+  max-width: 65ch;
+}
+
+.science-rover-tally {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--nasa-blue);
+}
+
+.turn-science-bonus-box {
+  background: var(--paper);
+  border: 1.5px solid var(--ok-green);
+  border-left: 4px solid var(--ok-green);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.turn-science-bonus-box strong {
+  color: var(--ok-green);
+  font-family: var(--font-display);
+  font-size: 1.04rem;
+}
+
+.turn-science-bonus-box p {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.cert-science-highlight {
+  background: var(--paper-sheet);
+  border: 1.5px solid var(--nasa-blue);
+  border-left: 4px solid var(--nasa-blue);
+  border-radius: var(--radius);
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.cert-science-highlight-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.16rem;
+  flex: 1 1 260px;
+}
+
+.cert-science-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--nasa-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cert-science-highlight-main strong {
+  font-family: var(--font-display);
+  font-size: 1.06rem;
+  color: var(--ink);
+}
+
+.cert-science-summary {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--ink-secondary);
+  line-height: 1.32;
+}
+
+.cert-science-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.cert-science-pill {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.22rem 0.52rem;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.cert-science-pill-accent {
+  border-color: var(--nasa-blue);
+  color: var(--nasa-blue);
+  background: var(--paper-sheet);
+}
+
+@media print {
+  .cert-science-highlight {
+    background: #FFFFFF !important;
+    border: 1px solid #1B1F2A !important;
+    padding: 1.6mm 2.5mm !important;
+    gap: 1.5mm !important;
+    break-inside: avoid;
+  }
+
+  .cert-science-summary {
+    font-size: 0.7rem !important;
+    line-height: 1.18 !important;
+  }
+
+  .cert-science-pill {
+    background: #FFFFFF !important;
+    padding: 0.6mm 1.5mm !important;
+    font-size: 0.66rem !important;
+  }
+}
+
+

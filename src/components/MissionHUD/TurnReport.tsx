@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getCrewMemberName } from '../../data/crew';
+import type { ScienceBonusTier } from '../../engine/simulationEngine';
 import {
   CoreResources,
   CrewStatus,
@@ -33,6 +34,12 @@ export interface TurnReportProps {
   siteDayName?: LocalizedText;
   /** C16: Tripulante más afectado que comenta lo ocurrido en el turno */
   crewLine?: CrewStatus;
+  /** R06: Bono de eficiencia científica aplicado en este turno */
+  scienceBonus?: ScienceBonusTier;
+  /** R06: Total de muestras científicas recolectadas con el Rover */
+  roverSamplesCollected?: number;
+  /** R06: Puntos de ciencia aportados por muestras del Rover */
+  roverScienceEarned?: number;
 }
 
 interface BarMetricConfig {
@@ -78,6 +85,9 @@ export const TurnReport: React.FC<TurnReportProps> = ({
   day,
   siteDayName,
   crewLine,
+  scienceBonus,
+  roverSamplesCollected,
+  roverScienceEarned,
 }) => {
   const [animateToCurrent, setAnimateToCurrent] = useState(false);
 
@@ -154,8 +164,23 @@ export const TurnReport: React.FC<TurnReportProps> = ({
             <ScienceIcon size={14} /> {previous.sciencePoints} → {current.sciencePoints} pts (
             {sciDelta >= 0 ? `+${sciDelta}` : sciDelta})
           </span>
+          {(roverSamplesCollected ?? 0) > 0 && (
+            <span className="turn-pill-metric turn-delta-pos" data-testid="turn-rover-samples">
+              <AntennaIcon size={14} /> Rover: {roverSamplesCollected}{' '}
+              {lang === 'es' ? 'muestras' : 'samples'} (+{roverScienceEarned ?? 0} pts)
+            </span>
+          )}
         </div>
       </div>
+
+      {scienceBonus && scienceBonus.tier > 0 && (
+        <div className="turn-science-bonus-box" data-testid="turn-science-bonus">
+          <strong className="resource-label-inline">
+            <CheckIcon size={15} /> {scienceBonus.title[lang]}
+          </strong>
+          <p>{scienceBonus.summary[lang]}</p>
+        </div>
+      )}
 
       {/* C16: Voz de la tripulación (el tripulante más afectado comenta lo que pasó) */}
       {crewLine && (
