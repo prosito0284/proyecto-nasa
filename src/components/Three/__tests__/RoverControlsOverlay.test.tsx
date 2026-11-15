@@ -192,8 +192,63 @@ describe('RoverControlsOverlay (R02 dual keyboard & tactile D-pad)', () => {
     expect(viewer3dCss).not.toMatch(/box-shadow\s*:/i);
 
     expect(viewer3dCss).toContain('.rover-dpad-overlay');
+    expect(viewer3dCss).toContain('.rover-camera-cluster');
+    expect(viewer3dCss).toContain('.mastcam-reticle-overlay');
     expect(viewer3dCss).toMatch(/\.rover-dpad-btn\s*\{[^}]*min-width:\s*44px;/s);
     expect(viewer3dCss).toMatch(/\.rover-dpad-btn\s*\{[^}]*min-height:\s*44px;/s);
     expect(viewer3dCss).toMatch(/\.rover-dpad-btn\s*\{[^}]*border-radius:\s*2px;/s);
+    expect(viewer3dCss).toMatch(/\.rover-cam-btn\s*\{[^}]*min-width:\s*44px;/s);
+    expect(viewer3dCss).toMatch(/\.rover-cam-btn\s*\{[^}]*min-height:\s*44px;/s);
+    expect(viewer3dCss).toMatch(/\.rover-cam-btn\s*\{[^}]*border-radius:\s*2px;/s);
+  });
+
+  it('R04: renderiza selector de 3 cámaras (Seguir, Cabina Mastcam, Orbital) sin emoji y emite onCameraModeChange', () => {
+    for (const [lang, expected] of [
+      ['es', ['SEGUIMIENTO', 'CABINA MASTCAM', 'ORBITAL']],
+      ['en', ['CHASE CAM', 'MASTCAM VIEW', 'ORBITAL CAM']],
+    ] as const) {
+      for (const activeMode of ['chase', 'mastcam', 'orbital'] as const) {
+        const html = renderToStaticMarkup(
+          React.createElement(RoverControlsOverlay, {
+            lang,
+            activeDirections: EMPTY_ROVER_DIRECTIONS,
+            speedMps: 0.9,
+            cameraMode: activeMode,
+            onCameraModeChange: () => {},
+            onDirectionChange: () => {},
+          }),
+        );
+
+        expect(EMOJI_REGEX.test(html)).toBe(false);
+        expect(html).toContain('data-testid="rover-camera-selector"');
+        expect(html).toContain('CAM [C]');
+        for (const label of expected) {
+          expect(html).toContain(label);
+        }
+        const activeTestId =
+          activeMode === 'chase'
+            ? 'rover-cam-chase-btn'
+            : activeMode === 'mastcam'
+              ? 'rover-cam-mastcam-btn'
+              : 'rover-cam-orbital-btn';
+        expect(html).toMatch(new RegExp(`data-testid="${activeTestId}"[^>]*aria-pressed="true"`));
+      }
+    }
+
+    const onCameraModeChange = vi.fn();
+    const tree = RoverControlsOverlay({
+      lang: 'es',
+      activeDirections: EMPTY_ROVER_DIRECTIONS,
+      cameraMode: 'orbital',
+      onCameraModeChange,
+      onDirectionChange: () => {},
+    });
+    const byId = findElementsByTestId(tree);
+    (byId['rover-cam-chase-btn'].props as { onClick: () => void }).onClick();
+    expect(onCameraModeChange).toHaveBeenLastCalledWith('chase');
+    (byId['rover-cam-mastcam-btn'].props as { onClick: () => void }).onClick();
+    expect(onCameraModeChange).toHaveBeenLastCalledWith('mastcam');
+    (byId['rover-cam-orbital-btn'].props as { onClick: () => void }).onClick();
+    expect(onCameraModeChange).toHaveBeenLastCalledWith('orbital');
   });
 });

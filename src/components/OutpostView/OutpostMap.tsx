@@ -52,8 +52,8 @@ export interface OutpostMapProps {
   commDelaySeconds?: number;
   /** T08: Callback opcional para disparar avance del tutorial al interactuar con la colonia */
   onTutorialAction?: (stepId: string) => void;
-  /** M02/M03: Modo inicial opcional ('2d' | 'orbital' | 'rover' | '3d'); por defecto usa 'orbital' si WebGL está disponible */
-  defaultViewMode?: '2d' | '3d' | 'orbital' | 'rover';
+  /** M02/M03/R04: Modo inicial opcional ('2d' | 'orbital' | 'chase' | 'mastcam' | 'rover' | '3d'); por defecto usa 'orbital' si WebGL está disponible */
+  defaultViewMode?: '2d' | '3d' | 'orbital' | 'rover' | 'chase' | 'mastcam';
   /** M02: Marca si hay alerta ambiental de entrenamiento (ej. caída térmica nocturna) */
   isEnvironmentalAlert?: boolean;
   /** M01: Semilla procedural de topografía */
@@ -173,14 +173,20 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   const [selectedModule, setSelectedModule] = useState<ModuleKey>('shielding');
   const [selectedWorldModule, setSelectedWorldModule] =
     useState<ColonyWorldModuleId>('oxygen-module');
-  const resolveInitialViewMode = (): '2d' | 'orbital' | 'rover' => {
-    if (defaultViewMode === '2d' || defaultViewMode === 'orbital' || defaultViewMode === 'rover') {
+  const resolveInitialViewMode = (): '2d' | 'orbital' | 'chase' | 'mastcam' => {
+    if (
+      defaultViewMode === '2d' ||
+      defaultViewMode === 'orbital' ||
+      defaultViewMode === 'chase' ||
+      defaultViewMode === 'mastcam'
+    ) {
       return defaultViewMode;
     }
+    if (defaultViewMode === 'rover') return 'chase';
     if (defaultViewMode === '3d') return 'orbital';
     return isWebGLAvailable() ? 'orbital' : '2d';
   };
-  const [viewMode, setViewMode] = useState<'2d' | 'orbital' | 'rover'>(resolveInitialViewMode);
+  const [viewMode, setViewMode] = useState<'2d' | 'orbital' | 'chase' | 'mastcam'>(resolveInitialViewMode);
   const [showSystemDetails, setShowSystemDetails] = useState(false);
   const [showCommSimulator, setShowCommSimulator] = useState(false);
   const [selectedPresetIdx, setSelectedPresetIdx] = useState(0);
@@ -505,10 +511,10 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 type="button"
                 id="outpost-cam-rover-btn"
                 className="view-mode-btn"
-                aria-pressed={viewMode === 'rover'}
+                aria-pressed={viewMode === 'chase' || viewMode === 'mastcam'}
                 onClick={() => {
                   missionAudio.playClick();
-                  setViewMode('rover');
+                  setViewMode((prev) => (prev === 'chase' ? 'mastcam' : 'chase'));
                 }}
               >
                 {lang === 'es' ? 'CÁMARA ROVER' : 'ROVER CAMERA'}
@@ -614,7 +620,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
               height={308}
               selectedModule={selectedWorldModule}
               onSelectModule={handleSelect3DModule}
-              cameraMode={viewMode === 'rover' ? 'rover' : 'orbital'}
+              cameraMode={viewMode}
               onCameraModeChange={(m) => setViewMode(m)}
               onScanAnomaly={(anomaly) => {
                 onTutorialAction?.('step-outpost-map');

@@ -2610,6 +2610,8 @@ export interface ColonyWorldHandle {
   setRoverControlInput: (input: RoverControlInput) => void;
   getRoverTelemetry: () => RoverTelemetrySnapshot;
   getRoverPose: (outPos: THREE.Vector3, outForward: THREE.Vector3) => void;
+  getMastcamPose: (outPos: THREE.Vector3, outTarget: THREE.Vector3, outUp: THREE.Vector3) => void;
+  setFirstPersonMastcam: (enabled: boolean) => void;
   triggerMaintenanceAnimation: (id: ColonyWorldModuleId) => void;
   replaceModuleVisual: (id: ColonyWorldModuleId, object: THREE.Object3D) => void;
   animate: (elapsedSec: number, dtSec: number) => void;
@@ -3967,6 +3969,17 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     return true;
   };
 
+  let firstPersonMastcam = false;
+  const mastEyeLocal = new THREE.Vector3(0.68, 2.18, 0.08);
+  const mastTargetLocal = new THREE.Vector3(9.5, 0.35, -0.05);
+  const mastWorldUpRef = new THREE.Vector3(0, 1, 0);
+  const mastChassisQuat = new THREE.Quaternion();
+
+  const setFirstPersonMastcam = (enabled: boolean) => {
+    firstPersonMastcam = enabled;
+    mastCamPivot.visible = !enabled;
+  };
+
   const getRoverPose = (outPos: THREE.Vector3, outForward: THREE.Vector3) => {
     outPos.set(
       rover.group.position.x + rover.motionRoot.position.x,
@@ -3974,6 +3987,27 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       rover.group.position.z + rover.motionRoot.position.z,
     );
     outForward.set(Math.cos(roverHeading), 0, -Math.sin(roverHeading)).normalize();
+  };
+
+  const getMastcamPose = (
+    outPos: THREE.Vector3,
+    outTarget: THREE.Vector3,
+    outUp: THREE.Vector3,
+  ) => {
+    rover.group.updateMatrixWorld(true);
+    outPos.copy(mastEyeLocal);
+    roverChassisGroup.localToWorld(outPos);
+    const groundY = sampleTerrainAt(outPos.x, outPos.z);
+    if (outPos.y < groundY + 1.45) {
+      outPos.y = groundY + 1.45;
+    }
+    outTarget.copy(mastTargetLocal);
+    roverChassisGroup.localToWorld(outTarget);
+    roverChassisGroup.getWorldQuaternion(mastChassisQuat);
+    outUp.set(0, 1, 0).applyQuaternion(mastChassisQuat).lerp(mastWorldUpRef, 0.55).normalize();
+    if (outUp.y < 0.25) {
+      outUp.copy(mastWorldUpRef);
+    }
   };
 
   const replaceModuleVisual = (id: ColonyWorldModuleId, object: THREE.Object3D) => {
@@ -4226,6 +4260,9 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
           }
         }
 
+        const armDeployZ = firstPersonMastcam ? -0.12 : -0.52;
+        const armRestZ = firstPersonMastcam ? 0.24 : 0;
+
         if (nearAnomSpec && nearAnomDist <= 4.0) {
           const lookYaw = Math.atan2(
             -(nearAnomSpec.position[2] - roverWorldZ),
@@ -4234,14 +4271,14 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
           const relYaw = Math.max(-0.7, Math.min(0.7, shortestAngleDelta(roverHeading, lookYaw)));
           const deployBlend = Math.min(1, dtSec * 8);
           scannerArmPivot.rotation.z +=
-            (-0.52 + Math.sin(elapsedSec * 7) * 0.1 - scannerArmPivot.rotation.z) * deployBlend;
+            (armDeployZ + Math.sin(elapsedSec * 7) * 0.1 - scannerArmPivot.rotation.z) * deployBlend;
           scannerArmPivot.rotation.y += (relYaw - scannerArmPivot.rotation.y) * deployBlend;
           mastCamPivot.rotation.y += (relYaw * 0.85 - mastCamPivot.rotation.y) * Math.min(1, dtSec * 7);
           const phase = (elapsedSec * 1.15) % 1.0;
           setScannerLaserState(true, nearAnomSpec.position[0], nearAnomSpec.position[2], phase);
         } else {
           const retractBlend = Math.min(1, dtSec * 5);
-          scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * retractBlend;
+          scannerArmPivot.rotation.z += (armRestZ - scannerArmPivot.rotation.z) * retractBlend;
           scannerArmPivot.rotation.y += (0 - scannerArmPivot.rotation.y) * retractBlend;
           const camSweep = Math.sin(elapsedSec * 1.35) * (Math.abs(roverSpeed) > 0.25 ? 0.18 : 0.26);
           mastCamPivot.rotation.y +=
@@ -4251,6 +4288,8 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       } else {
         roverHitBoundary = false;
         roverCollidedWith = null;
+        const armDeployZ = firstPersonMastcam ? -0.12 : -0.52;
+        const armRestZ = firstPersonMastcam ? 0.24 : 0;
         if (roverTask.mode === 'patrol') {
           roverAngle += dtSec * 0.09;
           const targetX = roverHomeOrigin.x + Math.cos(roverAngle) * 2.4;
@@ -4275,7 +4314,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
           roverSpeed = 1.8;
           setScannerLaserState(false);
           const retractBlend = Math.min(1, dtSec * 5);
-          scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * retractBlend;
+          scannerArmPivot.rotation.z += (armRestZ - scannerArmPivot.rotation.z) * retractBlend;
           scannerArmPivot.rotation.y += (0 - scannerArmPivot.rotation.y) * retractBlend;
           mastCamPivot.rotation.y = Math.sin(elapsedSec * 0.85) * 0.48;
         } else if (roverTask.mode === 'driving') {
@@ -4306,7 +4345,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
           }
           setScannerLaserState(false);
           const retractBlend = Math.min(1, dtSec * 5);
-          scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * retractBlend;
+          scannerArmPivot.rotation.z += (armRestZ - scannerArmPivot.rotation.z) * retractBlend;
           scannerArmPivot.rotation.y += (0 - scannerArmPivot.rotation.y) * retractBlend;
           mastCamPivot.rotation.y = Math.sin(elapsedSec * 2.2) * 0.22;
         } else if (roverTask.mode === 'scanning') {
@@ -4315,7 +4354,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
           roverHeading += shortestAngleDelta(roverHeading, lookYaw) * Math.min(1, dtSec * 7);
           roverSpeed = 0;
           roverSteerAngle = 0;
-          scannerArmPivot.rotation.z = -0.52 + Math.sin(elapsedSec * 7) * 0.12;
+          scannerArmPivot.rotation.z = armDeployZ + Math.sin(elapsedSec * 7) * 0.12;
           scannerArmPivot.rotation.y += (0 - scannerArmPivot.rotation.y) * Math.min(1, dtSec * 6);
           mastCamPivot.rotation.y = Math.sin(elapsedSec * 4) * 0.14;
           const scanActive = roverTask.timer < 1.8;
@@ -4336,7 +4375,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
           const dist = Math.hypot(dx, dz);
           setScannerLaserState(false);
           const retractBlend = Math.min(1, dtSec * 5);
-          scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * retractBlend;
+          scannerArmPivot.rotation.z += (armRestZ - scannerArmPivot.rotation.z) * retractBlend;
           scannerArmPivot.rotation.y += (0 - scannerArmPivot.rotation.y) * retractBlend;
           mastCamPivot.rotation.y *= 0.9;
           if (dist > 0.35) {
@@ -4423,6 +4462,8 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       roverChassisGroup.position.y = 0;
       roverChassisGroup.rotation.z = 0;
       roverChassisGroup.rotation.x = 0;
+      scannerArmPivot.rotation.z = firstPersonMastcam ? 0.24 : 0;
+      scannerArmPivot.rotation.y = 0;
     }
 
     for (const id of COLONY_WORLD_MODULE_IDS) {
@@ -4492,6 +4533,8 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     setRoverControlInput,
     getRoverTelemetry,
     getRoverPose,
+    getMastcamPose,
+    setFirstPersonMastcam,
     triggerMaintenanceAnimation,
     replaceModuleVisual,
     animate,

@@ -489,30 +489,77 @@
   color: var(--ink, #1B1F2A);
 }
 
-/* M03: Barra rápida de anomalías escaneables y aviso táctico 3D */
-.colony3d-tactical-toast {
+.viewer3d-canvas-shell {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.rover-hud-layer {
+  display: contents;
+}
+
+/* R04: Retícula óptica centrada en Cabina Mastcam (1ra persona) */
+.mastcam-reticle-overlay {
   position: absolute;
-  left: 0.5rem;
-  right: 10.6rem;
-  bottom: 0.5rem;
-  z-index: 4;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.mastcam-reticle-svg {
+  width: 136px;
+  height: 136px;
+  display: block;
+}
+
+.mastcam-reticle-readout {
+  padding: 0.12rem 0.42rem;
+  background-color: rgba(3, 6, 12, 0.86);
+  color: #00E5FF;
+  border: 1px solid rgba(0, 229, 255, 0.7);
+  border-radius: 2px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.viewer3d-mars .mastcam-reticle-readout {
+  background-color: rgba(45, 22, 14, 0.88);
+  color: #FFB300;
+  border-color: rgba(255, 179, 0, 0.72);
+}
+
+/* M03 / R04: Aviso táctico acoplado debajo del lienzo 3D sin tapar botones */
+.colony3d-tactical-toast {
+  position: static;
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.42rem 0.6rem;
-  background-color: rgba(11, 18, 30, 0.96);
+  padding: 0.45rem 0.6rem;
+  background-color: rgba(11, 18, 30, 0.98);
   color: #F8F3E8;
-  border: 1.5px solid #38BDF8;
-  border-radius: 2px;
+  border-top: 1.5px solid #38BDF8;
+  border-radius: 0;
 }
 
 .colony3d-tactical-toast.tone-ok {
-  border-color: #2E7D4F;
+  border-top-color: #2E7D4F;
 }
 
 .colony3d-tactical-toast.tone-warn {
-  border-color: #FFB300;
+  border-top-color: #FFB300;
 }
 
 .colony3d-tactical-copy {
@@ -589,6 +636,103 @@
 
 .colony3d-toast-close:hover {
   background-color: #0B3D91;
+}
+
+/* R04: Selector táctico de 3 cámaras (SEGUIMIENTO / CABINA MASTCAM / ORBITAL) */
+.rover-camera-cluster {
+  position: absolute;
+  left: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 5;
+  max-width: calc(100% - 11.4rem);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.35rem;
+  pointer-events: auto;
+}
+
+.rover-camera-selector {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background-color: rgba(3, 6, 12, 0.92);
+  border: 1.5px solid #6794C1;
+  border-radius: 2px;
+}
+
+.viewer3d-mars .rover-camera-selector {
+  background-color: rgba(45, 22, 14, 0.94);
+  border-color: #C87D52;
+}
+
+.rover-cam-tag {
+  padding: 0 0.3rem;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #B8D8F8;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.viewer3d-mars .rover-cam-tag {
+  color: #F4C39B;
+}
+
+.rover-camera-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.rover-cam-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.3rem 0.55rem;
+  background-color: #162133;
+  color: #F8F3E8;
+  border: 1.5px solid #6794C1;
+  border-radius: 2px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.viewer3d-mars .rover-cam-btn {
+  background-color: #3D1F14;
+  border-color: #C87D52;
+}
+
+.rover-cam-btn:hover {
+  background-color: #1E3252;
+  border-color: #38BDF8;
+}
+
+.viewer3d-mars .rover-cam-btn:hover {
+  background-color: #542B1D;
+  border-color: #F4C39B;
+}
+
+.rover-cam-btn.is-active,
+.viewer3d-mars .rover-cam-btn.is-active {
+  background-color: #0B3D91;
+  color: #FFFFFF;
+  border-color: #38BDF8;
+}
+
+.rover-cam-btn:focus-visible {
+  outline: 2px solid #38BDF8;
+  outline-offset: 1px;
 }
 
 /* R02: Cruceta táctil en pantalla (D-Pad mínimo 44x44px, esquinas 2px, cero sombras difusas) */
@@ -723,15 +867,53 @@
   grid-row: 2;
 }
 
-@media (max-width: 640px) {
-  .colony3d-tactical-toast {
+@media (max-width: 720px) {
+  .rover-dpad-overlay {
+    right: 0.5rem;
+    bottom: auto;
+    top: calc(var(--viewer-h, 308px) - 0.5rem);
+    transform: translateY(-100%);
+  }
+
+  .rover-camera-cluster {
     position: static;
+    max-width: 100%;
     width: 100%;
     box-sizing: border-box;
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
-    border-radius: 0;
+    padding: 0.4rem 0.5rem;
+    background-color: #09101D;
+    border-top: 1.5px solid #6794C1;
+  }
+
+  .viewer3d-mars .rover-camera-cluster {
+    background-color: #24110A;
+    border-top-color: #C87D52;
+  }
+
+  .rover-camera-selector {
+    width: 100%;
+    border: none;
+    padding: 0;
+    background-color: transparent;
+  }
+
+  .viewer3d-mars .rover-camera-selector {
+    background-color: transparent;
+  }
+
+  .rover-camera-buttons {
+    flex: 1 1 100%;
+  }
+
+  .rover-cam-btn {
+    flex: 1 1 auto;
+    padding: 0.3rem 0.45rem;
+    font-size: 0.68rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .colony3d-tactical-toast {
     flex-wrap: wrap;
   }
 

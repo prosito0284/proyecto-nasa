@@ -24,7 +24,12 @@ import {
   getMaintenanceDelayedBonus,
 } from '../../../hooks/useMission';
 import { OutpostMap } from '../../OutpostView/OutpostMap';
-import { ColonyWorld3D, resolveColonyKeyCommand } from '../ColonyWorld3D';
+import {
+  ColonyWorld3D,
+  getNextCameraMode,
+  normalizeCameraMode,
+  resolveColonyKeyCommand,
+} from '../ColonyWorld3D';
 import {
   ANOMALY_GLOSSARY_TERM_MAP,
   buildColonyWorld,
@@ -830,5 +835,73 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
       }),
     );
     expect(htmlWithCallback).toContain('data-testid="colony-world-3d"');
+  });
+
+  it('R04: sistema de 3 cámaras dinámicas (Seguir, Cabina Mastcam 1ra persona con brazo visible y Orbital), atajo C y OutpostMap', () => {
+    expect(normalizeCameraMode(undefined)).toBe('orbital');
+    expect(normalizeCameraMode('rover')).toBe('chase');
+    expect(normalizeCameraMode('chase')).toBe('chase');
+    expect(normalizeCameraMode('mastcam')).toBe('mastcam');
+
+    expect(getNextCameraMode('orbital')).toBe('chase');
+    expect(getNextCameraMode('chase')).toBe('mastcam');
+    expect(getNextCameraMode('mastcam')).toBe('orbital');
+    expect(getNextCameraMode('rover')).toBe('mastcam');
+
+    const world = buildColonyWorld({ siteId: 'mars-jezero', terrainSeed: 20260415 });
+    const mastPivot = world.group.getObjectByName('rover-mastcam-pivot')!;
+    const armPivot = world.group.getObjectByName('rover-scanner-arm')!;
+    expect(mastPivot.visible).toBe(true);
+
+    world.setFirstPersonMastcam(true);
+    expect(mastPivot.visible).toBe(false);
+    world.setRoverControlInput({ forward: true, backward: false, left: false, right: false });
+    world.animate(0.5, 0.25);
+    world.animate(0.8, 0.25);
+
+    const roverPos = new THREE.Vector3();
+    const roverFwd = new THREE.Vector3();
+    world.getRoverPose(roverPos, roverFwd);
+
+    const mastPos = new THREE.Vector3();
+    const mastTarget = new THREE.Vector3();
+    const mastUp = new THREE.Vector3();
+    world.getMastcamPose(mastPos, mastTarget, mastUp);
+
+    const lookDir = mastTarget.clone().sub(mastPos).normalize();
+    expect(lookDir.dot(roverFwd)).toBeGreaterThan(0.75);
+    expect(mastPos.y).toBeGreaterThanOrEqual(
+      sampleWorldTerrainHeight(mastPos.x, mastPos.z, 'mars-jezero', 20260415) + 1.4,
+    );
+    expect(mastUp.length()).toBeCloseTo(1, 3);
+    expect(mastUp.y).toBeGreaterThan(0.25);
+    expect(armPivot.rotation.z).toBeGreaterThan(0.15);
+
+    world.setFirstPersonMastcam(false);
+    expect(mastPivot.visible).toBe(true);
+    disposeObject3D(world.group);
+
+    const site = OUTPOST_SITES['moon-shackleton'];
+    const weather = selectStartingWeather('moon-shackleton', VERIFIED_NASA_WEATHER_EVENTS, 20260415);
+    const mission = createInitialMissionState('moon-shackleton', weather, 20260415);
+    const projection = projectSystemsTurn(mission, mission.powerAllocation);
+
+    for (const defaultViewMode of ['chase', 'mastcam'] as const) {
+      const html = renderToStaticMarkup(
+        React.createElement(OutpostMap, {
+          lang: 'en',
+          site,
+          currentDay: 1,
+          resources: mission.resources,
+          allocation: mission.powerAllocation,
+          weather,
+          projection,
+          defaultViewMode,
+          terrainSeed: 20260415,
+        }),
+      );
+      expect(html).toMatch(/id="outpost-cam-rover-btn"[^>]*aria-pressed="true"/);
+      expect(html).not.toMatch(/id="outpost-view-3d-btn"[^>]*aria-pressed="true"/);
+    }
   });
 });
