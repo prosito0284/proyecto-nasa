@@ -25,6 +25,7 @@ import {
   advanceMissionTurn,
   createInitialMissionState,
   evaluateCommanderPerformance,
+  evaluateTurnPatchUnlocks,
   projectSystemsTurn,
   selectNextWeather,
   selectStartingWeather,
@@ -41,6 +42,8 @@ export interface TurnSummary {
   previous: CoreResources;
   current: CoreResources;
   logs: MissionLogEntry[];
+  scenarioId?: OutpostSiteId;
+  unlockedPatchIds?: string[];
 }
 
 interface SavedGame {
@@ -196,12 +199,15 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
       const pool = challengeSeed === null ? weatherPool : VERIFIED_NASA_WEATHER_EVENTS;
       const nextWeather = selectNextWeather(mission, pool);
       const updated = advanceMissionTurn(mission, choice, nextWeather, mission.powerAllocation);
+      const unlockedPatchIds = evaluateTurnPatchUnlocks(mission, updated);
       setPreviewChoice(null);
       setLastTurn({
         day: mission.currentDay,
         previous: mission.resources,
         current: updated.resources,
         logs: updated.logs.slice(0, updated.logs.length - mission.logs.length),
+        scenarioId: updated.siteId,
+        unlockedPatchIds,
       });
       setMission(updated);
       return updated;

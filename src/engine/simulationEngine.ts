@@ -846,6 +846,62 @@ export function evaluateCommanderPerformance(state: MissionState): CommanderEval
   };
 }
 
+/**
+ * Calcula qué parches persistentes se activan al completar un turno en el motor:
+ * - Victoria en Cráter Shackleton (Luna) o Cráter Jezero (Marte).
+ * - Supervivencia estable tras un evento crítico (tormenta DONKI / polvo / vitales en riesgo).
+ * - Insignias de ingeniería obtenidas en `evaluateCommanderPerformance`.
+ */
+export function evaluateTurnPatchUnlocks(
+  previousState: MissionState,
+  updatedState: MissionState,
+): string[] {
+  const unlocked: string[] = [];
+
+  if (updatedState.status === 'won') {
+    unlocked.push(
+      updatedState.siteId === 'moon-shackleton' ? 'lunar-commander' : 'mars-commander',
+    );
+  }
+
+  const prevWeather = previousState.currentWeather;
+  const prevRes = previousState.resources;
+  const hadHazardousWeather =
+    prevWeather.severity === 'critical' ||
+    prevWeather.severity === 'warning' ||
+    STORM_TYPES.includes(prevWeather.type) ||
+    prevWeather.type === 'DUST_STORM';
+  const hadCriticalVital =
+    Math.min(
+      prevRes.power,
+      prevRes.lifeSupport,
+      prevRes.food,
+      prevRes.shielding,
+      prevRes.crewHealth,
+    ) <= 25;
+
+  const nextRes = updatedState.resources;
+  const colonyStable =
+    updatedState.status !== 'failed' &&
+    nextRes.power > 25 &&
+    nextRes.lifeSupport > 25 &&
+    nextRes.crewHealth > 25 &&
+    nextRes.food >= 20;
+
+  if ((hadHazardousWeather || hadCriticalVital) && colonyStable) {
+    unlocked.push('emergency-responder');
+  }
+
+  const perf = evaluateCommanderPerformance(updatedState);
+  for (const badge of perf.badges) {
+    if (!badge.earned) continue;
+    if (badge.id === 'solar-guardian' && updatedState.status !== 'won') continue;
+    unlocked.push(badge.id);
+  }
+
+  return Array.from(new Set(unlocked));
+}
+
 /** Compatibilidad: listado completo de tarjetas por si la UI lo necesita. */
 export const ALL_DILEMMA_CARDS = INITIAL_DILEMMA_CARDS;
 

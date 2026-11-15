@@ -26,6 +26,7 @@ import { OnboardingSpotlight } from './components/Tutorial/OnboardingSpotlight';
 import { TUTORIAL_STEPS } from './data/tutorial-steps';
 import { useTutorial } from './hooks/useTutorial';
 import { useOnboarding } from './hooks/useOnboarding';
+import { usePatches } from './hooks/usePatches';
 import {
   ArrowIcon,
   HelmetIcon,
@@ -39,15 +40,6 @@ import { missionAudio } from './utils/sound';
 const SOLAR_STORM_TYPES = ['FLR', 'SEP', 'CME'];
 /** Tiempo que el sello "EJECUTADA" queda a la vista antes de avanzar el día. */
 const STAMP_MS = 650;
-
-const QUIZ_ACE_KEY = 'jamt-quiz-ace-v1';
-const readQuizAce = () => {
-  try {
-    return window.localStorage.getItem(QUIZ_ACE_KEY) === '1';
-  } catch {
-    return false;
-  }
-};
 
 const siteShortName = (siteId: OutpostSiteId, lang: Language) =>
   siteId === 'moon-shackleton'
@@ -68,8 +60,8 @@ export const App: React.FC = () => {
   const [executingId, setExecutingId] = useState<string | null>(null);
   const [boardName, setBoardName] = useState('');
   const [boardSaved, setBoardSaved] = useState(false);
-  const [quizAce, setQuizAce] = useState<boolean>(readQuizAce);
   const stampTimer = useRef<number | null>(null);
+  const processedTurnKeyRef = useRef<string | null>(null);
 
   const {
     mission,
@@ -90,6 +82,8 @@ export const App: React.FC = () => {
     decide,
   } = useMission();
   const classBoard = useClassBoard();
+  const patches = usePatches();
+  const { unlockPatch, unlockPatches, isUnlocked } = patches;
 
   useEffect(
     () => () => {
@@ -98,9 +92,20 @@ export const App: React.FC = () => {
     [],
   );
 
-  const es = lang === 'es';
+  // P02: Conectar hitos del motor (victoria lunar/marciana, emergencia crítica e insignias)
+  useEffect(() => {
+    if (!lastTurn?.unlockedPatchIds || lastTurn.unlockedPatchIds.length === 0) return;
+    const scenario = lastTurn.scenarioId ?? mission.siteId;
+    const turnKey = `${scenario}-${lastTurn.day}-${mission.engine?.history.length ?? 0}`;
+    if (processedTurnKeyRef.current === turnKey) return;
+    processedTurnKeyRef.current = turnKey;
+    unlockPatches(lastTurn.unlockedPatchIds.map((id) => ({ id, scenarioId: scenario })));
+  }, [lastTurn, mission.siteId, mission.engine?.history.length, unlockPatches]);
 
-  // Parche extra por acertar todo el quiz de ciencia (se guarda en este dispositivo).
+  const es = lang === 'es';
+  const quizAce = isUnlocked('quiz-ace');
+
+  // Parches del diploma sincronizados con el historial persistente del dispositivo.
   const evaluation = useMemo(
     () => ({
       ...baseEvaluation,
@@ -110,8 +115,8 @@ export const App: React.FC = () => {
           id: 'quiz-ace',
           title: { es: 'As del quiz', en: 'Quiz ace' },
           description: {
-            es: 'Respondiste bien todas las preguntas del quiz de ciencia NASA.',
-            en: 'You answered every NASA science quiz question correctly.',
+            es: 'Aprobaste el cuestionario en Ciencia NASA y quiz (≥65% de aciertos).',
+            en: 'Passed the quiz in NASA Science & Quiz (≥65% accuracy).',
           },
           earned: quizAce,
         },
@@ -126,13 +131,8 @@ export const App: React.FC = () => {
   );
 
   const handleQuizComplete = (correct: number, total: number) => {
-    if (total > 0 && correct === total && !quizAce) {
-      setQuizAce(true);
-      try {
-        window.localStorage.setItem(QUIZ_ACE_KEY, '1');
-      } catch {
-        // Sin almacenamiento: el parche dura mientras la pestaña esté abierta.
-      }
+    if (total > 0 && correct >= Math.ceil(total * 0.65)) {
+      unlockPatch('quiz-ace');
     }
   };
   const currentSite = OUTPOST_SITES[mission.siteId];
@@ -149,6 +149,9 @@ export const App: React.FC = () => {
   const onboarding = useOnboarding({
     autoStart: true,
     enabled: tutorialEnabled,
+    onCompleteTraining: () => {
+      unlockPatch('training-graduate', mission.siteId);
+    },
   });
 
   const tutorial = useTutorial(TUTORIAL_STEPS, {
