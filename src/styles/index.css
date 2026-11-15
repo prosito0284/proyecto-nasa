@@ -148,8 +148,9 @@ body {
 
 .brand-subtitle {
   color: var(--ink-secondary);
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.2;
 }
 
 .nav-controls {
@@ -180,12 +181,12 @@ body {
 
 @media (min-width: 1100px) {
   .app-shell {
-    padding: 0.4rem 1rem 0.5rem;
-    gap: 0.35rem;
+    padding: 0.35rem 1rem 0.45rem;
+    gap: 0.32rem;
   }
 
   .top-nav {
-    padding: 0.4rem 0.85rem;
+    padding: 0.36rem 0.85rem;
     gap: 0.5rem;
     flex-wrap: nowrap;
   }
@@ -196,7 +197,7 @@ body {
   }
 
   .brand-subtitle {
-    font-size: 0.74rem;
+    font-size: 1rem;
     line-height: 1.15;
   }
 
@@ -646,6 +647,9 @@ body {
 }
 
 .rank-goal-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
   font-family: var(--font-mono);
   font-size: 0.66rem;
   font-weight: 700;
@@ -1233,7 +1237,7 @@ body {
 
 .surface-subtitle {
   color: var(--ink-secondary);
-  font-size: 0.95rem;
+  font-size: 1rem;
   max-width: 68ch;
 }
 
@@ -2060,7 +2064,7 @@ body {
 }
 
 .badge-card p {
-  font-size: 0.94rem;
+  font-size: 1rem;
   color: var(--ink-secondary);
   max-width: 60ch;
 }
@@ -2242,7 +2246,8 @@ body {
 
 .site-location-sub {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 1rem;
+  line-height: 1.15;
   color: var(--ink-secondary);
 }
 

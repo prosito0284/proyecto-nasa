@@ -6,6 +6,7 @@ import React from 'react';
 import { CoreResources, Language, TradeoffChoice } from '../../types/mission';
 import {
   BatteryIcon,
+  CheckIcon,
   DropletIcon,
   HelmetIcon,
   LeafIcon,
@@ -177,7 +178,13 @@ export const WorkOrder: React.FC<WorkOrderProps> = ({
         <div className="wo-signature-line" aria-hidden="true">
           <span>{lang === 'es' ? 'Firma de mando' : 'Command sign-off'}</span>
           <span className="wo-signature-rule">
-            {executed ? 'Cmdr. ✓' : 'X ________________'}
+            {executed ? (
+              <>
+                Cmdr. <CheckIcon size={12} />
+              </>
+            ) : (
+              'X ________________'
+            )}
           </span>
         </div>
         <button

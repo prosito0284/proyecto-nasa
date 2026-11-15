@@ -31,6 +31,8 @@ import { useOnboarding } from './hooks/useOnboarding';
 import { usePatches } from './hooks/usePatches';
 import {
   ArrowIcon,
+  CheckIcon,
+  CloseIcon,
   HelmetIcon,
   LanguageIcon,
   PatchIcon,
@@ -894,7 +896,7 @@ export const App: React.FC = () => {
                             className={check.met ? 'top-rank-met' : 'top-rank-missing'}
                           >
                             <span className="top-rank-mark" aria-hidden="true">
-                              {check.met ? '✓' : '·'}
+                              {check.met ? <CheckIcon size={13} /> : <CloseIcon size={12} />}
                             </span>
                             <span>
                               {check.label[lang]}

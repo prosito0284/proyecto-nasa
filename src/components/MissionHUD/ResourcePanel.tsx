@@ -422,7 +422,27 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                           check.met ? 'rank-goal-met' : 'rank-goal-pending'
                         }`}
                       >
-                        {check.met ? '✓' : '○'} {text}
+                        {check.met ? (
+                          <CheckIcon size={11} />
+                        ) : (
+                          <svg
+                            width={10}
+                            height={10}
+                            viewBox="0 0 12 12"
+                            aria-hidden="true"
+                            className="rank-goal-pending-dot"
+                          >
+                            <circle
+                              cx="6"
+                              cy="6"
+                              r="4"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                            />
+                          </svg>
+                        )}{' '}
+                        {text}
                       </span>
                     );
                   })}
