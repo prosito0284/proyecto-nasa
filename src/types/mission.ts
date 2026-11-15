@@ -182,6 +182,8 @@ export interface MissionState {
   logs: MissionLogEntry[];
   /** R06: IDs de muestras científicas 3D recolectadas con el Rover durante la misión */
   collectedSampleIds?: string[];
+  /** S02: Ranuras canónicas recolectadas por día (ej. 'day-1-slot-0', 'sol-1-slot-0') para evitar duplicados al regenerar topografía */
+  collectedSampleSlots?: string[];
   /** R06: Conteo total de muestras recolectadas por el Rover en la partida */
   roverSamplesCollected?: number;
   /** R06: Puntos de ciencia acumulados por muestras recolectadas con el Rover */

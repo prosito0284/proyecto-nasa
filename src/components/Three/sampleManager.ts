@@ -15,6 +15,12 @@ export type SurfaceSampleKind =
 
 export interface SurfaceSampleSpec {
   id: string;
+  /** Índice estable de ranura dentro del Sol actual (0 .. N-1), independiente de localSeedBump */
+  slotIndex?: number;
+  /** ID canónico de ranura por Sol (ej. "sol-1-slot-0"), independiente de la semilla de terreno */
+  slotId?: string;
+  /** Estado de recolección preservado al cambiar la topografía en el mismo Sol */
+  collected?: boolean;
   kind: SurfaceSampleKind;
   siteId: OutpostSiteId;
   day: number;
@@ -27,6 +33,116 @@ export interface SurfaceSampleSpec {
   glossaryTermId: string;
   nasaSource: 'ARTEMIS' | 'MARS';
   accentHex: number;
+}
+
+export function formatSampleSlotId(day: number, slotIndex: number): string {
+  const normDay = Math.max(1, Math.round(day));
+  const normSlot = Math.max(0, Math.round(slotIndex));
+  return `sol-${normDay}-slot-${normSlot}`;
+}
+
+export function formatMissionSampleSlotKey(day: number, slotIndex: number): string {
+  const normDay = Math.max(1, Math.round(day));
+  const normSlot = Math.max(0, Math.round(slotIndex));
+  return `day-${normDay}-slot-${normSlot}`;
+}
+
+export function parseSampleDayAndSlot(
+  input: Pick<SurfaceSampleSpec, 'id' | 'day' | 'slotIndex' | 'slotId'> | string | null | undefined,
+  fallbackDay?: number,
+): { day: number; slotIndex: number } | null {
+  if (!input) return null;
+  if (typeof input === 'object') {
+    const day = Math.max(1, Math.round(input.day || fallbackDay || 1));
+    if (typeof input.slotIndex === 'number' && Number.isFinite(input.slotIndex)) {
+      return { day, slotIndex: Math.max(0, Math.round(input.slotIndex)) };
+    }
+    if (typeof input.slotId === 'string') {
+      const parsedFromSlotId = parseSampleDayAndSlot(input.slotId, day);
+      if (parsedFromSlotId) return parsedFromSlotId;
+    }
+    return parseSampleDayAndSlot(input.id, day);
+  }
+
+  const raw = input.trim();
+  if (!raw) return null;
+
+  const canonicalMatch = raw.match(/(?:^|-)(?:sol|day)-(\d+)-slot-(\d+)(?:$|-)/i);
+  if (canonicalMatch) {
+    return {
+      day: Math.max(1, Number(canonicalMatch[1])),
+      slotIndex: Math.max(0, Number(canonicalMatch[2])),
+    };
+  }
+
+  const dSlotMatch = raw.match(/-d(\d+)-slot-(\d+)(?:$|-)/i);
+  if (dSlotMatch) {
+    return {
+      day: Math.max(1, Number(dSlotMatch[1])),
+      slotIndex: Math.max(0, Number(dSlotMatch[2])),
+    };
+  }
+
+  const legacyMatch = raw.match(/-d(\d+)-smp(\d+)(?:$|-)/i);
+  if (legacyMatch) {
+    return {
+      day: Math.max(1, Number(legacyMatch[1])),
+      slotIndex: Math.max(0, Number(legacyMatch[2]) - 1),
+    };
+  }
+
+  return null;
+}
+
+export function resolveSampleSlotId(
+  input: Pick<SurfaceSampleSpec, 'id' | 'day' | 'slotIndex' | 'slotId'> | string | null | undefined,
+  fallbackDay?: number,
+): string | null {
+  const parsed = parseSampleDayAndSlot(input, fallbackDay);
+  if (!parsed) return null;
+  return formatSampleSlotId(parsed.day, parsed.slotIndex);
+}
+
+export function isSampleSlotCollected(
+  sample: Pick<SurfaceSampleSpec, 'id' | 'day' | 'slotIndex' | 'slotId' | 'collected'>,
+  collectedIdsOrSlots?: Iterable<string | number> | null,
+): boolean {
+  if (sample.collected) return true;
+  if (!collectedIdsOrSlots) return false;
+
+  const targetParsed = parseSampleDayAndSlot(sample, sample.day);
+  const targetSlotId = targetParsed
+    ? formatSampleSlotId(targetParsed.day, targetParsed.slotIndex)
+    : sample.slotId ?? null;
+  const targetMissionKey = targetParsed
+    ? formatMissionSampleSlotKey(targetParsed.day, targetParsed.slotIndex)
+    : null;
+
+  for (const entry of collectedIdsOrSlots) {
+    if (typeof entry === 'number') {
+      if (targetParsed && entry === targetParsed.slotIndex) return true;
+      continue;
+    }
+    if (typeof entry !== 'string') continue;
+    if (
+      entry === sample.id ||
+      (targetSlotId !== null && entry === targetSlotId) ||
+      (targetMissionKey !== null && entry === targetMissionKey)
+    ) {
+      return true;
+    }
+    if (targetParsed) {
+      const entryParsed = parseSampleDayAndSlot(entry, sample.day);
+      if (
+        entryParsed &&
+        entryParsed.day === targetParsed.day &&
+        entryParsed.slotIndex === targetParsed.slotIndex
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 interface SampleCatalogEntry {
@@ -149,6 +265,9 @@ export const SAMPLE_CATALOG: Record<SurfaceSampleKind, SampleCatalogEntry> = {
 export interface GenerateTurnSamplesOptions {
   getTerrainHeight?: (x: number, z: number) => number;
   avoidPositions?: ReadonlyArray<{ x: number; z: number; minDist?: number }>;
+  /** IDs o ranuras ya recolectadas para preservar collected: true al regenerar topografía */
+  collectedSampleIds?: ReadonlyArray<string>;
+  collectedSlots?: ReadonlyArray<string | number>;
 }
 
 const DEFAULT_KEEP_OUT_ZONES: ReadonlyArray<{ x: number; z: number; r: number }> = [
@@ -182,29 +301,40 @@ export function generateTurnSamples(
   const normSeed = (Math.abs(Math.round(terrainSeed)) || 20260415) >>> 0;
   const normDay = Math.max(1, Math.round(day));
 
-  const prngSeed =
+  // El número de ranuras (4..6) y los tipos de muestra dependen solo del astro y Sol/Día actual,
+  // manteniéndose estables aunque el jugador pulse "Nueva topografía" (localSeedBump / reseedTerrain).
+  const daySlotSeed =
+    (Math.imul(normDay, 0x85ebca6b) ^ (isMars ? 0xc2b2ae35 : 0x27d4eb2f)) >>> 0;
+  const slotRng = createSamplePrng(daySlotSeed);
+
+  // Las coordenadas (x, z) en la superficie sí se recalculan con la semilla de topografía activa.
+  const posPrngSeed =
     (normSeed ^
       Math.imul(normDay, 0x85ebca6b) ^
       (isMars ? 0xc2b2ae35 : 0x27d4eb2f)) >>>
     0;
-  const rng = createSamplePrng(prngSeed);
+  const rng = createSamplePrng(posPrngSeed);
 
   const siteKinds: SurfaceSampleKind[] = isMars
     ? ['mars-hematite-spherules', 'mars-sulfate-vein', 'mars-biosignature-clay']
     : ['lunar-ice-core', 'lunar-ilmenite-basalt', 'lunar-impact-glass'];
 
-  const sampleCount = 4 + Math.floor(rng() * 3); // 4..6 samples per Day/Sol
+  const sampleCount = 4 + Math.floor(slotRng() * 3); // 4..6 samples per Day/Sol
   const kindsQueue: SurfaceSampleKind[] = [...siteKinds];
   while (kindsQueue.length < sampleCount) {
-    kindsQueue.push(siteKinds[Math.floor(rng() * siteKinds.length)]);
+    kindsQueue.push(siteKinds[Math.floor(slotRng() * siteKinds.length)]);
   }
   for (let i = kindsQueue.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
+    const j = Math.floor(slotRng() * (i + 1));
     [kindsQueue[i], kindsQueue[j]] = [kindsQueue[j], kindsQueue[i]];
   }
 
   const baseAngle = rng() * Math.PI * 2;
   const extraAvoid = options.avoidPositions ?? [];
+  const collectedEntries: Array<string | number> = [
+    ...(options.collectedSampleIds ?? []),
+    ...(options.collectedSlots ?? []),
+  ];
   const placed: Array<{ x: number; z: number }> = [];
   const specs: SurfaceSampleSpec[] = [];
 
@@ -270,9 +400,20 @@ export function generateTurnSamples(
 
     placed.push({ x: chosenX, z: chosenZ });
     const groundY = options.getTerrainHeight ? options.getTerrainHeight(chosenX, chosenZ) : 0;
+    const slotId = formatSampleSlotId(normDay, slot);
+    const id = `${normSite}-s${normSeed}-d${normDay}-smp${slot + 1}-${kind}`;
+    const alreadyCollected =
+      collectedEntries.length > 0 &&
+      isSampleSlotCollected(
+        { id, day: normDay, slotIndex: slot, slotId },
+        collectedEntries,
+      );
 
     specs.push({
-      id: `${normSite}-s${normSeed}-d${normDay}-smp${slot + 1}-${kind}`,
+      id,
+      slotIndex: slot,
+      slotId,
+      collected: alreadyCollected,
       kind,
       siteId: normSite,
       day: normDay,
@@ -594,7 +735,7 @@ export function createSampleVisualRuntime(
     beaconMat,
     diamondMat,
     ringMat,
-    collected: false,
+    collected: Boolean(spec.collected),
     animPhase: phaseIndex * 1.15,
   };
 }

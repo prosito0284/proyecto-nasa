@@ -724,6 +724,7 @@ export const App: React.FC = () => {
                 onRegenerateTerrain={reseedTerrain}
                 scannedAnomalyIds={scannedAnomalyIds}
                 collectedSampleIds={mission.collectedSampleIds ?? []}
+                collectedSampleSlots={mission.collectedSampleSlots ?? []}
                 maintainedModules={maintainedModules}
                 onScanAnomaly={recordAnomalyScan}
                 onCollectSample={recordSampleCollection}

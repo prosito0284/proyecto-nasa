@@ -37,11 +37,15 @@ import {
   type ColonyWorldModuleId,
   type ColonyWorldStateOptions,
   DEFAULT_TERRAIN_SEED,
+  formatMissionSampleSlotKey,
+  formatSampleSlotId,
   generateTurnAnomalies,
   generateTurnSamples,
   getModuleGlossaryTermId,
   getModulesNeedingMaintenance,
+  isSampleSlotCollected,
   normalizeTerrainSeed,
+  resolveSampleSlotId,
   sampleWorldTerrainHeight,
   type SurfaceSampleSpec,
   type WorldAnomalySpec,
@@ -74,6 +78,8 @@ export interface OutpostMapProps {
   scannedAnomalyIds?: string[];
   /** R05: Muestras geológicas 3D recolectadas y callback al recolectar */
   collectedSampleIds?: string[];
+  /** S02: Ranuras canónicas recolectadas por Día/Sol (ej. "day-1-slot-0") */
+  collectedSampleSlots?: string[];
   maintainedModules?: ColonyWorldModuleId[];
   onScanAnomaly?: (anomaly: WorldAnomalySpec) => void | boolean;
   onCollectSample?: (sample: SurfaceSampleSpec) => void | boolean;
@@ -179,6 +185,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   onRegenerateTerrain,
   scannedAnomalyIds,
   collectedSampleIds,
+  collectedSampleSlots,
   maintainedModules,
   onScanAnomaly,
   onCollectSample,
@@ -260,10 +267,62 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
     commDelaySeconds: realDelaySec,
     scannedAnomalyIds,
     collectedSampleIds,
+    collectedSampleSlots,
     maintainedModuleIds: maintainedModules,
   };
   const pendingMaintenance = getModulesNeedingMaintenance(colonyWorldOptions, maintainedModules);
   const effectiveSeed = normalizeTerrainSeed(terrainSeed ?? DEFAULT_TERRAIN_SEED);
+  const collectedKey2D = [
+    ...(collectedSampleIds ?? []),
+    ...(collectedSampleSlots ?? []),
+  ].join(',');
+  const [localCollected2DIds, setLocalCollected2DIds] = useState<string[]>(() => [
+    ...(collectedSampleIds ?? []),
+    ...(collectedSampleSlots ?? []),
+  ]);
+  const prev2DMissionCtxRef = useRef(`${site.id}:${currentDay}`);
+  const [notice2D, setNotice2D] = useState<{
+    id: string;
+    tone: 'ok' | 'warn' | 'info';
+    title?: string;
+    badge: string;
+    text: string;
+    glossaryTermId?: string;
+    autoDismissMs?: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const ctxKey = `${site.id}:${currentDay}`;
+    const ctxChanged = prev2DMissionCtxRef.current !== ctxKey;
+    prev2DMissionCtxRef.current = ctxKey;
+    setLocalCollected2DIds((prev) => {
+      const fromProps = [
+        ...(collectedSampleIds ?? []),
+        ...(collectedSampleSlots ?? []),
+      ];
+      if (ctxChanged) return fromProps;
+      const merged = new Set([...prev, ...fromProps]);
+      return Array.from(merged);
+    });
+  }, [site.id, currentDay, collectedKey2D, collectedSampleIds, collectedSampleSlots]);
+
+  useEffect(() => {
+    if (!notice2D?.autoDismissMs) return;
+    const timer = window.setTimeout(() => {
+      setNotice2D((prev) => (prev?.id === notice2D.id ? null : prev));
+    }, notice2D.autoDismissMs);
+    return () => window.clearTimeout(timer);
+  }, [notice2D?.id, notice2D?.autoDismissMs]);
+
+  const collected2DSamplesSet = useMemo(() => {
+    const merged = new Set([
+      ...(collectedSampleIds ?? []),
+      ...(collectedSampleSlots ?? []),
+    ]);
+    for (const sid of localCollected2DIds) merged.add(sid);
+    return merged;
+  }, [collectedSampleIds, collectedSampleSlots, localCollected2DIds]);
+
   const turnAnomalies = useMemo(
     () => generateTurnAnomalies(site.id, effectiveSeed, currentDay),
     [site.id, effectiveSeed, currentDay],
@@ -277,54 +336,37 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
           z: a.position[2],
           minDist: 4.6,
         })),
+        collectedSampleIds: Array.from(collected2DSamplesSet),
       }),
-    [site.id, effectiveSeed, currentDay, turnAnomalies],
+    [site.id, effectiveSeed, currentDay, turnAnomalies, collected2DSamplesSet],
   );
-  const collectedKey2D = (collectedSampleIds ?? []).join(',');
-  const [localCollected2DIds, setLocalCollected2DIds] = useState<string[]>(
-    collectedSampleIds ?? [],
+
+  const propCollected2DSet = useMemo(
+    () =>
+      new Set([
+        ...(collectedSampleIds ?? []),
+        ...(collectedSampleSlots ?? []),
+      ]),
+    [collectedSampleIds, collectedSampleSlots],
   );
-  const [notice2D, setNotice2D] = useState<{
-    id: string;
-    tone: 'ok' | 'warn' | 'info';
-    title?: string;
-    badge: string;
-    text: string;
-    glossaryTermId?: string;
-    autoDismissMs?: number;
-  } | null>(null);
-
-  useEffect(() => {
-    setLocalCollected2DIds(collectedSampleIds ?? []);
-  }, [site.id, effectiveSeed, currentDay, collectedKey2D]);
-
-  useEffect(() => {
-    if (!notice2D?.autoDismissMs) return;
-    const timer = window.setTimeout(() => {
-      setNotice2D((prev) => (prev?.id === notice2D.id ? null : prev));
-    }, notice2D.autoDismissMs);
-    return () => window.clearTimeout(timer);
-  }, [notice2D?.id, notice2D?.autoDismissMs]);
-
-  const collected2DSamplesSet = useMemo(() => {
-    const merged = new Set(collectedSampleIds ?? []);
-    for (const sid of localCollected2DIds) merged.add(sid);
-    return merged;
-  }, [collectedSampleIds, localCollected2DIds]);
 
   const extraLocal2DSciencePts = useMemo(() => {
-    const propSet = new Set(collectedSampleIds ?? []);
     let sum = 0;
     for (const smp of turnSamples) {
-      if (collected2DSamplesSet.has(smp.id) && !propSet.has(smp.id)) {
+      const isCollectedLocal =
+        Boolean(smp.collected) || isSampleSlotCollected(smp, collected2DSamplesSet);
+      const isCollectedProp = isSampleSlotCollected(smp, propCollected2DSet);
+      if (isCollectedLocal && !isCollectedProp) {
         sum += smp.points;
       }
     }
     return sum;
-  }, [turnSamples, collectedSampleIds, collected2DSamplesSet]);
+  }, [turnSamples, propCollected2DSet, collected2DSamplesSet]);
 
   const displaySciencePoints2D = resources.sciencePoints + extraLocal2DSciencePts;
-  const collected2DCount = turnSamples.filter((smp) => collected2DSamplesSet.has(smp.id)).length;
+  const collected2DCount = turnSamples.filter(
+    (smp) => Boolean(smp.collected) || isSampleSlotCollected(smp, collected2DSamplesSet),
+  ).length;
 
   const handleCollect2DSample = (smp: SurfaceSampleSpec) => {
     if (isLowPowerBlackout) {
@@ -341,7 +383,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
       });
       return;
     }
-    if (collected2DSamplesSet.has(smp.id)) {
+    if (Boolean(smp.collected) || isSampleSlotCollected(smp, collected2DSamplesSet)) {
       missionAudio.playClick();
       setNotice2D({
         id: `revisit-2d-${smp.id}`,
@@ -354,8 +396,21 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
       });
       return;
     }
+    const slotId =
+      resolveSampleSlotId(smp, currentDay) ??
+      (typeof smp.slotIndex === 'number' ? formatSampleSlotId(currentDay, smp.slotIndex) : null);
+    const missionSlotKey =
+      typeof smp.slotIndex === 'number'
+        ? formatMissionSampleSlotKey(currentDay, smp.slotIndex)
+        : null;
     missionAudio.playSampleCollect();
-    setLocalCollected2DIds((prev) => (prev.includes(smp.id) ? prev : [...prev, smp.id]));
+    setLocalCollected2DIds((prev) => {
+      const next = new Set(prev);
+      next.add(smp.id);
+      if (slotId) next.add(slotId);
+      if (missionSlotKey) next.add(missionSlotKey);
+      return Array.from(next);
+    });
     onCollectSample?.(smp);
     onTutorialAction?.('step-outpost-map');
     setNotice2D({
@@ -1677,7 +1732,8 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                     const ordered = [...turnSamples].sort((a, b) => a.position[0] - b.position[0]);
                     return ordered.map((smp, idx) => {
                       const pos = blueprintSlots[idx % blueprintSlots.length];
-                      const collected = collected2DSamplesSet.has(smp.id);
+                      const collected =
+                        Boolean(smp.collected) || isSampleSlotCollected(smp, collected2DSamplesSet);
                       const accent = collected
                         ? '#2E7D4F'
                         : smp.accentHex === 0x00e5ff
@@ -1846,7 +1902,8 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
               </span>
             </span>
             {turnSamples.map((smp) => {
-              const collected = collected2DSamplesSet.has(smp.id);
+              const collected =
+                Boolean(smp.collected) || isSampleSlotCollected(smp, collected2DSamplesSet);
               return (
                 <button
                   key={smp.id}

@@ -37,7 +37,12 @@ import {
 import {
   COLONY_WORLD_MODULES,
   type ColonyWorldModuleId,
+  formatMissionSampleSlotKey,
+  formatSampleSlotId,
   getMaintenanceConfirmation,
+  isSampleSlotCollected,
+  parseSampleDayAndSlot,
+  resolveSampleSlotId,
   type SurfaceSampleSpec,
   type WorldAnomalySpec,
 } from '../components/Three/proceduralModels';
@@ -129,11 +134,16 @@ function loadSavedGame(): SavedGame | null {
     const m = saved?.mission;
     const valid = m?.status === 'playing' && m.engine && m.currentDilemma && m.resources;
     if (!valid) return null;
+    const normalizedSampleIds = Array.isArray(m.collectedSampleIds)
+      ? m.collectedSampleIds.filter((id): id is string => typeof id === 'string')
+      : [];
+    const normalizedSampleSlots = Array.isArray(m.collectedSampleSlots)
+      ? m.collectedSampleSlots.filter((id): id is string => typeof id === 'string')
+      : [];
     const normalizedMission: MissionState = {
       ...m,
-      collectedSampleIds: Array.isArray(m.collectedSampleIds)
-        ? m.collectedSampleIds.filter((id): id is string => typeof id === 'string')
-        : [],
+      collectedSampleIds: normalizedSampleIds,
+      collectedSampleSlots: normalizedSampleSlots,
       roverSamplesCollected:
         typeof m.roverSamplesCollected === 'number' && Number.isFinite(m.roverSamplesCollected)
           ? Math.max(0, Math.round(m.roverSamplesCollected))
@@ -179,7 +189,8 @@ function saveGame(game: SavedGame | null): void {
 const hasStarted = (state: MissionState) =>
   (state.engine?.history.length ?? 0) > 0 ||
   (state.roverSamplesCollected ?? 0) > 0 ||
-  (state.collectedSampleIds?.length ?? 0) > 0;
+  (state.collectedSampleIds?.length ?? 0) > 0 ||
+  (state.collectedSampleSlots?.length ?? 0) > 0;
 
 interface InitialGame extends SavedGame {
   /** true si hay una partida que mostrar de inmediato (guardada o abierta desde un enlace de reto). */
@@ -222,13 +233,45 @@ function initGame(defaultSite: OutpostSiteId): InitialGame {
   };
 }
 
+function resolveMissionSampleSlotKeys(
+  sample: Pick<SurfaceSampleSpec, 'id' | 'day' | 'slotIndex' | 'slotId'>,
+  currentDay: number,
+): { missionSlotKey: string | null; solSlotId: string | null } {
+  const parsedFromId = parseSampleDayAndSlot(sample.id);
+  const parsedFromSlotId = sample.slotId ? parseSampleDayAndSlot(sample.slotId) : null;
+  const day = parsedFromId?.day ?? parsedFromSlotId?.day ?? Math.max(1, Math.floor(currentDay));
+  const slotIndex =
+    typeof sample.slotIndex === 'number' && Number.isFinite(sample.slotIndex)
+      ? Math.max(0, Math.floor(sample.slotIndex))
+      : parsedFromId?.slotIndex ?? parsedFromSlotId?.slotIndex ?? null;
+
+  if (slotIndex === null) {
+    const fallbackSlotId = resolveSampleSlotId(sample, day);
+    return { missionSlotKey: fallbackSlotId, solSlotId: fallbackSlotId };
+  }
+  return {
+    missionSlotKey: formatMissionSampleSlotKey(day, slotIndex),
+    solSlotId: formatSampleSlotId(day, slotIndex),
+  };
+}
+
 export function applySampleCollectToMission(
   prev: MissionState,
   sample: SurfaceSampleSpec,
 ): MissionState {
   if (prev.status !== 'playing') return prev;
   const existingIds = prev.collectedSampleIds ?? [];
-  if (existingIds.includes(sample.id)) return prev;
+  const existingSlots = prev.collectedSampleSlots ?? [];
+  const { missionSlotKey, solSlotId } = resolveMissionSampleSlotKeys(sample, prev.currentDay);
+
+  if (
+    existingIds.includes(sample.id) ||
+    (missionSlotKey !== null && existingSlots.includes(missionSlotKey)) ||
+    (solSlotId !== null && existingSlots.includes(solSlotId)) ||
+    isSampleSlotCollected(sample, [...existingIds, ...existingSlots])
+  ) {
+    return prev;
+  }
 
   const nextScience = prev.resources.sciencePoints + sample.points;
   const prevTier = getScienceBonusTier(prev.resources.sciencePoints);
@@ -251,6 +294,10 @@ export function applySampleCollectToMission(
     nasaTag: sample.nasaSource === 'ARTEMIS' ? 'ARTEMIS / LRO' : 'Mars 2020 / Perseverance',
   };
 
+  const nextSlotsSet = new Set(existingSlots);
+  if (missionSlotKey) nextSlotsSet.add(missionSlotKey);
+  if (solSlotId) nextSlotsSet.add(solSlotId);
+
   return {
     ...prev,
     resources: {
@@ -258,6 +305,7 @@ export function applySampleCollectToMission(
       sciencePoints: nextScience,
     },
     collectedSampleIds: [...existingIds, sample.id],
+    collectedSampleSlots: Array.from(nextSlotsSet),
     roverSamplesCollected: (prev.roverSamplesCollected ?? 0) + 1,
     roverScienceEarned: (prev.roverScienceEarned ?? 0) + sample.points,
     logs: [entry, ...prev.logs],
@@ -377,6 +425,7 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
   const [scannedAnomalyIds, setScannedAnomalyIds] = useState<string[]>(initial.scannedAnomalyIds);
   const scannedAnomalyRef = useRef<string[]>(initial.scannedAnomalyIds);
   const collectedSamplesRef = useRef<string[]>(initial.mission.collectedSampleIds ?? []);
+  const collectedSampleSlotsRef = useRef<string[]>(initial.mission.collectedSampleSlots ?? []);
   const [maintainedModules, setMaintainedModules] = useState<ColonyWorldModuleId[]>(
     initial.maintainedModules,
   );
@@ -428,6 +477,7 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
       scannedAnomalyRef.current = [];
       setScannedAnomalyIds([]);
       collectedSamplesRef.current = [];
+      collectedSampleSlotsRef.current = [];
       maintainedModulesRef.current = [];
       setMaintainedModules([]);
       setMission(newMission(siteId, weatherPool, seed, nextTerrainSeed));
@@ -456,16 +506,35 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
     [mission.status],
   );
 
-  /** R06: Registra la recolección física 3D de una muestra por el Rover y suma sus puntos de ciencia. */
+  /** R06/S02: Registra la recolección física 3D de una muestra por el Rover y suma sus puntos de ciencia una sola vez por ranura y Sol. */
   const recordSampleCollection = useCallback(
     (sample: SurfaceSampleSpec): boolean => {
       if (mission.status !== 'playing') return false;
-      if (collectedSamplesRef.current.includes(sample.id)) return false;
+      const { missionSlotKey, solSlotId } = resolveMissionSampleSlotKeys(
+        sample,
+        mission.currentDay,
+      );
+      const knownTokens = [
+        ...collectedSamplesRef.current,
+        ...collectedSampleSlotsRef.current,
+      ];
+      if (
+        collectedSamplesRef.current.includes(sample.id) ||
+        (missionSlotKey !== null && collectedSampleSlotsRef.current.includes(missionSlotKey)) ||
+        (solSlotId !== null && collectedSampleSlotsRef.current.includes(solSlotId)) ||
+        isSampleSlotCollected(sample, knownTokens)
+      ) {
+        return false;
+      }
       collectedSamplesRef.current = [...collectedSamplesRef.current, sample.id];
+      const nextSlots = new Set(collectedSampleSlotsRef.current);
+      if (missionSlotKey) nextSlots.add(missionSlotKey);
+      if (solSlotId) nextSlots.add(solSlotId);
+      collectedSampleSlotsRef.current = Array.from(nextSlots);
       setMission((prev) => applySampleCollectToMission(prev, sample));
       return true;
     },
-    [mission.status],
+    [mission.status, mission.currentDay],
   );
 
   /** Registra mantenimiento directo 3D en un módulo afectado (1 vez por módulo y turno). */
@@ -539,6 +608,7 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
     terrainSeed,
     reseedTerrain,
     scannedAnomalyIds,
+    collectedSampleSlots: mission.collectedSampleSlots ?? [],
     maintainedModules,
     recordAnomalyScan,
     recordSampleCollection,
