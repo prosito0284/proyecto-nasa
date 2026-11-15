@@ -1,20 +1,22 @@
 /**
- * Motor de Iluminación (Spotlight) de 4 Cuadrantes sin Bloqueo de Clics (T03 & T05)
+ * Motor de Iluminación (Spotlight) de 4 Cuadrantes, Señalización Vectorial y Callout (T03, T05, T06)
  *
- * Renderiza 4 paneles oscuros independientes (Top, Bottom, Left, Right) con
- * `rgba(6, 10, 18, 0.85)` y `pointer-events: auto` alrededor del elemento objetivo,
- * dejando el recorte central libre de obstrucciones cuando `requireAction` es `true`,
- * dibujando un marco técnico de 2px con `pointer-events: none` (cian para 'info',
- * ámbar para 'caution') y delegando la tarjeta de instrucciones a `TutorialCallout`.
+ * Renderiza:
+ * - 4 paneles oscuros independientes (Top, Bottom, Left, Right) con `rgba(6, 10, 18, 0.85)` y `pointer-events: auto`.
+ * - Marco técnico de 2px con `pointer-events: none` (cian para 'info', ámbar para 'caution').
+ * - `TutorialPointer` (T06): 4 escuadras técnicas exteriores y línea conectora ortogonal SVG de 90°.
+ * - `TutorialCallout` (T05): recuadro táctico oscuro NASA con ajuste inteligente al viewport.
  */
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   Language,
+  TutorialPlacement,
   TutorialStep,
   TutorialTargetRect,
 } from '../../types/tutorial';
-import { TutorialCallout } from './TutorialCallout';
+import { computeCalloutPosition, TutorialCallout } from './TutorialCallout';
+import { TutorialPointer } from './TutorialPointer';
 
 export interface TutorialSpotlightProps {
   lang: Language;
@@ -91,10 +93,45 @@ export const TutorialSpotlight: React.FC<TutorialSpotlightProps> = ({
     [targetRect, step?.spotlightPadding, vw, vh],
   );
 
+  const defaultCalloutLayout = useMemo(
+    () =>
+      computeCalloutPosition(
+        cutout,
+        step?.placement ?? 'bottom',
+        384,
+        232,
+        vw,
+        vh,
+      ),
+    [cutout, step?.placement, vw, vh],
+  );
+
+  const [measuredCallout, setMeasuredCallout] = useState<{
+    rect: TutorialTargetRect;
+    placement: TutorialPlacement;
+  } | null>(null);
+
+  const handleCalloutPositionChange = useCallback(
+    (rect: TutorialTargetRect, resolvedPlacement: TutorialPlacement) => {
+      setMeasuredCallout({ rect, placement: resolvedPlacement });
+    },
+    [],
+  );
+
   if (!isActive || !step) return null;
 
   const es = lang === 'es';
   const frameCode = `TRN-0${stepIndex + 1}`;
+  const activeCalloutRect: TutorialTargetRect = measuredCallout?.rect ?? {
+    top: defaultCalloutLayout.top,
+    left: defaultCalloutLayout.left,
+    width: defaultCalloutLayout.width,
+    height: defaultCalloutLayout.height,
+    right: defaultCalloutLayout.right,
+    bottom: defaultCalloutLayout.bottom,
+  };
+  const activePlacement: TutorialPlacement =
+    measuredCallout?.placement ?? defaultCalloutLayout.resolvedPlacement;
 
   return (
     <div
@@ -187,6 +224,16 @@ export const TutorialSpotlight: React.FC<TutorialSpotlightProps> = ({
         </div>
       )}
 
+      {/* T06: Señalización vectorial ortogonal de 90° + 4 escuadras técnicas exteriores */}
+      <TutorialPointer
+        cutoutRect={cutout}
+        calloutRect={activeCalloutRect}
+        placement={activePlacement}
+        tone={step.tone}
+        viewportWidth={vw}
+        viewportHeight={vh}
+      />
+
       {/* T05: Recuadro táctico de instrucción con ajuste de bordes */}
       <TutorialCallout
         lang={lang}
@@ -197,6 +244,7 @@ export const TutorialSpotlight: React.FC<TutorialSpotlightProps> = ({
         onNext={onNext}
         onPrev={onPrev}
         onSkip={onSkip}
+        onPositionChange={handleCalloutPositionChange}
       />
     </div>
   );
