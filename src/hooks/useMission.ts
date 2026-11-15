@@ -242,6 +242,11 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
       setLastTurn(null);
       setIsBriefing(true);
     }, []),
+    /** Vuelve a la misión en curso sin reiniciarla ni perder el progreso actual. */
+    resumeMission: useCallback(() => {
+      setLastTurn(null);
+      setIsBriefing(false);
+    }, []),
     setAllocation,
     decide,
   };

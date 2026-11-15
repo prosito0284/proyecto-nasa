@@ -1,0 +1,370 @@
+/**
+ * Motor de Iluminación (Spotlight) de 4 Cuadrantes y Recuadro Táctico NASA (T03 & T05)
+ *
+ * Reglas estrictas:
+ * - 4 paneles independientes (Top, Bottom, Left, Right) con rgba(6, 10, 18, 0.85) y pointer-events: auto.
+ * - Recorte central libre de obstrucciones cuando requireAction es true.
+ * - Marco técnico de 2px con pointer-events: none (cian #00E5FF para 'info', ámbar #FFB300 para 'caution').
+ * - TutorialCallout con estética de panel de instrumentos NASA: fondo sólido oscuro de alto contraste,
+ *   borde sólido de 2px, esquinas de 2px, cero degradados y cero sombras difusas (box-shadow: none).
+ * - Tipografía: mayúsculas solo en etiquetas <= 3 palabras, títulos en tipo oración, cuerpo >= 16px.
+ * - Botones táctiles de mínimo 44x44 px.
+ */
+
+.tutorial-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  pointer-events: none;
+}
+
+/* 4 cuadrantes oscuros independientes alrededor del objetivo */
+.tutorial-quadrant {
+  position: fixed;
+  background-color: rgba(6, 10, 18, 0.85);
+  pointer-events: auto;
+  z-index: 9500;
+  transition:
+    top 140ms ease-out,
+    left 140ms ease-out,
+    width 140ms ease-out,
+    height 140ms ease-out;
+}
+
+/* Marco técnico de 2px sobre el borde del recorte (nunca bloquea clics) */
+.tutorial-cutout-frame {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9501;
+  border-width: 2px;
+  border-style: solid;
+  border-radius: 2px;
+  box-shadow: none;
+  background: transparent;
+  transition:
+    top 140ms ease-out,
+    left 140ms ease-out,
+    width 140ms ease-out,
+    height 140ms ease-out,
+    border-color 140ms ease-out;
+}
+
+.tutorial-tone-info {
+  border-color: #00E5FF;
+}
+
+.tutorial-tone-caution {
+  border-color: #FFB300;
+}
+
+/* Etiqueta técnica de telemetría en el borde del marco (pointer-events: none) */
+.tutorial-frame-tag {
+  position: absolute;
+  top: -22px;
+  left: -2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 2px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.tutorial-tone-info .tutorial-frame-tag {
+  background-color: #00E5FF;
+  color: #060A12;
+}
+
+.tutorial-tone-caution .tutorial-frame-tag {
+  background-color: #FFB300;
+  color: #060A12;
+}
+
+/* T05: Recuadro táctico de instrucción (Callout Box) — Panel de instrumentos NASA oscuro de alto contraste */
+.tutorial-card,
+.tutorial-callout {
+  position: fixed;
+  z-index: 9503;
+  pointer-events: auto;
+  width: min(392px, calc(100vw - 24px));
+  background-color: #0B101B;
+  color: #F4EFE4;
+  border: 2px solid #00E5FF;
+  border-radius: 2px;
+  box-shadow: none;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tutorial-card-tone-info {
+  border-color: #00E5FF;
+}
+
+.tutorial-card-tone-caution {
+  border-color: #FFB300;
+}
+
+.tutorial-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1.5px solid #26334D;
+}
+
+.tutorial-step-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #00E5FF;
+}
+
+.tutorial-card-tone-caution .tutorial-step-meta {
+  color: #FFB300;
+}
+
+.tutorial-tone-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1.5px solid #00E5FF;
+  border-radius: 2px;
+}
+
+.tutorial-tone-pill-info {
+  background-color: #111A2B;
+  border-color: #00E5FF;
+  color: #00E5FF;
+}
+
+.tutorial-tone-pill-caution {
+  background-color: #1F1808;
+  border-color: #FFB300;
+  color: #FFB300;
+}
+
+.tutorial-callout-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Regla tipográfica Ronda 4 + T05: título en tipo oración, nunca uppercase en frases largas */
+.tutorial-card-title {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: #FFFFFF;
+  margin: 0;
+}
+
+/* Regla tipográfica Ronda 4 + T05: cuerpo mínimo 16px (1rem), máximo 2 frases */
+.tutorial-card-body {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #E5DEC9;
+  max-width: 62ch;
+  margin: 0;
+}
+
+/* T09: Lectura táctica del simulacro de micro-emergencia (sin daño real) */
+.tutorial-drill-readout {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background-color: #1F1808;
+  border: 2px solid #FFB300;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: #FFE082;
+}
+
+.tutorial-drill-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.tutorial-drill-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  background-color: #FFB300;
+  color: #0B101B;
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: 2px;
+}
+
+.tutorial-drill-event {
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 0.76rem;
+}
+
+.tutorial-drill-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid #4A3810;
+  color: #F4EFE4;
+}
+
+.tutorial-drill-metrics strong {
+  color: #FFB300;
+}
+
+/* Aviso cuando el paso exige hacer clic directo en el control real */
+.tutorial-action-prompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background-color: #141E30;
+  border: 1.5px dashed #FFB300;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #FFE082;
+}
+
+.tutorial-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1.5px solid #26334D;
+}
+
+.tutorial-nav-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* T05: Botones táctiles de mínimo 44x44 px */
+.tutorial-btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 6px 12px;
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-radius: 2px;
+  border: 2px solid #3B4E73;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: none;
+}
+
+.tutorial-btn-skip {
+  background-color: #111A2B;
+  color: #D2DCEB;
+  border-color: #3B4E73;
+}
+
+.tutorial-btn-skip:hover,
+.tutorial-btn-skip:focus-visible {
+  background-color: #1C2942;
+  color: #FFFFFF;
+  border-color: #00E5FF;
+}
+
+.tutorial-btn-secondary {
+  background-color: #141E30;
+  color: #F4EFE4;
+  border-color: #4D648D;
+}
+
+.tutorial-btn-secondary:hover:not(:disabled),
+.tutorial-btn-secondary:focus-visible:not(:disabled) {
+  background-color: #1F2E47;
+  border-color: #00E5FF;
+}
+
+.tutorial-btn-secondary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tutorial-btn-primary {
+  background-color: var(--nasa-red, #FC3D21);
+  color: #FFFFFF;
+  border-color: #FFFFFF;
+}
+
+.tutorial-btn-primary:hover,
+.tutorial-btn-primary:focus-visible {
+  background-color: #D92E14;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-quadrant,
+  .tutorial-cutout-frame {
+    transition: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .tutorial-card,
+  .tutorial-callout {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .tutorial-card-title {
+    font-size: 1.2rem;
+  }
+}
+
+/* T10: Botón permanente "Entrenamiento" / "Training" en la barra superior (>= 44x44 px, esquinas de 2 px) */
+.tutorial-launch-btn {
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+

@@ -86,6 +86,10 @@ export interface WorkOrderProps {
   disabled: boolean;
   onPreview: (choice: TradeoffChoice | null) => void;
   onExecute: (choice: TradeoffChoice) => void;
+  /** T07: Identificador opcional para instrumentación del entrenamiento guiado */
+  tutorialId?: string;
+  /** T08: Callback opcional para disparar avance de aprendizaje activo al ejecutar una orden */
+  onTutorialAction?: (stepId: string) => void;
 }
 
 export const WorkOrder: React.FC<WorkOrderProps> = ({
@@ -97,6 +101,8 @@ export const WorkOrder: React.FC<WorkOrderProps> = ({
   disabled,
   onPreview,
   onExecute,
+  tutorialId,
+  onTutorialAction,
 }) => {
   const { gains, costs } = buildLedger(choice);
   const source = inferSource(choice.nasaDataReference);
@@ -124,6 +130,7 @@ export const WorkOrder: React.FC<WorkOrderProps> = ({
   return (
     <article
       className={`work-order ${executed ? 'work-order-executed' : ''}`}
+      data-tutorial-id={tutorialId}
       onMouseEnter={() => onPreview(choice)}
       onMouseLeave={() => onPreview(null)}
       onFocus={() => onPreview(choice)}
@@ -157,9 +164,13 @@ export const WorkOrder: React.FC<WorkOrderProps> = ({
         </div>
         <button
           id={`choice-btn-${choice.id}`}
+          data-tutorial-id={tutorialId ? `${tutorialId}-sign-btn` : undefined}
           className="btn-primary wo-sign-btn"
           disabled={disabled}
-          onClick={() => onExecute(choice)}
+          onClick={() => {
+            onTutorialAction?.('step-work-orders');
+            onExecute(choice);
+          }}
         >
           {lang === 'es' ? 'Firmar y ejecutar' : 'Sign and execute'}
         </button>

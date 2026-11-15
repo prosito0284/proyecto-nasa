@@ -1,8 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Language, OutpostSiteId, TradeoffChoice } from './types/mission';
+import { Language, OutpostSiteId, PowerAllocation, TradeoffChoice } from './types/mission';
 import { OUTPOST_SITES } from './data/scenarios';
 import { KID_SCIENCE_GLOSSARY, getGlossaryTerm } from './data/nasa-datasets';
-import { getCommDelaySeconds, getCrewReaction, getCrewStatus } from './engine/simulationEngine';
+import {
+  DEFAULT_POWER_ALLOCATION,
+  getCommDelaySeconds,
+  getCrewReaction,
+  getCrewStatus,
+} from './engine/simulationEngine';
+import { simulateTrainingDrill } from './engine/trainingDrill';
 import { buildChallengeUrl, getDailyChallengeSeed, useMission } from './hooks/useMission';
 import { useClassBoard } from './hooks/useClassBoard';
 import { OutpostMap } from './components/OutpostView/OutpostMap';
@@ -15,7 +21,17 @@ import { SourceStamp } from './components/ScienceTraceability/SourceStamp';
 import { CrewRoster } from './components/crew';
 import { WorkOrder, inferSource } from './components/Mission/WorkOrder';
 import { ClassBoard } from './components/Mission/ClassBoard';
-import { ArrowIcon, LanguageIcon, PatchIcon, ScienceIcon, SoundIcon } from './components/icons';
+import { TutorialSpotlight } from './components/Tutorial/TutorialSpotlight';
+import { TUTORIAL_STEPS } from './data/tutorial-steps';
+import { useTutorial } from './hooks/useTutorial';
+import {
+  ArrowIcon,
+  HelmetIcon,
+  LanguageIcon,
+  PatchIcon,
+  ScienceIcon,
+  SoundIcon,
+} from './components/icons';
 import { missionAudio } from './utils/sound';
 
 const SOLAR_STORM_TYPES = ['FLR', 'SEP', 'CME'];
@@ -63,6 +79,7 @@ export const App: React.FC = () => {
     lastTurn,
     dismissTurnReport,
     openBriefing,
+    resumeMission,
     startMission,
     restartMission,
     setAllocation,
@@ -120,10 +137,66 @@ export const App: React.FC = () => {
   const todaySeed = getDailyChallengeSeed();
   const weatherIsLive = mission.currentWeather.isLiveNasaData;
 
+  const tutorialEnabled =
+    !isBriefing &&
+    mission.status === 'playing' &&
+    !lastTurn &&
+    !isScienceOpen &&
+    !isBadgesOpen;
+
+  const tutorial = useTutorial(TUTORIAL_STEPS, {
+    autoStart: true,
+    enabled: tutorialEnabled,
+    siteId: mission.siteId,
+  });
+
+  const savedDrillAllocationRef = useRef<PowerAllocation | null>(null);
+  const isDrillStepActive = Boolean(
+    tutorial.isActive && tutorialEnabled && tutorial.currentStep?.drill,
+  );
+
+  useEffect(() => {
+    if (isDrillStepActive) {
+      if (!savedDrillAllocationRef.current) {
+        savedDrillAllocationRef.current = { ...mission.powerAllocation };
+        if (mission.powerAllocation.shieldingAlloc >= 40) {
+          setAllocation(DEFAULT_POWER_ALLOCATION);
+        }
+      }
+      return;
+    }
+    if (savedDrillAllocationRef.current) {
+      const restored = savedDrillAllocationRef.current;
+      savedDrillAllocationRef.current = null;
+      setAllocation(restored);
+    }
+  }, [isDrillStepActive, mission.powerAllocation, setAllocation]);
+
+  const drillReadout = useMemo(
+    () => (isDrillStepActive ? simulateTrainingDrill(mission) : null),
+    [isDrillStepActive, mission],
+  );
+
   const openScience = (termId?: string) => {
     missionAudio.playClick();
+    tutorial.completeActionTrigger('step-science-button');
     setFocusTermId(termId);
     setIsScienceOpen(true);
+  };
+
+  const handleLaunchTutorial = () => {
+    missionAudio.playClick();
+    setIsScienceOpen(false);
+    setIsBadgesOpen(false);
+    if (mission.status !== 'playing') {
+      startMission(mission.siteId, challengeSeed);
+      window.scrollTo({ top: 0 });
+    } else if (isBriefing) {
+      resumeMission();
+    } else if (lastTurn) {
+      dismissTurnReport();
+    }
+    tutorial.startTutorial();
   };
 
   const handleStart = (siteId: OutpostSiteId, seed: number | null = null) => {
@@ -148,6 +221,7 @@ export const App: React.FC = () => {
   const handleExecute = (choice: TradeoffChoice) => {
     if (executingId) return;
     missionAudio.playClick();
+    tutorial.completeActionTrigger('step-work-orders');
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (reduceMotion) {
       applyDecision(choice);
@@ -243,7 +317,16 @@ export const App: React.FC = () => {
             </button>
           )}
           <button
+            id="start-tutorial-btn"
+            className="btn-secondary tutorial-launch-btn"
+            onClick={handleLaunchTutorial}
+          >
+            <HelmetIcon size={16} />{' '}
+            <span>{es ? 'Entrenamiento' : 'Training'}</span>
+          </button>
+          <button
             id="open-science-modal-btn"
+            data-tutorial-id="science-button"
             className="btn-secondary"
             onClick={() => openScience()}
           >
@@ -315,6 +398,7 @@ export const App: React.FC = () => {
         <>
           <div
             className="timeline-bar"
+            data-tutorial-id="timeline-bar"
             aria-label={es ? 'Progreso de la misión' : 'Mission progress'}
           >
             <div className="timeline-label">
@@ -358,6 +442,7 @@ export const App: React.FC = () => {
               onChangeAllocation={setAllocation}
               onOpenBadgesModal={() => setIsBadgesOpen(true)}
               crew={crew}
+              onTutorialAction={tutorial.completeActionTrigger}
             />
 
             <div className="mission-center-col">
@@ -371,6 +456,7 @@ export const App: React.FC = () => {
                 projection={projection}
                 onOpenScienceModal={() => openScience()}
                 commDelaySeconds={getCommDelaySeconds(mission.siteId, mission.currentDay)}
+                onTutorialAction={tutorial.completeActionTrigger}
               />
 
               {lastTurn && (
@@ -412,7 +498,7 @@ export const App: React.FC = () => {
                   <h2>{mission.currentDilemma.title[lang]}</h2>
                   <p className="dilemma-situation">{mission.currentDilemma.situation[lang]}</p>
 
-                  <div className="dilemma-weather">
+                  <div className="dilemma-weather" data-tutorial-id="dilemma-weather">
                     <SourceStamp
                       source={mission.currentWeather.type === 'DUST_STORM' ? 'MARS' : 'DONKI'}
                       live={weatherIsLive}
@@ -425,11 +511,11 @@ export const App: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="crew-strip">
+                  <div className="crew-strip" data-tutorial-id="crew-status">
                     <CrewRoster lang={lang} crew={crew} />
                   </div>
 
-                  <div className="choices-grid">
+                  <div className="choices-grid" data-tutorial-id="work-orders">
                     {mission.currentDilemma.choices.map((choice, i) => (
                       <WorkOrder
                         key={choice.id}
@@ -441,6 +527,8 @@ export const App: React.FC = () => {
                         disabled={executingId !== null}
                         onPreview={setPreviewChoice}
                         onExecute={handleExecute}
+                        tutorialId={i === 0 ? 'primary-work-order' : undefined}
+                        onTutorialAction={tutorial.completeActionTrigger}
                       />
                     ))}
                   </div>
@@ -630,6 +718,7 @@ export const App: React.FC = () => {
         focusTermId={focusTermId}
         siteId={mission.siteId}
         onQuizComplete={handleQuizComplete}
+        onTutorialAction={tutorial.completeActionTrigger}
       />
 
       <CommanderCertificate
@@ -644,6 +733,28 @@ export const App: React.FC = () => {
         onRestartMission={handleResetMission}
         history={mission.engine?.history}
         crew={crew}
+      />
+
+      <TutorialSpotlight
+        lang={lang}
+        isActive={tutorial.isActive && tutorialEnabled}
+        step={tutorial.currentStep}
+        stepIndex={tutorial.currentStepIndex}
+        totalSteps={tutorial.totalSteps}
+        targetRect={tutorial.targetRect}
+        drillReadout={drillReadout}
+        onNext={() => {
+          missionAudio.playClick();
+          tutorial.nextStep();
+        }}
+        onPrev={() => {
+          missionAudio.playClick();
+          tutorial.prevStep();
+        }}
+        onSkip={() => {
+          missionAudio.playClick();
+          tutorial.skipTutorial();
+        }}
       />
     </div>
   );

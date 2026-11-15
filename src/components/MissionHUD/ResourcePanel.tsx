@@ -50,6 +50,8 @@ export interface ResourcePanelProps {
   onOpenBadgesModal: () => void;
   /** C14: Estado opcional de la tripulación para mostrar el retrato de quien vigila cada vital */
   crew?: CrewStatus[];
+  /** T04: Callback opcional para notificar acciones del entrenamiento guiado */
+  onTutorialAction?: (stepId: string) => void;
 }
 
 const POWER_PRESETS: Array<{
@@ -129,6 +131,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   onChangeAllocation,
   onOpenBadgesModal,
   crew,
+  onTutorialAction,
 }) => {
   const [showAdvancedSliders, setShowAdvancedSliders] = useState(false);
   const totalPowerUsed = projection.load;
@@ -139,11 +142,16 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
       ...allocation,
       [key]: val,
     });
+    onTutorialAction?.('step-power-presets');
   };
 
-  const applyPreset = (preset: PowerAllocation) => {
+  const applyPreset = (preset: PowerAllocation, presetId?: string) => {
     missionAudio.playClick();
     onChangeAllocation(preset);
+    onTutorialAction?.('step-power-presets');
+    if (presetId) {
+      onTutorialAction?.(`power-preset-${presetId}`);
+    }
   };
 
   const getCombinedDelta = (
@@ -324,7 +332,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
         </div>
 
         {/* C14: Vitales como Hoja de Checklist con Casilla de Estado, Retrato Opcional y Proyección */}
-        <div className="panel-section">
+        <div className="panel-section" data-tutorial-id="vitals-checklist">
           <div className="section-title-row">
             <h2>
               <SlidersIcon size={17} />{' '}
@@ -462,7 +470,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
         </div>
 
         {/* C3: Modos de Energía como Botones Grandes Principales + Sliders Plegados bajo "Avanzado" */}
-        <div className="panel-section">
+        <div className="panel-section" data-tutorial-id="power-presets">
           <div className="section-title-row">
             <h2>
               <BatteryIcon size={17} />{' '}
@@ -481,9 +489,10 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                   key={preset.id}
                   type="button"
                   id={`power-preset-${preset.id}-btn`}
+                  data-tutorial-id={`power-preset-${preset.id}`}
                   className={`preset-large-btn ${isActive ? 'preset-large-active' : ''}`}
                   aria-pressed={isActive}
-                  onClick={() => applyPreset(preset.alloc)}
+                  onClick={() => applyPreset(preset.alloc, preset.id)}
                 >
                   <span className="preset-large-icon" aria-hidden="true">
                     {preset.icon}

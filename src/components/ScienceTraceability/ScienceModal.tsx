@@ -75,6 +75,8 @@ export interface ScienceModalProps {
   siteId?: OutpostSiteId;
   /** Callback opcional invocado una sola vez al completar todas las preguntas del quiz activo (B13) */
   onQuizComplete?: (correct: number, total: number) => void;
+  /** T08: Callback opcional para notificar interacción con el anexo de ciencia durante el tutorial */
+  onTutorialAction?: (stepId: string) => void;
 }
 
 type ModalTab = 'donki-glossary' | 'osdr-studies' | 'nasa-photos' | 'mini-quiz';
@@ -117,6 +119,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
   focusTermId,
   siteId,
   onQuizComplete,
+  onTutorialAction,
 }) => {
   const [activeTab, setActiveTab] = useState<ModalTab>('donki-glossary');
   const [glossarySearch, setGlossarySearch] = useState('');
@@ -329,6 +332,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
   const handleTabSwitch = (tab: ModalTab) => {
     missionAudio.playClick();
     setActiveTab(tab);
+    onTutorialAction?.('step-science-button');
   };
 
   const handleTabKeyDown = (
@@ -444,7 +448,11 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
         }
       }}
     >
-      <div ref={modalCardRef} className="modal-card science-annex-sheet">
+      <div
+        ref={modalCardRef}
+        className="modal-card science-annex-sheet"
+        data-tutorial-id="science-modal-sheet"
+      >
         {/* Cabecera del Anexo del Cuaderno de Vuelo */}
         <header className="science-annex-header">
           <div>
@@ -506,6 +514,7 @@ export const ScienceModal: React.FC<ScienceModalProps> = ({
               : 'NASA science flight notebook annex sections'
           }
           className="science-folder-tabs"
+          data-tutorial-id="science-folder-tabs"
         >
           <button
             id="tab-donki-glossary-btn"
