@@ -49,6 +49,16 @@ export interface TurnSummary {
 interface SavedGame {
   mission: MissionState;
   challengeSeed: number | null;
+  terrainSeed?: number;
+}
+
+function generateFreeTerrainSeed(prevSeed?: number): number {
+  const salt = Math.floor(Math.random() * 899999);
+  const raw = ((Date.now() ^ (salt * 2654435761)) >>> 0) % 900000 + 100000;
+  if (prevSeed !== undefined && raw === prevSeed) {
+    return ((raw + 7919) % 900000) + 100000;
+  }
+  return raw;
 }
 
 /** Semilla del "Reto del día": la misma para todo el mundo durante un día (UTC). */
@@ -88,8 +98,9 @@ function newMission(
   siteId: OutpostSiteId,
   pool: SpaceWeatherEvent[],
   challengeSeed: number | null = null,
+  freeSeed?: number,
 ): MissionState {
-  const seed = challengeSeed ?? Date.now();
+  const seed = challengeSeed ?? freeSeed ?? Date.now();
   const source = challengeSeed === null ? pool : VERIFIED_NASA_WEATHER_EVENTS;
   return createInitialMissionState(siteId, selectStartingWeather(siteId, source, seed), seed);
 }
@@ -101,7 +112,16 @@ function loadSavedGame(): SavedGame | null {
     const saved = JSON.parse(raw) as SavedGame;
     const m = saved?.mission;
     const valid = m?.status === 'playing' && m.engine && m.currentDilemma && m.resources;
-    return valid ? { mission: m, challengeSeed: saved.challengeSeed ?? null } : null;
+    return valid
+      ? {
+          mission: m,
+          challengeSeed: saved.challengeSeed ?? null,
+          terrainSeed:
+            typeof saved.terrainSeed === 'number'
+              ? saved.terrainSeed
+              : saved.challengeSeed ?? m.engine?.rngState,
+        }
+      : null;
   } catch {
     return null;
   }
@@ -124,6 +144,7 @@ const hasStarted = (state: MissionState) => (state.engine?.history.length ?? 0) 
 interface InitialGame extends SavedGame {
   /** true si hay una partida que mostrar de inmediato (guardada o abierta desde un enlace de reto). */
   inProgress: boolean;
+  terrainSeed: number;
 }
 
 function initGame(defaultSite: OutpostSiteId): InitialGame {
@@ -132,14 +153,23 @@ function initGame(defaultSite: OutpostSiteId): InitialGame {
     return {
       mission: newMission(linked.siteId, VERIFIED_NASA_WEATHER_EVENTS, linked.seed),
       challengeSeed: linked.seed,
+      terrainSeed: linked.seed,
       inProgress: true,
     };
   }
   const saved = loadSavedGame();
-  if (saved) return { ...saved, inProgress: true };
+  if (saved) {
+    return {
+      ...saved,
+      terrainSeed: saved.terrainSeed ?? saved.challengeSeed ?? generateFreeTerrainSeed(),
+      inProgress: true,
+    };
+  }
+  const initialFreeSeed = generateFreeTerrainSeed();
   return {
-    mission: newMission(defaultSite, VERIFIED_NASA_WEATHER_EVENTS),
+    mission: newMission(defaultSite, VERIFIED_NASA_WEATHER_EVENTS, null, initialFreeSeed),
     challengeSeed: null,
+    terrainSeed: initialFreeSeed,
     inProgress: false,
   };
 }
@@ -149,6 +179,7 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
   const [weatherPool, setWeatherPool] = useState<SpaceWeatherEvent[]>(VERIFIED_NASA_WEATHER_EVENTS);
   const [mission, setMission] = useState<MissionState>(initial.mission);
   const [challengeSeed, setChallengeSeed] = useState<number | null>(initial.challengeSeed);
+  const [terrainSeed, setTerrainSeed] = useState<number>(initial.terrainSeed);
   /** false = se muestra la pantalla de bienvenida (briefing) */
   const [isBriefing, setIsBriefing] = useState(!initial.inProgress);
   const [lastTurn, setLastTurn] = useState<TurnSummary | null>(null);
@@ -166,7 +197,11 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
       if (events.length === 0) return;
       setWeatherPool(events);
       if (initial.challengeSeed !== null) return;
-      setMission((prev) => (hasStarted(prev) ? prev : newMission(prev.siteId, events)));
+      setMission((prev) =>
+        hasStarted(prev)
+          ? prev
+          : newMission(prev.siteId, events, null, initial.terrainSeed),
+      );
     });
     return () => {
       cancelled = true;
@@ -174,8 +209,8 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
   }, [initial]);
 
   useEffect(() => {
-    saveGame(isBriefing ? null : { mission, challengeSeed });
-  }, [mission, challengeSeed, isBriefing]);
+    saveGame(isBriefing ? null : { mission, challengeSeed, terrainSeed });
+  }, [mission, challengeSeed, terrainSeed, isBriefing]);
 
   /** Empieza una misión. Con `seed` es un reto reproducible; sin él, una misión libre. */
   const startMission = useCallback(
@@ -183,11 +218,19 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
       setPreviewChoice(null);
       setLastTurn(null);
       setChallengeSeed(seed);
-      setMission(newMission(siteId, weatherPool, seed));
+      const nextTerrainSeed = seed ?? generateFreeTerrainSeed();
+      setTerrainSeed(nextTerrainSeed);
+      setMission(newMission(siteId, weatherPool, seed, nextTerrainSeed));
       setIsBriefing(false);
     },
     [weatherPool],
   );
+
+  /** En partida libre genera una nueva topografía procedural sin alterar recursos del turno. */
+  const reseedTerrain = useCallback(() => {
+    if (challengeSeed !== null) return;
+    setTerrainSeed((prev) => generateFreeTerrainSeed(prev));
+  }, [challengeSeed]);
 
   const setAllocation = useCallback((allocation: PowerAllocation) => {
     setMission((prev) => ({ ...prev, powerAllocation: allocation }));
@@ -234,6 +277,8 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
     evaluation,
     isBriefing,
     challengeSeed,
+    terrainSeed,
+    reseedTerrain,
     lastTurn,
     dismissTurnReport: useCallback(() => setLastTurn(null), []),
     previewChoice,

@@ -95,6 +95,8 @@ export const App: React.FC = () => {
     evaluation: baseEvaluation,
     isBriefing,
     challengeSeed,
+    terrainSeed,
+    reseedTerrain,
     lastTurn,
     dismissTurnReport,
     openBriefing,
@@ -625,6 +627,9 @@ export const App: React.FC = () => {
                 commDelaySeconds={getCommDelaySeconds(mission.siteId, mission.currentDay)}
                 onTutorialAction={handleInteractiveAction}
                 isEnvironmentalAlert={isEmergencyStepActive}
+                terrainSeed={terrainSeed}
+                canRegenerateTerrain={challengeSeed === null}
+                onRegenerateTerrain={reseedTerrain}
               />
 
               {lastTurn && (

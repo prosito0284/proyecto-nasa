@@ -1163,11 +1163,11 @@ export const COLONY_WORLD_MODULES: Record<ColonyWorldModuleId, ColonyWorldModule
 export const COLONY_HIGHLIGHT_HEX = 0x38bdf8;
 
 export const COLONY_CAMERA_LIMITS = {
-  boundsMin: -22,
-  boundsMax: 22,
+  boundsMin: -24,
+  boundsMax: 24,
   /** Margen máximo que la vista puede ceder antes del retorno amortiguado */
   overshoot: 2.5,
-  minDistance: 8,
+  minDistance: 7,
   maxDistance: 45,
   minPolarAngle: 0.18,
   maxPolarAngle: Math.PI / 2 - 0.06,
@@ -1181,7 +1181,7 @@ export function clampToColonyBounds(value: number): number {
 
 /**
  * Amortiguación suave del objetivo de cámara: si el jugador arrastra la vista fuera
- * del perímetro [-22, 22], el objetivo regresa suavemente sin muros visibles.
+ * del perímetro [-24, 24], el objetivo regresa suavemente sin muros visibles.
  */
 export function softClampColonyTarget(
   x: number,
@@ -1353,7 +1353,30 @@ export function getWorldAtmosphere(siteId?: OutpostSiteId): WorldAtmosphere {
 
 export const WORLD_TERRAIN_SIZE = 2000;
 export const WORLD_TERRAIN_SEGMENTS = 128;
+export const DEFAULT_TERRAIN_SEED = 20260415;
 const BASE_PAD_RADIUS = 27;
+
+/** Generador pseudoaleatorio determinista (Mulberry32) para terrenos e ítems reproducibles por semilla. */
+export function createSeededPrng(seed: number): () => number {
+  let a = (Math.floor(Math.abs(seed)) || DEFAULT_TERRAIN_SEED) >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function normalizeTerrainSeed(seed?: number): number {
+  if (typeof seed !== 'number' || !Number.isFinite(seed)) return DEFAULT_TERRAIN_SEED;
+  const s = Math.floor(Math.abs(seed)) % 1_000_000_000;
+  return s > 0 ? s : DEFAULT_TERRAIN_SEED;
+}
+
+export function formatTerrainSeedBadge(seed?: number): string {
+  const n = normalizeTerrainSeed(seed);
+  return String(n).slice(-6).padStart(4, '0');
+}
 
 function hash01(n: number): number {
   const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
@@ -1372,51 +1395,109 @@ interface CraterSpec {
   depth: number;
 }
 
-const craterCache: Partial<Record<WorldAtmosphereKind, CraterSpec[]>> = {};
+interface RidgeOutcropSpec {
+  x: number;
+  z: number;
+  height: number;
+  radius: number;
+}
 
-function getCraters(kind: WorldAtmosphereKind): CraterSpec[] {
-  const cached = craterCache[kind];
+interface SeededTerrainProfile {
+  craters: CraterSpec[];
+  outcrops: RidgeOutcropSpec[];
+  phaseX: number;
+  phaseZ: number;
+  ridgeRot: number;
+  marsMesaPhase: number;
+}
+
+const terrainProfileCache = new Map<string, SeededTerrainProfile>();
+
+function getSeededTerrainProfile(kind: WorldAtmosphereKind, rawSeed?: number): SeededTerrainProfile {
+  const seed = normalizeTerrainSeed(rawSeed);
+  const key = `${kind}:${seed}`;
+  const cached = terrainProfileCache.get(key);
   if (cached) return cached;
+
   const isLunar = kind === 'lunar';
-  const list: CraterSpec[] = [];
-  const count = isLunar ? 46 : 14;
+  const rng = createSeededPrng(seed ^ (isLunar ? 0x9e3779b9 : 0x85ebca6b));
+  const craters: CraterSpec[] = [];
+  const count = isLunar ? 46 : 16;
   for (let i = 0; i < count; i++) {
-    const angle = hash01(i * 3.1 + (isLunar ? 0 : 50)) * Math.PI * 2;
-    const dist = 48 + Math.pow(hash01(i * 7.7 + 1), 0.8) * 620;
-    const r = (isLunar ? 6 : 5) + Math.pow(hash01(i * 1.9 + 2), 2) * (isLunar ? 46 : 26);
-    list.push({
+    const angle = rng() * Math.PI * 2;
+    const dist = 48 + Math.pow(rng(), 0.78) * 620;
+    const r = (isLunar ? 6 : 5) + Math.pow(rng(), 2) * (isLunar ? 46 : 26);
+    craters.push({
       x: Math.cos(angle) * dist,
       z: Math.sin(angle) * dist,
       r,
-      depth: r * (isLunar ? 0.18 : 0.1),
+      depth: r * (isLunar ? 0.19 : 0.11),
     });
   }
   if (isLunar) {
-    for (let i = 0; i < 7; i++) {
-      const angle = hash01(i * 11.3 + 90) * Math.PI * 2;
-      const dist = 33 + hash01(i * 5.1 + 91) * 14;
-      const r = 2.4 + hash01(i * 2.7 + 92) * 3.2;
-      list.push({ x: Math.cos(angle) * dist, z: Math.sin(angle) * dist, r, depth: r * 0.22 });
+    for (let i = 0; i < 8; i++) {
+      const angle = rng() * Math.PI * 2;
+      const dist = 33 + rng() * 15;
+      const r = 2.4 + rng() * 3.4;
+      craters.push({ x: Math.cos(angle) * dist, z: Math.sin(angle) * dist, r, depth: r * 0.24 });
     }
   }
-  craterCache[kind] = list;
-  return list;
+
+  const outcrops: RidgeOutcropSpec[] = [];
+  for (let i = 0; i < 6; i++) {
+    const angle = rng() * Math.PI * 2;
+    const dist = 46 + rng() * 140;
+    outcrops.push({
+      x: Math.cos(angle) * dist,
+      z: Math.sin(angle) * dist,
+      height: (isLunar ? 2.4 : 3.4) + rng() * 4.5,
+      radius: 4.5 + rng() * 7.5,
+    });
+  }
+
+  const profile: SeededTerrainProfile = {
+    craters,
+    outcrops,
+    phaseX: rng() * Math.PI * 2,
+    phaseZ: rng() * Math.PI * 2,
+    ridgeRot: rng() * Math.PI * 2,
+    marsMesaPhase: rng() * Math.PI * 2,
+  };
+
+  if (terrainProfileCache.size > 24) {
+    const firstKey = terrainProfileCache.keys().next().value;
+    if (firstKey !== undefined) terrainProfileCache.delete(firstKey);
+  }
+  terrainProfileCache.set(key, profile);
+  return profile;
 }
 
-/** Altura determinista del terreno en (x, z); la plaza de la base queda nivelada (y = 0). */
-export function sampleWorldTerrainHeight(x: number, z: number, siteId?: OutpostSiteId): number {
+/**
+ * Altura determinista del terreno en (x, z) modulada por `terrainSeed`;
+ * la plaza de la base queda nivelada en `y = 0`.
+ */
+export function sampleWorldTerrainHeight(
+  x: number,
+  z: number,
+  siteId?: OutpostSiteId,
+  terrainSeed?: number,
+): number {
   const kind: WorldAtmosphereKind = siteId === 'mars-jezero' ? 'mars' : 'lunar';
   const r = Math.hypot(x, z);
   const outside = smoothstep(BASE_PAD_RADIUS, BASE_PAD_RADIUS + 16, r);
   if (outside <= 0) return 0;
+
+  const prof = getSeededTerrainProfile(kind, terrainSeed);
   const angle = Math.atan2(z, x);
+  const rx = x * Math.cos(prof.ridgeRot) - z * Math.sin(prof.ridgeRot);
+  const rz = x * Math.sin(prof.ridgeRot) + z * Math.cos(prof.ridgeRot);
 
   let h =
-    Math.sin(x * 0.13) * Math.cos(z * 0.11) * 0.35 +
-    Math.sin(x * 0.041 + z * 0.027) * 1.2 +
-    Math.sin((x - z) * 0.23) * 0.18;
+    Math.sin(rx * 0.13 + prof.phaseX) * Math.cos(rz * 0.11 + prof.phaseZ) * 0.36 +
+    Math.sin(rx * 0.041 + rz * 0.027 + prof.phaseX) * 1.25 +
+    Math.sin((rx - rz) * 0.23 + prof.phaseZ) * 0.19;
 
-  for (const c of getCraters(kind)) {
+  for (const c of prof.craters) {
     const dx = x - c.x;
     const dz = z - c.z;
     const dd = dx * dx + dz * dz;
@@ -1427,18 +1508,33 @@ export function sampleWorldTerrainHeight(x: number, z: number, siteId?: OutpostS
     h += c.depth * 0.42 * Math.exp(-Math.pow((d - 1) / 0.2, 2));
   }
 
+  for (const o of prof.outcrops) {
+    const dx = x - o.x;
+    const dz = z - o.z;
+    const dd = dx * dx + dz * dz;
+    if (dd > o.radius * o.radius * 4) continue;
+    h += o.height * Math.exp(-dd / (o.radius * o.radius));
+  }
+
   if (kind === 'lunar') {
     h +=
-      smoothstep(240, 620, r) *
-      (28 + 14 * Math.sin(angle * 5 + 0.7) + 8 * Math.sin(angle * 13 + 2.1) + 4 * Math.sin(angle * 29));
+      smoothstep(230, 620, r) *
+      (28 +
+        14 * Math.sin(angle * 5 + prof.ridgeRot) +
+        8 * Math.sin(angle * 13 + prof.phaseX) +
+        4 * Math.sin(angle * 29 + prof.phaseZ));
   } else {
     const dunes =
       smoothstep(40, 90, r) *
       (1 - smoothstep(260, 420, r)) *
-      (Math.sin(x * 0.085 + Math.sin(z * 0.031) * 2.2) * 1.4 + 0.6);
-    const mesaMask = Math.max(0, Math.sin(angle * 3 + 1.3) * 0.65 + Math.sin(angle * 7 + 0.4) * 0.45);
-    const mesa = Math.min(40, smoothstep(240, 360, r) * mesaMask * 65);
-    const farHills = smoothstep(500, 800, r) * (20 + 9 * Math.sin(angle * 4 + 0.2));
+      (Math.sin(rx * 0.085 + prof.phaseX + Math.sin(rz * 0.031 + prof.phaseZ) * 2.2) * 1.45 + 0.6);
+    const mesaMask = Math.max(
+      0,
+      Math.sin(angle * 3 + prof.marsMesaPhase) * 0.65 +
+        Math.sin(angle * 7 + prof.ridgeRot) * 0.45,
+    );
+    const mesa = Math.min(42, smoothstep(240, 360, r) * mesaMask * 65);
+    const farHills = smoothstep(500, 800, r) * (20 + 9 * Math.sin(angle * 4 + prof.phaseX));
     h += dunes + mesa + farHills;
   }
 
@@ -1450,7 +1546,11 @@ function warpGridCoord(t: number): number {
   return half * (0.06 * t + 0.94 * t * t * t);
 }
 
-function buildWorldTerrain(atmo: WorldAtmosphere, siteId: OutpostSiteId): THREE.Mesh {
+function buildWorldTerrain(
+  atmo: WorldAtmosphere,
+  siteId: OutpostSiteId,
+  terrainSeed?: number,
+): THREE.Mesh {
   const geo = new THREE.PlaneGeometry(2, 2, WORLD_TERRAIN_SEGMENTS, WORLD_TERRAIN_SEGMENTS);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position as THREE.BufferAttribute;
@@ -1459,14 +1559,15 @@ function buildWorldTerrain(atmo: WorldAtmosphere, siteId: OutpostSiteId): THREE.
   const cLight = new THREE.Color(atmo.terrainLight);
   const cDark = new THREE.Color(atmo.terrainDark);
   const tmp = new THREE.Color();
+  const seedPhase = normalizeTerrainSeed(terrainSeed) % 997;
 
   for (let i = 0; i < pos.count; i++) {
     const x = warpGridCoord(pos.getX(i));
     const z = warpGridCoord(pos.getZ(i));
-    const y = sampleWorldTerrainHeight(x, z, siteId);
+    const y = sampleWorldTerrainHeight(x, z, siteId, terrainSeed);
     pos.setXYZ(i, x, y, z);
 
-    const patch = 0.5 + 0.5 * Math.sin(x * 0.05 + 1.3) * Math.cos(z * 0.07 - 0.4);
+    const patch = 0.5 + 0.5 * Math.sin(x * 0.05 + seedPhase * 0.13) * Math.cos(z * 0.07 - seedPhase * 0.09);
     tmp.copy(cBase).lerp(cLight, patch * 0.6);
     if (y < -0.4) tmp.lerp(cDark, Math.min(1, -y / 6));
     if (atmo.kind === 'mars' && y > 18) tmp.lerp(cDark, Math.min(0.5, (y - 18) / 60));
@@ -1490,11 +1591,17 @@ function buildWorldTerrain(atmo: WorldAtmosphere, siteId: OutpostSiteId): THREE.
   return mesh;
 }
 
-function buildRockField(atmo: WorldAtmosphere, siteId: OutpostSiteId): THREE.InstancedMesh {
+function buildRockField(
+  atmo: WorldAtmosphere,
+  siteId: OutpostSiteId,
+  terrainSeed?: number,
+): THREE.InstancedMesh {
+  const rng = createSeededPrng(normalizeTerrainSeed(terrainSeed) ^ 0x517cc1b7);
   const count = 260;
   const geo = new THREE.DodecahedronGeometry(1, 0);
   const mat = new THREE.MeshStandardMaterial({ color: atmo.rockColor, roughness: 0.92, flatShading: true });
   const rocks = new THREE.InstancedMesh(geo, mat, count);
+  rocks.name = 'world-rocks';
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const e = new THREE.Euler();
@@ -1502,24 +1609,24 @@ function buildRockField(atmo: WorldAtmosphere, siteId: OutpostSiteId): THREE.Ins
   const p = new THREE.Vector3();
   let placed = 0;
   for (let i = 0; placed < count && i < count * 4; i++) {
-    const angle = hash01(i * 4.3 + 7) * Math.PI * 2;
-    const dist = 9 + Math.pow(hash01(i * 2.1 + 3), 1.6) * 170;
+    const angle = rng() * Math.PI * 2;
+    const dist = 9 + Math.pow(rng(), 1.5) * 170;
     const x = Math.cos(angle) * dist;
     const z = Math.sin(angle) * dist;
     let blocked = false;
     for (const id of COLONY_WORLD_MODULE_IDS) {
       const meta = COLONY_WORLD_MODULES[id];
-      if (Math.hypot(x - meta.position[0], z - meta.position[1]) < meta.outlineRadius + 2.2) {
+      if (Math.hypot(x - meta.position[0], z - meta.position[1]) < meta.outlineRadius + 2.4) {
         blocked = true;
         break;
       }
     }
     if (blocked) continue;
-    const scale = (0.18 + hash01(i * 9.1) * 0.9) * (dist > 60 ? 2.6 : 1);
-    e.set(hash01(i * 1.3) * 3, hash01(i * 2.9) * 3, hash01(i * 3.7) * 3);
+    const scale = (0.18 + rng() * 0.95) * (dist > 60 ? 2.6 : 1);
+    e.set(rng() * 3.1, rng() * 3.1, rng() * 3.1);
     q.setFromEuler(e);
-    s.set(scale, scale * (0.55 + hash01(i * 6.6) * 0.4), scale);
-    p.set(x, sampleWorldTerrainHeight(x, z, siteId) + scale * 0.2, z);
+    s.set(scale, scale * (0.55 + rng() * 0.42), scale);
+    p.set(x, sampleWorldTerrainHeight(x, z, siteId, terrainSeed) + scale * 0.2, z);
     m.compose(p, q, s);
     rocks.setMatrixAt(placed, m);
     placed++;
@@ -1530,6 +1637,38 @@ function buildRockField(atmo: WorldAtmosphere, siteId: OutpostSiteId): THREE.Ins
   rocks.receiveShadow = true;
   rocks.raycast = () => undefined;
   return rocks;
+}
+
+function buildOutcropSpires(
+  atmo: WorldAtmosphere,
+  siteId: OutpostSiteId,
+  terrainSeed?: number,
+): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'world-outcrops';
+  const prof = getSeededTerrainProfile(atmo.kind, terrainSeed);
+  const rng = createSeededPrng(normalizeTerrainSeed(terrainSeed) ^ 0x3c6ef372);
+  const wire = atmo.wireTint;
+
+  for (const outcrop of prof.outcrops) {
+    const baseY = sampleWorldTerrainHeight(outcrop.x, outcrop.z, siteId, terrainSeed);
+    const radiusTop = atmo.kind === 'mars' ? outcrop.radius * 0.42 : outcrop.radius * 0.14;
+    const radiusBottom = outcrop.radius * 0.72;
+    const height = outcrop.height * (atmo.kind === 'mars' ? 1.35 : 1.15);
+    const geo = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 7);
+    const spire = addWorldMesh(group, geo, atmo.terrainDark, wire, {
+      pos: [outcrop.x, baseY + height * 0.42, outcrop.z],
+      rot: [(rng() - 0.5) * 0.14, rng() * Math.PI * 2, (rng() - 0.5) * 0.14],
+      edgeThreshold: 26,
+    });
+    spire.castShadow = true;
+    spire.receiveShadow = true;
+  }
+
+  group.traverse((o) => {
+    o.raycast = () => undefined;
+  });
+  return group;
 }
 
 function buildStarField(): THREE.Points {
@@ -1684,6 +1823,8 @@ function createCornerBracketGeometry(box: THREE.Box3, armRatio = 0.22): THREE.Bu
 }
 
 export interface ColonyWorldStateOptions extends Model3DStateOptions {
+  /** Semilla determinista para generar cráteres, dunas y rocas únicas en cada partida */
+  terrainSeed?: number;
   /** Alerta ambiental de entrenamiento (p. ej. caída térmica del onboarding) */
   isEnvironmentalAlert?: boolean;
   /** Transmisión activa hacia la Tierra (simulador de retraso) */
@@ -1783,6 +1924,7 @@ export interface ColonyWorldHandle {
   group: THREE.Group;
   fog: THREE.FogExp2;
   atmosphere: WorldAtmosphere;
+  terrainSeed: number;
   pickables: THREE.Object3D[];
   modules: Record<ColonyWorldModuleId, THREE.Group>;
   updateState: (next: ColonyWorldStateOptions) => void;
@@ -1806,6 +1948,7 @@ export function findColonyModuleId(obj: THREE.Object3D | null): ColonyWorldModul
 
 export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyWorldHandle {
   const siteId: OutpostSiteId = options.siteId ?? 'moon-shackleton';
+  const terrainSeed = normalizeTerrainSeed(options.terrainSeed);
   const atmo = getWorldAtmosphere(siteId);
   const isLunar = atmo.kind === 'lunar';
   const wire = atmo.wireTint;
@@ -1834,8 +1977,9 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   if (atmo.showEarth) root.add(buildEarth());
   root.add(buildSunDisc(atmo));
 
-  root.add(buildWorldTerrain(atmo, siteId));
-  root.add(buildRockField(atmo, siteId));
+  root.add(buildWorldTerrain(atmo, siteId, terrainSeed));
+  root.add(buildRockField(atmo, siteId, terrainSeed));
+  root.add(buildOutcropSpires(atmo, siteId, terrainSeed));
   const grid = new THREE.GridHelper(48, 24, wire, atmo.gridColor);
   const gridMat = grid.material as THREE.Material;
   gridMat.transparent = true;
@@ -2406,6 +2550,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     group: root,
     fog,
     atmosphere: atmo,
+    terrainSeed,
     pickables: COLONY_WORLD_MODULE_IDS.map((id) => runtimes[id].group),
     modules,
     updateState,

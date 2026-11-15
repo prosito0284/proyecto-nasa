@@ -50,6 +50,11 @@ export interface OutpostMapProps {
   defaultViewMode?: '2d' | '3d';
   /** M02: Marca si hay alerta ambiental de entrenamiento (ej. caída térmica nocturna) */
   isEnvironmentalAlert?: boolean;
+  /** M01: Semilla procedural de topografía */
+  terrainSeed?: number;
+  /** M01: Permite regenerar topografía en partida libre */
+  canRegenerateTerrain?: boolean;
+  onRegenerateTerrain?: () => void;
 }
 
 type ModuleKey = 'solar' | 'eclss' | 'shielding' | 'greenhouse' | 'rover';
@@ -146,6 +151,9 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   onTutorialAction,
   defaultViewMode,
   isEnvironmentalAlert = false,
+  terrainSeed,
+  canRegenerateTerrain = true,
+  onRegenerateTerrain,
 }) => {
   const [selectedModule, setSelectedModule] = useState<ModuleKey>('shielding');
   const [selectedWorldModule, setSelectedWorldModule] =
@@ -522,8 +530,12 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
               height={308}
               selectedModule={selectedWorldModule}
               onSelectModule={handleSelect3DModule}
+              terrainSeed={terrainSeed}
+              canRegenerateTerrain={canRegenerateTerrain}
+              onRegenerateTerrain={onRegenerateTerrain}
               options={{
                 siteId: site.id,
+                terrainSeed,
                 powerPercent: resources.power,
                 lifeSupportPercent: resources.lifeSupport,
                 shieldingPercent: projection.effectiveShielding,

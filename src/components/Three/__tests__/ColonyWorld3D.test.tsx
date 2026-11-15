@@ -134,16 +134,17 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
     disposeObject3D(world.group);
   });
 
-  it('M01: aplica límites invisibles de cámara en [-22, 22] con retorno amortiguado y focos seguros', () => {
-    expect(COLONY_CAMERA_LIMITS.boundsMin).toBe(-22);
-    expect(COLONY_CAMERA_LIMITS.boundsMax).toBe(22);
-    expect(COLONY_CAMERA_LIMITS.minDistance).toBe(8);
+  it('M01: aplica límites invisibles de cámara en [-24, 24] con retorno amortiguado y focos seguros', () => {
+    expect(COLONY_CAMERA_LIMITS.boundsMin).toBe(-24);
+    expect(COLONY_CAMERA_LIMITS.boundsMax).toBe(24);
+    expect(COLONY_CAMERA_LIMITS.minDistance).toBe(7);
     expect(COLONY_CAMERA_LIMITS.maxDistance).toBe(45);
+    expect(COLONY_CAMERA_LIMITS.minPolarAngle).toBe(0.18);
     expect(COLONY_CAMERA_LIMITS.maxPolarAngle).toBeLessThan(Math.PI / 2);
 
-    expect(clampToColonyBounds(-99)).toBe(-22);
-    expect(clampToColonyBounds(99)).toBe(22);
-    expect(clampColonyCameraDistance(2)).toBe(8);
+    expect(clampToColonyBounds(-99)).toBe(-24);
+    expect(clampToColonyBounds(99)).toBe(24);
+    expect(clampColonyCameraDistance(2)).toBe(7);
     expect(clampColonyCameraDistance(120)).toBe(45);
     expect(clampColonyPolarAngle(0.01)).toBe(COLONY_CAMERA_LIMITS.minPolarAngle);
     expect(clampColonyPolarAngle(Math.PI)).toBe(COLONY_CAMERA_LIMITS.maxPolarAngle);
@@ -155,28 +156,60 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
 
     const soft = softClampColonyTarget(40, -35, 0.5);
     expect(soft.wasOutside).toBe(true);
-    expect(soft.x).toBeLessThanOrEqual(22 + COLONY_CAMERA_LIMITS.overshoot);
-    expect(soft.z).toBeGreaterThanOrEqual(-22 - COLONY_CAMERA_LIMITS.overshoot);
+    expect(soft.x).toBeLessThanOrEqual(24 + COLONY_CAMERA_LIMITS.overshoot);
+    expect(soft.z).toBeGreaterThanOrEqual(-24 - COLONY_CAMERA_LIMITS.overshoot);
 
     const hard = softClampColonyTarget(80, -80, 1);
     expect(hard.wasOutside).toBe(true);
-    expect(hard.x).toBe(22);
-    expect(hard.z).toBe(-22);
+    expect(hard.x).toBe(24);
+    expect(hard.z).toBe(-24);
 
     for (const id of COLONY_WORLD_MODULE_IDS) {
       const pose = computeColonyFocusPose(id);
-      expect(pose.target[0]).toBeGreaterThanOrEqual(-22);
-      expect(pose.target[0]).toBeLessThanOrEqual(22);
-      expect(pose.target[2]).toBeGreaterThanOrEqual(-22);
-      expect(pose.target[2]).toBeLessThanOrEqual(22);
+      expect(pose.target[0]).toBeGreaterThanOrEqual(-24);
+      expect(pose.target[0]).toBeLessThanOrEqual(24);
+      expect(pose.target[2]).toBeGreaterThanOrEqual(-24);
+      expect(pose.target[2]).toBeLessThanOrEqual(24);
       const dist = Math.hypot(
         pose.cameraPos[0] - pose.target[0],
         pose.cameraPos[1] - pose.target[1],
         pose.cameraPos[2] - pose.target[2],
       );
-      expect(dist).toBeGreaterThanOrEqual(8 - 0.001);
+      expect(dist).toBeGreaterThanOrEqual(7 - 0.001);
       expect(dist).toBeLessThanOrEqual(45 + 0.001);
     }
+  });
+
+  it('M01: genera topografías deterministas por semilla (Seed) y mantiene nivelada la plaza central', () => {
+    const seedA = 104729;
+    const seedB = 739391;
+    const worldA = buildColonyWorld({ siteId: 'mars-jezero', terrainSeed: seedA });
+    const worldB = buildColonyWorld({ siteId: 'mars-jezero', terrainSeed: seedB });
+
+    expect(worldA.terrainSeed).toBe(seedA);
+    expect(worldB.terrainSeed).toBe(seedB);
+    expect(worldA.group.getObjectByName('world-outcrops')).toBeTruthy();
+    expect(worldB.group.getObjectByName('world-outcrops')).toBeTruthy();
+
+    let diffSum = 0;
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      const rx = Math.cos(angle) * 95;
+      const rz = Math.sin(angle) * 95;
+      const hA1 = sampleWorldTerrainHeight(rx, rz, 'mars-jezero', seedA);
+      const hA2 = sampleWorldTerrainHeight(rx, rz, 'mars-jezero', seedA);
+      const hB = sampleWorldTerrainHeight(rx, rz, 'mars-jezero', seedB);
+      expect(hA1).toBe(hA2);
+      diffSum += Math.abs(hA1 - hB);
+    }
+    expect(diffSum).toBeGreaterThan(2);
+
+    // La plaza central sigue nivelada en y = 0 bajo cualquier semilla
+    expect(sampleWorldTerrainHeight(0, 0, 'mars-jezero', seedA)).toBe(0);
+    expect(sampleWorldTerrainHeight(0, 0, 'mars-jezero', seedB)).toBe(0);
+
+    disposeObject3D(worldA.group);
+    disposeObject3D(worldB.group);
   });
 
   it('M02: permite picking Raycaster de los 5 módulos, sincroniza clima/escudo/apagón y reemplaza GLB sin 404', () => {

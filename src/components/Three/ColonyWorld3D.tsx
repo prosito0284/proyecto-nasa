@@ -20,11 +20,15 @@ import {
   type ColonyWorldModuleId,
   type ColonyWorldStateOptions,
   computeColonyFocusPose,
+  createSeededPrng,
+  DEFAULT_TERRAIN_SEED,
   disposeObject3D,
   findColonyModuleId,
+  formatTerrainSeedBadge,
   getColonyModuleStatus,
   getWorldAtmosphere,
   isStormShieldDeployed,
+  normalizeTerrainSeed,
   resolveColonyModuleGlbUrl,
   sampleWorldTerrainHeight,
   softClampColonyTarget,
@@ -38,6 +42,12 @@ export interface ColonyWorld3DProps {
   onSelectModule?: (moduleId: ColonyWorldModuleId) => void;
   /** Mapa opcional de archivos .glb/.gltf en public/models/ por módulo */
   moduleGlbFiles?: Partial<Record<ColonyWorldModuleId, string>>;
+  /** Semilla procedural de topografía; si cambia regenera cráteres/dunas/rocas */
+  terrainSeed?: number;
+  /** Permite regenerar topografía (activo en partida libre, bloqueado en Reto del día) */
+  canRegenerateTerrain?: boolean;
+  /** Callback del padre para rotar la semilla de terreno en la partida actual */
+  onRegenerateTerrain?: () => void;
   height?: number;
   ariaLabel?: string;
   className?: string;
@@ -123,6 +133,9 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   selectedModule = null,
   onSelectModule,
   moduleGlbFiles,
+  terrainSeed,
+  canRegenerateTerrain = true,
+  onRegenerateTerrain,
   height = 310,
   ariaLabel,
   className,
@@ -132,6 +145,16 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   const siteId = options.siteId ?? 'moon-shackleton';
   const isMars = siteId === 'mars-jezero';
   const atmo = getWorldAtmosphere(siteId);
+  const baseSeed = normalizeTerrainSeed(options.terrainSeed ?? terrainSeed ?? DEFAULT_TERRAIN_SEED);
+  const [localSeedBump, setLocalSeedBump] = useState(0);
+  const effectiveSeed = normalizeTerrainSeed(baseSeed + localSeedBump);
+
+  useEffect(() => {
+    setLocalSeedBump(0);
+  }, [baseSeed]);
+
+  const latestOptionsRef = useRef<ColonyWorldStateOptions>(options);
+  latestOptionsRef.current = { ...options, terrainSeed: effectiveSeed };
 
   const hostRef = useRef<HTMLDivElement | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -169,8 +192,18 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       ? `Entorno 3D interactivo de la colonia en ${isMars ? 'Marte' : 'la Luna'}. Usa flechas para orbitar, + o - para acercar, Tab para recorrer los módulos y R para centrar.`
       : `Interactive 3D colony environment on ${isMars ? 'Mars' : 'the Moon'}. Use arrow keys to orbit, + or - to zoom, Tab to step through modules, and R to reset.`);
 
+  const handleRegenerateTerrain = () => {
+    missionAudio.playClick();
+    if (onRegenerateTerrain) {
+      onRegenerateTerrain();
+    } else {
+      setLocalSeedBump((prev) => prev + 7919);
+    }
+  };
+
   const optionsKeyDeps = [
     siteId,
+    effectiveSeed,
     options.powerPercent,
     options.lifeSupportPercent,
     options.shieldingPercent,
@@ -376,7 +409,8 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     host.appendChild(renderer.domElement);
 
-    const world = buildColonyWorld(options);
+    desiredPoseRef.current = null;
+    const world = buildColonyWorld(latestOptionsRef.current);
     worldRef.current = world;
 
     const scene = new THREE.Scene();
@@ -572,7 +606,12 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
         camera.position.z += dz;
       }
 
-      const groundY = sampleWorldTerrainHeight(camera.position.x, camera.position.z, siteId);
+      const groundY = sampleWorldTerrainHeight(
+        camera.position.x,
+        camera.position.z,
+        siteId,
+        effectiveSeed,
+      );
       if (camera.position.y < groundY + 0.8) {
         camera.position.y = groundY + 0.8;
       }
@@ -625,11 +664,11 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
         host.removeChild(renderer.domElement);
       }
     };
-  }, [siteId, height, webglSupported]);
+  }, [siteId, effectiveSeed, height, webglSupported]);
 
   // Sincronización reactiva de estado en vivo sin recrear la escena WebGL
   useEffect(() => {
-    worldRef.current?.updateState(options);
+    worldRef.current?.updateState(latestOptionsRef.current);
   }, optionsKeyDeps);
 
   useEffect(() => {
@@ -656,6 +695,12 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     const skyBg = isMars ? '#2D160E' : '#03060C';
     const horizonBg = isMars ? '#4E2417' : '#15273E';
     const shieldDeployed = isStormShieldDeployed(options);
+    const rng = createSeededPrng(effectiveSeed ^ (isMars ? 0x22af : 0x91e3));
+    const ridgeY1 = Math.round(62 + rng() * 14);
+    const ridgeY2 = Math.round(58 + rng() * 16);
+    const ridgeY3 = Math.round(64 + rng() * 12);
+    const craterX1 = Math.round(30 + rng() * 120);
+    const craterX2 = Math.round(200 + rng() * 120);
 
     return (
       <div className="viewer3d-fallback-svg-wrap" data-testid="colony-world-svg-fallback">
@@ -681,7 +726,12 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           ) : (
             <ellipse cx="180" cy="64" rx="180" ry="20" fill="#6E2D18" opacity="0.28" />
           )}
-          <rect x="0" y="76" width="360" height="114" fill={horizonBg} />
+          <path
+            d={`M0,76 L55,${ridgeY1} L130,74 L195,${ridgeY2} L285,${ridgeY3} L360,76 L360,190 L0,190 Z`}
+            fill={horizonBg}
+          />
+          <ellipse cx={craterX1} cy="96" rx="16" ry="5" fill="none" stroke={inkSecondary} strokeWidth="0.9" opacity="0.55" />
+          <ellipse cx={craterX2} cy="92" rx="14" ry="4.5" fill="none" stroke={inkSecondary} strokeWidth="0.9" opacity="0.55" />
 
           {COLONY_WORLD_MODULE_IDS.map((modId) => {
             const c = SVG_MODULE_COORDS[modId];
@@ -762,6 +812,8 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     );
   };
 
+  const seedBadgeCode = formatTerrainSeedBadge(effectiveSeed);
+
   return (
     <div
       className={`viewer3d-frame ${isMars ? 'viewer3d-mars' : 'viewer3d-lunar'} ${className ?? ''}`.trim()}
@@ -792,6 +844,9 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
                   ? 'SVG // SIN WEBGL'
                   : 'SVG // NO WEBGL'}
             </span>
+          </span>
+          <span className="viewer3d-badge viewer3d-seed-badge" data-testid="colony-seed-badge">
+            {`SEED #${seedBadgeCode}`}
           </span>
         </div>
 
@@ -900,6 +955,23 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
             {isPaused ? <GlobeIcon size={14} /> : <CloseIcon size={13} />}
             <span>{isPaused ? (es ? 'Reanudar' : 'Resume') : es ? 'Pausar' : 'Pause'}</span>
           </button>
+          {canRegenerateTerrain && (
+            <button
+              type="button"
+              id="colony-new-terrain-btn"
+              data-testid="colony-new-terrain-btn"
+              className="viewer3d-btn"
+              onClick={handleRegenerateTerrain}
+              aria-label={
+                es
+                  ? 'Generar nueva topografía por semilla'
+                  : 'Generate new procedural terrain seed'
+              }
+            >
+              <GlobeIcon size={14} />
+              <span>{es ? 'Nueva topografía' : 'New terrain'}</span>
+            </button>
+          )}
         </div>
 
         <span className="viewer3d-hint">
