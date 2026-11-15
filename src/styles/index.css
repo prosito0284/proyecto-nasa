@@ -121,6 +121,20 @@ body {
   gap: 0.75rem;
 }
 
+.brand-code {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--paper-sheet);
+  background: var(--nasa-blue);
+  padding: 0.08rem 0.42rem;
+  border-radius: var(--radius);
+  margin-bottom: 0.18rem;
+}
+
 .brand-block h1 {
   font-family: var(--font-display);
   font-size: clamp(1.3rem, 2.2vw, 1.8rem);
@@ -199,8 +213,9 @@ body {
 .timeline-bar {
   background: var(--paper-sheet);
   border: var(--border);
+  border-left: 5px solid var(--nasa-blue);
   border-radius: var(--radius);
-  padding: 0.7rem 1rem;
+  padding: 0.62rem 0.95rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -211,9 +226,29 @@ body {
 .timeline-label {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
-  max-width: 70ch;
+  gap: 0.14rem;
+  max-width: 72ch;
   min-width: 0;
+}
+
+.timeline-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.timeline-dossier-tab {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.12rem 0.42rem;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--nasa-blue);
 }
 
 .timeline-label strong {
@@ -245,7 +280,7 @@ body {
   font-family: var(--font-mono);
   font-size: 0.78rem;
   font-weight: 700;
-  border: 1px solid var(--ink);
+  border: 1.5px solid var(--ink);
   background: var(--paper);
   color: var(--ink-muted);
 }
@@ -259,7 +294,9 @@ body {
 .timeline-step.step-current {
   background: var(--nasa-red);
   color: var(--ink);
-  border: 1.5px solid var(--ink);
+  border: 2px solid var(--ink);
+  border-bottom-width: 3.5px;
+  font-weight: 800;
 }
 
 /* Botones de Formulario Técnico — Objetivos táctiles >= 44px */
@@ -281,6 +318,13 @@ body {
   gap: 0.4rem;
   transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
   border: var(--border);
+  border-bottom-width: 2.5px;
+}
+
+.btn-primary:active:not(:disabled),
+.btn-secondary:active:not(:disabled),
+.site-tab:active:not(:disabled) {
+  border-bottom-width: 1.5px;
 }
 
 .btn-compact {
@@ -293,6 +337,7 @@ body {
   background: var(--nasa-red);
   color: var(--ink);
   border: var(--border);
+  border-bottom-width: 2.5px;
 }
 
 .btn-primary:hover {
@@ -305,6 +350,7 @@ body {
   background: var(--paper);
   color: var(--ink);
   border: var(--border);
+  border-bottom-width: 2.5px;
 }
 
 .btn-secondary:hover,
@@ -567,6 +613,49 @@ body {
 .commander-mini-patch-btn:hover {
   background: var(--paper-aged);
   border-color: var(--rule);
+}
+
+.rank-goal-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-top: 0.38rem;
+  border-top: 1px dashed var(--rule);
+}
+
+.rank-goal-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--nasa-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rank-goal-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.rank-goal-pill {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 0.08rem 0.34rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--rule);
+  background: var(--paper-sheet);
+}
+
+.rank-goal-met {
+  color: var(--ok-green);
+  border-color: var(--ok-green);
+}
+
+.rank-goal-pending {
+  color: var(--ink-secondary);
+  border-style: dashed;
 }
 
 .mission-patch-svg {
@@ -1365,6 +1454,29 @@ body {
   font-family: var(--font-mono);
   font-weight: 700;
   color: var(--nasa-blue);
+}
+
+.comm-distance-compare {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.35rem 0.55rem;
+  background: var(--paper-sheet);
+  border: 1px dashed var(--ink);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.comm-dist-endpoint {
+  font-weight: 700;
+  color: var(--nasa-blue);
+}
+
+.comm-dist-link {
+  color: var(--ink-secondary);
 }
 
 .comm-preset-row {

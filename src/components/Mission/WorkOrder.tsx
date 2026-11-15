@@ -138,9 +138,20 @@ export const WorkOrder: React.FC<WorkOrderProps> = ({
       onTouchStart={() => onPreview(choice)}
     >
       <header className="wo-head">
-        <span className="wo-code">
-          {lang === 'es' ? 'Orden de trabajo' : 'Work order'} {code}
-        </span>
+        <div className="wo-code-bar">
+          <span className="wo-code">
+            {lang === 'es' ? 'Orden de trabajo' : 'Work order'} {code}
+          </span>
+          <span className={`wo-sign-status ${executed ? 'wo-status-signed' : ''}`}>
+            {executed
+              ? lang === 'es'
+                ? 'FIRMADA'
+                : 'SIGNED'
+              : lang === 'es'
+                ? 'SIN FIRMAR'
+                : 'UNSIGNED'}
+          </span>
+        </div>
         <h3>{choice.label[lang]}</h3>
         <p>{choice.description[lang]}</p>
       </header>
@@ -162,6 +173,12 @@ export const WorkOrder: React.FC<WorkOrderProps> = ({
             <SourceStamp source={source} live={source === 'DONKI' && weatherIsLive} lang={lang} />
           )}
           <small>{choice.nasaDataReference}</small>
+        </div>
+        <div className="wo-signature-line" aria-hidden="true">
+          <span>{lang === 'es' ? 'Firma de mando' : 'Command sign-off'}</span>
+          <span className="wo-signature-rule">
+            {executed ? 'Cmdr. ✓' : 'X ________________'}
+          </span>
         </div>
         <button
           id={`choice-btn-${choice.id}`}

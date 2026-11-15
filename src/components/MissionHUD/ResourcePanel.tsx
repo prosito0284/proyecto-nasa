@@ -365,6 +365,45 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
               );
             })}
           </div>
+          {evaluation.topRankChecks.length > 0 && (
+            <div
+              className="rank-goal-strip"
+              data-testid="star-commander-live-checks"
+              aria-label={
+                lang === 'es'
+                  ? 'Requisitos para Comandante Estelar'
+                  : 'Star Commander requirements'
+              }
+            >
+              <span className="rank-goal-label">
+                {lang === 'es' ? 'Meta Estelar:' : 'Star Goal:'}
+              </span>
+              <div className="rank-goal-pills">
+                {evaluation.topRankChecks
+                  .filter((c) => c.id !== 'won')
+                  .map((check) => {
+                    const shortLabel: Record<string, { es: string; en: string }> = {
+                      score: { es: `${evaluation.score}/73 pts`, en: `${evaluation.score}/73 pts` },
+                      power: { es: 'Energía ≥40%', en: 'Power ≥40%' },
+                      supplies: { es: 'O₂/Comida ≥45%', en: 'O₂/Food ≥45%' },
+                      crew: { es: 'Salud ≥50%', en: 'Health ≥50%' },
+                    };
+                    const text = shortLabel[check.id]?.[lang] ?? check.label[lang];
+                    return (
+                      <span
+                        key={check.id}
+                        title={check.label[lang]}
+                        className={`rank-goal-pill ${
+                          check.met ? 'rank-goal-met' : 'rank-goal-pending'
+                        }`}
+                      >
+                        {check.met ? '✓' : '○'} {text}
+                      </span>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* C14: Vitales como Hoja de Checklist con Casilla de Estado, Retrato Opcional y Proyección */}

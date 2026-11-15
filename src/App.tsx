@@ -440,6 +440,9 @@ export const App: React.FC = () => {
     <div className={`app-shell${isOnboardingVisible ? ' is-onboarding-active' : ''}`}>
       <header className="top-nav">
         <div className="brand-block">
+          <span className="brand-code">
+            {es ? 'CUADERNO DE VUELO // NASA-75' : 'FLIGHT NOTEBOOK // NASA-75'}
+          </span>
           <h1>Junior Astronaut Mission Trainer</h1>
           <p className="brand-subtitle">
             {es
@@ -564,15 +567,20 @@ export const App: React.FC = () => {
             aria-label={es ? 'Progreso de la misión' : 'Mission progress'}
           >
             <div className="timeline-label">
-              <strong>
-                {currentSite.dayName[lang]} {mission.currentDay} / {mission.totalDays}
-                {challengeSeed !== null && (
-                  <span className="challenge-tag">
-                    {' '}
-                    · {es ? 'Reto' : 'Challenge'} {challengeSeed}
-                  </span>
-                )}
-              </strong>
+              <div className="timeline-title-row">
+                <span className="timeline-dossier-tab">
+                  {mission.siteId === 'moon-shackleton' ? 'ARTEMIS-SP' : 'JEZERO-M20'}
+                </span>
+                <strong>
+                  {currentSite.dayName[lang]} {mission.currentDay} / {mission.totalDays}
+                  {challengeSeed !== null && (
+                    <span className="challenge-tag">
+                      {' '}
+                      · {es ? 'Reto' : 'Challenge'} {challengeSeed}
+                    </span>
+                  )}
+                </strong>
+              </div>
               <span>{weatherProvenance}</span>
             </div>
             <div className="timeline-steps">
@@ -584,7 +592,11 @@ export const App: React.FC = () => {
                       ? 'step-current'
                       : 'step-upcoming';
                 return (
-                  <div key={dayNum} className={`timeline-step ${stateClass}`}>
+                  <div
+                    key={dayNum}
+                    className={`timeline-step ${stateClass}`}
+                    aria-current={dayNum === mission.currentDay ? 'step' : undefined}
+                  >
                     {dayNum}
                   </div>
                 );

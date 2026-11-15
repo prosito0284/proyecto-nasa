@@ -1606,6 +1606,22 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 </strong>
               </div>
 
+              <div className="comm-distance-compare" aria-live="polite">
+                <span className="comm-dist-endpoint">HOUSTON · DSN</span>
+                <span className="comm-dist-link">
+                  {isLunar
+                    ? lang === 'es'
+                      ? '384,400 km · 1.3 s ida (casi instantáneo)'
+                      : '384,400 km · 1.3 s one-way (near-instant)'
+                    : lang === 'es'
+                      ? `~225M km · ${realDelayMin} min ida (escala rápida en consola)`
+                      : `~225M km · ${realDelayMin} min one-way (fast console scale)`}
+                </span>
+                <span className="comm-dist-endpoint">
+                  {isLunar ? 'SHACKLETON' : 'JEZERO'}
+                </span>
+              </div>
+
               <div className="comm-preset-row">
                 <label htmlFor="comm-preset-select" className="sr-only">
                   {lang === 'es' ? 'Mensaje para Control de Misión' : 'Message for Mission Control'}
