@@ -426,6 +426,10 @@
 .top-rank-mark {
   flex: none;
   width: 1.5em;
+  height: 1.5em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   font-family: var(--font-mono);
   font-weight: 700;

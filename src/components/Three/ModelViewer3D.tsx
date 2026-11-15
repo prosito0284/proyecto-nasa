@@ -511,6 +511,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       }
       disposeObject3D(scene);
       renderer.renderLists?.dispose?.();
+      renderer.forceContextLoss?.();
       renderer.dispose();
       if (renderer.domElement.parentNode === host) {
         host.removeChild(renderer.domElement);

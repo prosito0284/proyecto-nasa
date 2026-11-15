@@ -43,6 +43,7 @@ import {
   selectStartingWeather,
 } from '../../engine/simulationEngine';
 import {
+  ensureOnboardingTargetInViewport,
   ONBOARDING_STEPS,
   ONBOARDING_STORAGE_KEY,
   onboardingReducer,
@@ -374,6 +375,42 @@ describe('Interactive Ignition Onboarding (T01–T05)', () => {
     );
     expect(mobileCutout.height).toBe(56);
     expect(mobileCutout.top).toBe(62);
+
+    // B03: al redimensionar de 1280x800 a 360x640 con thermal-stabilizer fuera del viewport (top: 4937),
+    // ensureOnboardingTargetInViewport ejecuta scrollOnboardingTargetIntoView y si el cutout es 0x0 no bloquea clics
+    const resizeScrollSpy = vi.fn();
+    const thermalOffscreenTarget = {
+      closest: () => null,
+      getBoundingClientRect: () => ({
+        top: 4937,
+        left: 16,
+        width: 150,
+        height: 52,
+        right: 166,
+        bottom: 4989,
+        x: 16,
+        y: 4937,
+        toJSON: () => ({}),
+      }),
+      scrollIntoView: resizeScrollSpy,
+    } as unknown as HTMLElement;
+    expect(ensureOnboardingTargetInViewport(thermalOffscreenTarget)).toBe(true);
+    expect(resizeScrollSpy).toHaveBeenCalledWith({
+      behavior: 'instant',
+      block: 'center',
+      inline: 'nearest',
+    });
+
+    const zeroCutoutHtml = renderToStaticMarkup(
+      React.createElement(OnboardingSpotlight, {
+        lang: 'es',
+        isActive: true,
+        step: ONBOARDING_STEPS[3],
+        targetRect: null,
+        onSkip: () => {},
+      }),
+    );
+    expect(zeroCutoutHtml).toContain('pointer-events:none');
   });
 
   it('F02: restaura la asignación de energía tras el Paso 4 sin dejar Escudo Tormenta activo, eleva utilidades y da >=44x44px a Saltar', () => {
@@ -428,6 +465,26 @@ describe('Interactive Ignition Onboarding (T01–T05)', () => {
     expect(isExecutionLocked(null, false)).toBe(false);
     expect(isExecutionLocked('choice-a', false)).toBe(true);
     expect(isExecutionLocked(null, true)).toBe(true);
+    expect(isExecutionLocked(null, false, true)).toBe(true);
+
+    const weather = selectStartingWeather('moon-shackleton', VERIFIED_NASA_WEATHER_EVENTS, 20260415);
+    const mission = createInitialMissionState('moon-shackleton', weather, 20260415);
+    const lockedPanelHtml = renderToStaticMarkup(
+      React.createElement(ResourcePanel, {
+        lang: 'es',
+        resources: mission.resources,
+        allocation: BALANCED_POWER_ALLOCATION,
+        projection: projectSystemsTurn(mission, BALANCED_POWER_ALLOCATION),
+        hoveredChoice: null,
+        pendingEffects: [],
+        evaluation: evaluateCommanderPerformance(mission),
+        onChangeAllocation: () => {},
+        onOpenBadgesModal: () => {},
+        actionsDisabled: true,
+      }),
+    );
+    expect(lockedPanelHtml).toMatch(/id="open-badges-modal-btn"[^>]*disabled/);
+    expect(lockedPanelHtml).toMatch(/class="commander-mini-patch-btn"[^>]*disabled/);
 
     vi.useFakeTimers();
     try {
@@ -456,12 +513,20 @@ describe('Interactive Ignition Onboarding (T01–T05)', () => {
     ).toEqual({ linkCopied: false, boardSaved: false });
 
     expect(
-      computeOutcomeFlagsAfterTutorialLaunch('failed', { linkCopied: true, boardSaved: true }),
-    ).toEqual({ linkCopied: false, boardSaved: false });
+      computeOutcomeFlagsAfterTutorialLaunch('failed', {
+        linkCopied: true,
+        boardSaved: true,
+        boardName: 'Cmdr. Vega',
+      }),
+    ).toEqual({ linkCopied: false, boardSaved: false, boardName: '' });
 
     expect(
-      computeOutcomeFlagsAfterTutorialLaunch('playing', { linkCopied: true, boardSaved: false }),
-    ).toEqual({ linkCopied: true, boardSaved: false });
+      computeOutcomeFlagsAfterTutorialLaunch('playing', {
+        linkCopied: true,
+        boardSaved: false,
+        boardName: 'Cmdr. Vega',
+      }),
+    ).toEqual({ linkCopied: true, boardSaved: false, boardName: 'Cmdr. Vega' });
   });
 
   it('F05: da accesibilidad de teclado/ratón a oxygen-module y separa la lectura de telemetría en Briefing', () => {

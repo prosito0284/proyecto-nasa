@@ -197,6 +197,116 @@ const focusSiblingViewport = (el: HTMLElement | null) => {
   viewport?.focus?.({ preventScroll: true });
 };
 
+export function isOverlayBlockedByModal(): boolean {
+  if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
+    return false;
+  }
+  return Boolean(
+    document.querySelector(
+      '[role="dialog"], .science-modal-backdrop, .modal-overlay, .modal-backdrop, .turn-report-card',
+    ),
+  );
+}
+
+export function releaseAllDirections(
+  activeDirections: RoverDirectionState,
+  onDirectionChange: (direction: RoverDirectionKey, pressed: boolean) => void,
+): void {
+  for (const spec of DIRECTION_SPECS) {
+    if (activeDirections[spec.dir]) {
+      onDirectionChange(spec.dir, false);
+    }
+  }
+}
+
+function bindAutoReleaseOnModalOrRelease(
+  dir: RoverDirectionKey,
+  onDirectionChange: (direction: RoverDirectionKey, pressed: boolean) => void,
+): void {
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+    return;
+  }
+
+  let released = false;
+  let observer: MutationObserver | null = null;
+
+  const cleanupAndRelease = () => {
+    if (released) return;
+    released = true;
+    window.removeEventListener('keyup', handleKeyUp, true);
+    window.removeEventListener('pointerup', handlePointerEnd, true);
+    window.removeEventListener('pointercancel', handlePointerEnd, true);
+    window.removeEventListener('mouseup', handlePointerEnd, true);
+    window.removeEventListener('blur', handleBlur, true);
+    window.removeEventListener('focusin', handleFocusIn, true);
+    if (typeof document !== 'undefined' && typeof document.removeEventListener === 'function') {
+      document.removeEventListener('visibilitychange', handleVisibility);
+    }
+    observer?.disconnect();
+    observer = null;
+    onDirectionChange(dir, false);
+  };
+
+  const handleKeyUp = (ev: KeyboardEvent) => {
+    if (
+      ev.key === ' ' ||
+      ev.key === 'Spacebar' ||
+      ev.key === 'Enter' ||
+      ev.key === 'Escape' ||
+      ev.code === 'Space' ||
+      isOverlayBlockedByModal()
+    ) {
+      cleanupAndRelease();
+    }
+  };
+
+  const handlePointerEnd = () => {
+    cleanupAndRelease();
+  };
+
+  const handleBlur = () => {
+    cleanupAndRelease();
+  };
+
+  const handleFocusIn = () => {
+    if (isOverlayBlockedByModal()) {
+      cleanupAndRelease();
+    }
+  };
+
+  const handleVisibility = () => {
+    if (
+      typeof document !== 'undefined' &&
+      (document.hidden || document.visibilityState === 'hidden')
+    ) {
+      cleanupAndRelease();
+    }
+  };
+
+  window.addEventListener('keyup', handleKeyUp, true);
+  window.addEventListener('pointerup', handlePointerEnd, true);
+  window.addEventListener('pointercancel', handlePointerEnd, true);
+  window.addEventListener('mouseup', handlePointerEnd, true);
+  window.addEventListener('blur', handleBlur, true);
+  window.addEventListener('focusin', handleFocusIn, true);
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('visibilitychange', handleVisibility);
+  }
+
+  if (
+    typeof MutationObserver !== 'undefined' &&
+    typeof document !== 'undefined' &&
+    document.body
+  ) {
+    observer = new MutationObserver(() => {
+      if (isOverlayBlockedByModal()) {
+        cleanupAndRelease();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+}
+
 export const RoverControlsOverlay: React.FC<RoverControlsOverlayProps> = ({
   lang,
   activeDirections,
@@ -346,9 +456,12 @@ export const RoverControlsOverlay: React.FC<RoverControlsOverlayProps> = ({
                   }
                   e.stopPropagation();
                   e.preventDefault();
-                  if (!disabled) {
-                    onDirectionChange(spec.dir, true);
+                  if (disabled || isOverlayBlockedByModal()) {
+                    releaseAllDirections(activeDirections, onDirectionChange);
+                    return;
                   }
+                  onDirectionChange(spec.dir, true);
+                  bindAutoReleaseOnModalOrRelease(spec.dir, onDirectionChange);
                 }}
                 onPointerUp={(e) => {
                   e.stopPropagation();
@@ -364,17 +477,32 @@ export const RoverControlsOverlay: React.FC<RoverControlsOverlayProps> = ({
                   }
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === ' ' || e.key === 'Enter') {
+                  if (isOverlayBlockedByModal()) {
+                    releaseAllDirections(activeDirections, onDirectionChange);
+                    return;
+                  }
+                  if (e.key === ' ' || e.key === 'Spacebar' || e.key === 'Enter' || e.code === 'Space') {
                     e.stopPropagation();
                     e.preventDefault();
                     if (!disabled && !pressed) {
                       onDirectionChange(spec.dir, true);
+                      bindAutoReleaseOnModalOrRelease(spec.dir, onDirectionChange);
                     }
+                  } else if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    releaseAllDirections(activeDirections, onDirectionChange);
                   }
                 }}
                 onKeyUp={(e) => {
-                  if (e.key === ' ' || e.key === 'Enter') {
+                  if (
+                    e.key === ' ' ||
+                    e.key === 'Spacebar' ||
+                    e.key === 'Enter' ||
+                    e.key === 'Escape' ||
+                    e.code === 'Space'
+                  ) {
                     e.stopPropagation();
+                    e.preventDefault?.();
                     onDirectionChange(spec.dir, false);
                   }
                 }}

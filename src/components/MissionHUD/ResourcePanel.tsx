@@ -66,6 +66,8 @@ export interface ResourcePanelProps {
   roverSamplesCollected?: number;
   /** R06: Puntos de ciencia acumulados mediante el Rover */
   roverScienceEarned?: number;
+  /** B02: Deshabilita apertura de modales durante firma de orden (650 ms) o con TurnReport activo */
+  actionsDisabled?: boolean;
 }
 
 export const BALANCED_POWER_ALLOCATION: PowerAllocation = {
@@ -157,6 +159,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   scienceBonus,
   roverSamplesCollected,
   roverScienceEarned,
+  actionsDisabled = false,
 }) => {
   const [showAdvancedSliders, setShowAdvancedSliders] = useState(false);
   const [gridIgnited, setGridIgnited] = useState(false);
@@ -218,21 +221,21 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
     {
       id: 'power',
       icon: <BatteryIcon size={16} />,
-      label: lang === 'es' ? 'Energía (Baterías)' : 'Power (Batteries)',
+      label: lang === 'es' ? 'Energía' : 'Power',
       value: resources.power,
       unit: '%',
     },
     {
       id: 'lifeSupport',
       icon: <DropletIcon size={16} />,
-      label: lang === 'es' ? 'Soporte Vital (O₂/H₂O)' : 'Life Support (O₂/H₂O)',
+      label: lang === 'es' ? 'Soporte vital (O₂)' : 'Life support (O₂)',
       value: resources.lifeSupport,
       unit: '%',
     },
     {
       id: 'shielding',
       icon: <ShieldIcon size={16} />,
-      label: lang === 'es' ? 'Blindaje Radiación' : 'Radiation Shielding',
+      label: lang === 'es' ? 'Blindaje' : 'Shielding',
       value: resources.shielding,
       unit: '%',
     },
@@ -246,7 +249,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
     {
       id: 'crewHealth',
       icon: <HelmetIcon size={16} />,
-      label: lang === 'es' ? 'Salud Tripulación' : 'Crew Health',
+      label: lang === 'es' ? 'Salud tripulación' : 'Crew health',
       value: resources.crewHealth,
       unit: '%',
     },
@@ -340,7 +343,9 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
               type="button"
               id="open-badges-modal-btn"
               className="btn-secondary btn-compact"
+              disabled={actionsDisabled}
               onClick={() => {
+                if (actionsDisabled) return;
                 missionAudio.playClick();
                 onOpenBadgesModal();
               }}
@@ -363,7 +368,9 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                   key={badge.id}
                   type="button"
                   className="commander-mini-patch-btn"
+                  disabled={actionsDisabled}
                   onClick={() => {
+                    if (actionsDisabled) return;
                     missionAudio.playClick();
                     onOpenBadgesModal();
                   }}
@@ -415,7 +422,27 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                           check.met ? 'rank-goal-met' : 'rank-goal-pending'
                         }`}
                       >
-                        {check.met ? '✓' : '○'} {text}
+                        {check.met ? (
+                          <CheckIcon size={11} />
+                        ) : (
+                          <svg
+                            width={10}
+                            height={10}
+                            viewBox="0 0 12 12"
+                            aria-hidden="true"
+                            className="rank-goal-pending-dot"
+                          >
+                            <circle
+                              cx="6"
+                              cy="6"
+                              r="4"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                            />
+                          </svg>
+                        )}{' '}
+                        {text}
                       </span>
                     );
                   })}

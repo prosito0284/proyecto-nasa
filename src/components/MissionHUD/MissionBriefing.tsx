@@ -256,12 +256,23 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
             return (
               <article
                 key={site.id}
+                role="button"
+                tabIndex={0}
+                aria-pressed={isSelected}
                 className={`briefing-site-card ${isLunar ? 'site-card-lunar' : 'site-card-mars'} ${
                   isSelected ? 'site-card-selected' : ''
                 }`}
                 onClick={() => {
                   missionAudio.playClick();
                   setActiveSiteId(site.id);
+                }}
+                onKeyDown={(e) => {
+                  if (e.target !== e.currentTarget) return;
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    missionAudio.playClick();
+                    setActiveSiteId(site.id);
+                  }
                 }}
               >
                 <div className="site-card-header">

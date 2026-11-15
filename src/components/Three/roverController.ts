@@ -156,6 +156,59 @@ export function getColonyObstacleColliders(
   return colliders;
 }
 
+export function getObstacleClearanceHeight(id: string): number {
+  switch (id) {
+    case 'oxygen-module':
+      return 6.4;
+    case 'comms-array':
+      return 6.8;
+    case 'greenhouse':
+      return 4.4;
+    case 'power-grid':
+      return 3.8;
+    default:
+      return 3.2;
+  }
+}
+
+export function resolveCameraObstacleClearance(
+  camX: number,
+  camY: number,
+  camZ: number,
+  groundY: number,
+  obstacles: readonly RoverObstacleCollider[],
+  minGroundClearance = 1.0,
+  radialPadding = 0.85,
+): { x: number; y: number; z: number; pushedOut: boolean } {
+  let x = camX;
+  let y = Math.max(camY, groundY + minGroundClearance);
+  let z = camZ;
+  let pushedOut = false;
+
+  for (let pass = 0; pass < 2; pass++) {
+    for (const obs of obstacles) {
+      const safeRadius = obs.radius + radialPadding;
+      const domeTop = groundY + getObstacleClearanceHeight(obs.id);
+      const dx = x - obs.x;
+      const dz = z - obs.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist < safeRadius && y < domeTop) {
+        pushedOut = true;
+        if (y >= domeTop * 0.72) {
+          y = Math.max(y, domeTop + 0.45);
+        } else {
+          const nx = dist > 1e-4 ? dx / dist : 0;
+          const nz = dist > 1e-4 ? dz / dist : 1;
+          x = obs.x + nx * safeRadius;
+          z = obs.z + nz * safeRadius;
+        }
+      }
+    }
+  }
+
+  return { x, y, z, pushedOut };
+}
+
 export function clampRoverAxis(value: number): number {
   return Math.max(ROVER_WORLD_LIMITS.boundsMin, Math.min(ROVER_WORLD_LIMITS.boundsMax, value));
 }

@@ -5,7 +5,7 @@
  * - Bloqueados: silueta punteada tenue + 1 frase corta ES/EN explicando cómo ganarlos.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Language, OutpostSiteId } from '../../types/mission';
 import {
   PATCH_CATALOG,
@@ -15,6 +15,9 @@ import {
 import { missionAudio } from '../../utils/sound';
 import { CheckIcon, CloseIcon, PatchIcon } from '../icons';
 import { MissionPatch } from './MissionPatch';
+
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export interface PatchShowcaseModalProps {
   lang: Language;
@@ -67,17 +70,65 @@ export const PatchShowcaseModal: React.FC<PatchShowcaseModalProps> = ({
   onOpenCertificate,
 }) => {
   const [filter, setFilter] = useState<ShowcaseFilter>('all');
+  const modalCardRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!isOpen || typeof window === 'undefined') return;
+
+    previousFocusRef.current =
+      typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
+
+    const focusTimer = window.setTimeout(() => {
+      closeButtonRef.current?.focus();
+    }, 20);
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault();
         missionAudio.playClick();
         onClose();
+        return;
+      }
+
+      if (e.key === 'Tab' && modalCardRef.current) {
+        const focusableNodeList =
+          modalCardRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+        const focusables = Array.from(focusableNodeList).filter(
+          (el) => el.offsetParent !== null || el === document.activeElement,
+        );
+
+        if (focusables.length === 0) {
+          e.preventDefault();
+          return;
+        }
+
+        const firstEl = focusables[0];
+        const lastEl = focusables[focusables.length - 1];
+        const activeEl = document.activeElement as HTMLElement | null;
+
+        if (e.shiftKey) {
+          if (activeEl === firstEl || !modalCardRef.current.contains(activeEl)) {
+            e.preventDefault();
+            lastEl.focus();
+          }
+        } else {
+          if (activeEl === lastEl || !modalCardRef.current.contains(activeEl)) {
+            e.preventDefault();
+            firstEl.focus();
+          }
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener('keydown', handleKeyDown);
+      if (previousFocusRef.current && typeof previousFocusRef.current.focus === 'function') {
+        previousFocusRef.current.focus();
+      }
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -95,8 +146,14 @@ export const PatchShowcaseModal: React.FC<PatchShowcaseModalProps> = ({
       aria-labelledby="patch-showcase-title"
       id="patch-showcase-modal"
       data-testid="patch-showcase-modal"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          missionAudio.playClick();
+          onClose();
+        }
+      }}
     >
-      <div className="modal-card patch-showcase-card-shell">
+      <div ref={modalCardRef} className="modal-card patch-showcase-card-shell">
         <div className="modal-header">
           <div>
             <span className="nasa-badge">
@@ -123,6 +180,7 @@ export const PatchShowcaseModal: React.FC<PatchShowcaseModalProps> = ({
               </button>
             )}
             <button
+              ref={closeButtonRef}
               type="button"
               className="btn-secondary"
               id="close-patches-modal-btn"

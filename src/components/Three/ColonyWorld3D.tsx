@@ -58,6 +58,10 @@ import {
 } from './proceduralModels';
 import { formatSampleBadge } from './sampleManager';
 import {
+  getColonyObstacleColliders,
+  resolveCameraObstacleClearance,
+} from './roverController';
+import {
   type ColonyCameraMode,
   EMPTY_ROVER_DIRECTIONS,
   mapKeyToRoverDirection,
@@ -72,6 +76,17 @@ import '../../styles/viewer3d.css';
 
 export type { ColonyCameraMode };
 export type ColonyCameraModeInput = ColonyCameraMode | 'rover';
+
+interface PersistedColonySessionState {
+  localSeedBump: number;
+  roverPose?: { x: number; z: number; heading: number };
+}
+
+const persistedColonySessionBySite = new Map<string, PersistedColonySessionState>();
+
+export function resetColonyWorldSessionCache(): void {
+  persistedColonySessionBySite.clear();
+}
 
 export function normalizeCameraMode(mode?: ColonyCameraModeInput): ColonyCameraMode {
   if (mode === 'rover' || mode === 'chase') return 'chase';
@@ -182,16 +197,24 @@ function normalizeDriveKey(key: string): string {
   return key.length === 1 ? key.toLowerCase() : key;
 }
 
-function isEditableOrModalContext(target: EventTarget | null): boolean {
+export function isEditableOrModalContext(target: EventTarget | null = null): boolean {
   const el = target as HTMLElement | null;
   if (el) {
     const tag = el.tagName?.toUpperCase?.();
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
     if (el.isContentEditable) return true;
-    if (el.closest?.('[role="dialog"], .science-modal-backdrop, .modal-overlay')) return true;
+    if (
+      el.closest?.(
+        '[role="dialog"], .science-modal-backdrop, .modal-overlay, .modal-backdrop, .turn-report-card',
+      )
+    ) {
+      return true;
+    }
   }
-  if (typeof document !== 'undefined') {
-    const activeModal = document.querySelector('[role="dialog"][aria-modal="true"]');
+  if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
+    const activeModal = document.querySelector(
+      '[role="dialog"], .science-modal-backdrop, .modal-overlay, .modal-backdrop, .turn-report-card',
+    );
     if (activeModal) return true;
   }
   return false;
@@ -245,12 +268,16 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   const isMars = siteId === 'mars-jezero';
   const atmo = getWorldAtmosphere(siteId);
   const baseSeed = normalizeTerrainSeed(options.terrainSeed ?? terrainSeed ?? DEFAULT_TERRAIN_SEED);
-  const [localSeedBump, setLocalSeedBump] = useState(0);
+  const sessionKey = `${siteId}:${baseSeed}`;
+  const [localSeedBump, setLocalSeedBump] = useState(
+    () => persistedColonySessionBySite.get(sessionKey)?.localSeedBump ?? 0,
+  );
   const effectiveSeed = normalizeTerrainSeed(baseSeed + localSeedBump);
 
   useEffect(() => {
-    setLocalSeedBump(0);
-  }, [baseSeed]);
+    const cachedBump = persistedColonySessionBySite.get(sessionKey)?.localSeedBump ?? 0;
+    setLocalSeedBump(cachedBump);
+  }, [sessionKey]);
 
   const latestOptionsRef = useRef<ColonyWorldStateOptions>(options);
   latestOptionsRef.current = { ...options, terrainSeed: effectiveSeed };
@@ -397,7 +424,11 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       : `Interactive 3D colony environment on ${isMars ? 'Mars' : 'the Moon'}. Use WASD or arrow keys to drive the Rover, drag to orbit, C to cycle cameras, Tab for modules, and R to reset.`);
 
   const syncRoverDriveState = () => {
-    if (latestOptionsRef.current.isLowPowerBlackout || isPausedRef.current) {
+    if (
+      latestOptionsRef.current.isLowPowerBlackout ||
+      isPausedRef.current ||
+      isEditableOrModalContext()
+    ) {
       pressedKeysRef.current.clear();
       pointerDirectionsRef.current = { ...EMPTY_ROVER_DIRECTIONS };
     }
@@ -418,10 +449,37 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   const syncRoverDriveStateRef = useRef(syncRoverDriveState);
   syncRoverDriveStateRef.current = syncRoverDriveState;
 
+  const clearAllInputs = () => {
+    const hadAny =
+      pressedKeysRef.current.size > 0 ||
+      pointerDirectionsRef.current.forward ||
+      pointerDirectionsRef.current.backward ||
+      pointerDirectionsRef.current.left ||
+      pointerDirectionsRef.current.right ||
+      roverDirectionsRef.current.forward ||
+      roverDirectionsRef.current.backward ||
+      roverDirectionsRef.current.left ||
+      roverDirectionsRef.current.right;
+    pressedKeysRef.current.clear();
+    pointerDirectionsRef.current = { ...EMPTY_ROVER_DIRECTIONS };
+    if (hadAny) {
+      syncRoverDriveStateRef.current();
+    } else {
+      worldRef.current?.setRoverControlInput(EMPTY_ROVER_DIRECTIONS);
+    }
+  };
+  const clearAllInputsRef = useRef(clearAllInputs);
+  clearAllInputsRef.current = clearAllInputs;
+
+  useEffect(() => {
+    clearAllInputsRef.current();
+    worldRef.current?.stopRover();
+  }, [options.currentDay]);
+
   const handleDpadDirectionChange = (direction: RoverDirectionKey, pressed: boolean) => {
-    if (latestOptionsRef.current.isLowPowerBlackout) {
-      pointerDirectionsRef.current = { ...EMPTY_ROVER_DIRECTIONS };
-      syncRoverDriveState();
+    if (latestOptionsRef.current.isLowPowerBlackout || (pressed && isEditableOrModalContext())) {
+      clearAllInputsRef.current();
+      worldRef.current?.stopRover();
       return;
     }
     if (pointerDirectionsRef.current[direction] === pressed) return;
@@ -568,24 +626,21 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   useEffect(() => {
     if (!webglSupported) return;
 
-    const clearAllInputs = () => {
-      if (
-        pressedKeysRef.current.size === 0 &&
-        !pointerDirectionsRef.current.forward &&
-        !pointerDirectionsRef.current.backward &&
-        !pointerDirectionsRef.current.left &&
-        !pointerDirectionsRef.current.right
-      ) {
-        return;
+    const haltAndClearInputs = () => {
+      clearAllInputsRef.current();
+      worldRef.current?.stopRover();
+      if (lastReportedSpeedRef.current !== 0) {
+        lastReportedSpeedRef.current = 0;
+        setRoverSpeedMps(0);
       }
-      pressedKeysRef.current.clear();
-      pointerDirectionsRef.current = { ...EMPTY_ROVER_DIRECTIONS };
-      syncRoverDriveStateRef.current();
     };
 
     const handleWindowKeyDown = (ev: KeyboardEvent) => {
+      if (isEditableOrModalContext(ev.target)) {
+        haltAndClearInputs();
+        return;
+      }
       if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.shiftKey) return;
-      if (isEditableOrModalContext(ev.target)) return;
 
       const activeEl = typeof document !== 'undefined' ? document.activeElement : null;
       const frameContainsFocus = Boolean(frameRef.current && activeEl && frameRef.current.contains(activeEl));
@@ -638,23 +693,52 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       }
     };
 
+    const handleWindowPointerUp = () => {
+      if (
+        pointerDirectionsRef.current.forward ||
+        pointerDirectionsRef.current.backward ||
+        pointerDirectionsRef.current.left ||
+        pointerDirectionsRef.current.right
+      ) {
+        pointerDirectionsRef.current = { ...EMPTY_ROVER_DIRECTIONS };
+        syncRoverDriveStateRef.current();
+      }
+    };
+
+    const handleFocusIn = (ev: FocusEvent) => {
+      if (isEditableOrModalContext(ev.target)) {
+        haltAndClearInputs();
+      }
+    };
+
     const handleVisibilityChange = () => {
-      if (typeof document !== 'undefined' && document.hidden) {
-        clearAllInputs();
+      if (
+        typeof document !== 'undefined' &&
+        (document.hidden || document.visibilityState === 'hidden')
+      ) {
+        haltAndClearInputs();
       }
     };
 
     window.addEventListener('keydown', handleWindowKeyDown, { passive: false });
     window.addEventListener('keyup', handleWindowKeyUp);
-    window.addEventListener('blur', clearAllInputs);
+    window.addEventListener('pointerup', handleWindowPointerUp);
+    window.addEventListener('pointercancel', handleWindowPointerUp);
+    window.addEventListener('mouseup', handleWindowPointerUp);
+    window.addEventListener('blur', haltAndClearInputs);
+    window.addEventListener('focusin', handleFocusIn);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('keydown', handleWindowKeyDown);
       window.removeEventListener('keyup', handleWindowKeyUp);
-      window.removeEventListener('blur', clearAllInputs);
+      window.removeEventListener('pointerup', handleWindowPointerUp);
+      window.removeEventListener('pointercancel', handleWindowPointerUp);
+      window.removeEventListener('mouseup', handleWindowPointerUp);
+      window.removeEventListener('blur', haltAndClearInputs);
+      window.removeEventListener('focusin', handleFocusIn);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      clearAllInputs();
+      haltAndClearInputs();
     };
   }, [webglSupported]);
 
@@ -1097,7 +1181,16 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
 
     desiredPoseRef.current = null;
     const world = buildColonyWorld(latestOptionsRef.current);
+    const cachedSession = persistedColonySessionBySite.get(sessionKey);
+    if (cachedSession?.roverPose) {
+      world.setRoverPose({
+        x: cachedSession.roverPose.x,
+        z: cachedSession.roverPose.z,
+        heading: cachedSession.roverPose.heading,
+      });
+    }
     worldRef.current = world;
+    const obstacleColliders = getColonyObstacleColliders();
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(atmo.skyColor);
@@ -1144,6 +1237,22 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       controls.target.y = roverPosVec.y + 1.35;
       camera.position.copy(roverPosVec).addScaledVector(roverFwdVec, -7.2);
       camera.position.y = roverPosVec.y + 3.8;
+      const initChaseGround = sampleWorldTerrainHeight(
+        camera.position.x,
+        camera.position.z,
+        siteId,
+        effectiveSeed,
+      );
+      const safeInitChase = resolveCameraObstacleClearance(
+        camera.position.x,
+        camera.position.y,
+        camera.position.z,
+        initChaseGround,
+        obstacleColliders,
+        1.25,
+        0.85,
+      );
+      camera.position.set(safeInitChase.x, safeInitChase.y, safeInitChase.z);
       camera.lookAt(controls.target);
     } else if (prevCamMode === 'mastcam') {
       world.setFirstPersonMastcam(true);
@@ -1343,15 +1452,30 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
       lastTime = now;
 
+      const docHidden =
+        typeof document !== 'undefined' &&
+        (document.hidden || document.visibilityState === 'hidden');
+      const modalBlocked =
+        docHidden ||
+        isEditableOrModalContext(
+          typeof document !== 'undefined' ? document.activeElement : null,
+        );
+
+      if (modalBlocked) {
+        clearAllInputsRef.current();
+        world.stopRover();
+      }
+
       const curTele = world.getRoverTelemetry();
       const activeDrive =
-        roverDirectionsRef.current.forward ||
-        roverDirectionsRef.current.backward ||
-        roverDirectionsRef.current.left ||
-        roverDirectionsRef.current.right ||
-        curTele.isMoving;
+        !modalBlocked &&
+        (roverDirectionsRef.current.forward ||
+          roverDirectionsRef.current.backward ||
+          roverDirectionsRef.current.left ||
+          roverDirectionsRef.current.right ||
+          curTele.isMoving);
 
-      if (!isPausedRef.current && (!reducedMotion || activeDrive)) {
+      if (!isPausedRef.current && !modalBlocked && (!reducedMotion || activeDrive)) {
         elapsed += dt;
         world.animate(elapsed, dt);
       }
@@ -1482,9 +1606,16 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           siteId,
           effectiveSeed,
         );
-        if (chaseGoalCam.y < camGround + 1.25) {
-          chaseGoalCam.y = camGround + 1.25;
-        }
+        const safeChaseCam = resolveCameraObstacleClearance(
+          chaseGoalCam.x,
+          chaseGoalCam.y,
+          chaseGoalCam.z,
+          camGround,
+          obstacleColliders,
+          1.25,
+          0.85,
+        );
+        chaseGoalCam.set(safeChaseCam.x, safeChaseCam.y, safeChaseCam.z);
         chaseGoalTarget.copy(roverPosVec).addScaledVector(roverFwdVec, 3.6);
         chaseGoalTarget.y = roverPosVec.y + 1.35;
 
@@ -1549,9 +1680,16 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           siteId,
           effectiveSeed,
         );
-        if (camera.position.y < groundY + 0.8) {
-          camera.position.y = groundY + 0.8;
-        }
+        const safeOrbitalCam = resolveCameraObstacleClearance(
+          camera.position.x,
+          camera.position.y,
+          camera.position.z,
+          groundY,
+          obstacleColliders,
+          0.8,
+          0.85,
+        );
+        camera.position.set(safeOrbitalCam.x, safeOrbitalCam.y, safeOrbitalCam.z);
       }
 
       renderer.render(scene, camera);
@@ -1613,6 +1751,16 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     return () => {
       isDisposed = true;
       window.cancelAnimationFrame(rafId);
+      const finalTele = world.getRoverTelemetry();
+      const prevCached = persistedColonySessionBySite.get(sessionKey);
+      persistedColonySessionBySite.set(sessionKey, {
+        localSeedBump: prevCached?.localSeedBump ?? localSeedBump,
+        roverPose: {
+          x: finalTele.x,
+          z: finalTele.z,
+          heading: finalTele.heading,
+        },
+      });
       ro?.disconnect();
       window.removeEventListener('resize', resizeRenderer);
       renderer.domElement.removeEventListener('pointermove', handlePointerMove);
@@ -1625,6 +1773,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       worldRef.current = null;
       disposeObject3D(scene);
       renderer.renderLists?.dispose?.();
+      renderer.forceContextLoss?.();
       renderer.dispose();
       if (renderer.domElement.parentNode === host) {
         host.removeChild(renderer.domElement);

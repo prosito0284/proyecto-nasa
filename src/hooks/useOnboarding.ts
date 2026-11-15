@@ -324,6 +324,26 @@ export function scrollOnboardingTargetIntoView(targetEl: HTMLElement | null): vo
   }
 }
 
+export function ensureOnboardingTargetInViewport(targetEl: HTMLElement | null): boolean {
+  if (!targetEl || typeof targetEl.getBoundingClientRect !== 'function') return false;
+  const vw = typeof window !== 'undefined' && window.innerWidth > 0 ? window.innerWidth : 1280;
+  const vh = typeof window !== 'undefined' && window.innerHeight > 0 ? window.innerHeight : 800;
+  const rect = targetEl.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return false;
+  if (
+    rect.bottom <= 0 ||
+    rect.top >= vh ||
+    rect.right <= 0 ||
+    rect.left >= vw ||
+    rect.top < 12 ||
+    rect.bottom > vh - 12
+  ) {
+    scrollOnboardingTargetIntoView(targetEl);
+    return true;
+  }
+  return false;
+}
+
 export function useOnboarding(options: UseOnboardingOptions = {}): UseOnboardingReturn {
   const {
     autoStart = true,
@@ -420,13 +440,28 @@ export function useOnboarding(options: UseOnboardingOptions = {}): UseOnboarding
       return;
     }
 
+    let rafId: number | null = null;
+    let remainingFrames = 24;
+
     const measure = () => {
       const el = findOnboardingTarget(currentStep.targetId);
       if (!el) {
         setTargetRect((prev) => (prev === null ? prev : null));
         return;
       }
-      const rect = el.getBoundingClientRect();
+      const vh =
+        typeof window !== 'undefined' && window.innerHeight > 0 ? window.innerHeight : 800;
+      const vw =
+        typeof window !== 'undefined' && window.innerWidth > 0 ? window.innerWidth : 1280;
+      let rect = el.getBoundingClientRect();
+      if (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        (rect.bottom <= 0 || rect.top >= vh || rect.right <= 0 || rect.left >= vw)
+      ) {
+        scrollOnboardingTargetIntoView(el);
+        rect = el.getBoundingClientRect();
+      }
       if (rect.width > 0 && rect.height > 0) {
         const nextRect = toOnboardingRect(rect);
         setTargetRect((prev) => (areOnboardingRectsEqual(prev, nextRect) ? prev : nextRect));
@@ -435,12 +470,6 @@ export function useOnboarding(options: UseOnboardingOptions = {}): UseOnboarding
       }
     };
 
-    const targetEl = findOnboardingTarget(currentStep.targetId);
-    scrollOnboardingTargetIntoView(targetEl);
-    measure();
-
-    let rafId: number | null = null;
-    let remainingFrames = 24;
     const stabilize = () => {
       measure();
       remainingFrames -= 1;
@@ -454,17 +483,37 @@ export function useOnboarding(options: UseOnboardingOptions = {}): UseOnboarding
         rafId = null;
       }
     };
-    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-      rafId = window.requestAnimationFrame(stabilize);
-    }
 
-    window.addEventListener('resize', measure, { passive: true });
+    const scheduleStabilize = (frames = 12) => {
+      remainingFrames = Math.max(remainingFrames, frames);
+      if (
+        rafId === null &&
+        typeof window !== 'undefined' &&
+        typeof window.requestAnimationFrame === 'function'
+      ) {
+        rafId = window.requestAnimationFrame(stabilize);
+      }
+    };
+
+    const handleResize = () => {
+      const el = findOnboardingTarget(currentStep.targetId);
+      ensureOnboardingTargetInViewport(el);
+      measure();
+      scheduleStabilize(12);
+    };
+
+    const targetEl = findOnboardingTarget(currentStep.targetId);
+    scrollOnboardingTargetIntoView(targetEl);
+    measure();
+    scheduleStabilize(24);
+
+    window.addEventListener('resize', handleResize, { passive: true });
     window.addEventListener('scroll', measure, { capture: true, passive: true });
 
     let observer: ResizeObserver | null = null;
     if (typeof window !== 'undefined' && typeof window.ResizeObserver !== 'undefined') {
       try {
-        observer = new window.ResizeObserver(() => measure());
+        observer = new window.ResizeObserver(() => handleResize());
         if (targetEl) observer.observe(targetEl);
         if (typeof document !== 'undefined' && document.documentElement) {
           observer.observe(document.documentElement);
@@ -482,7 +531,7 @@ export function useOnboarding(options: UseOnboardingOptions = {}): UseOnboarding
       ) {
         window.cancelAnimationFrame(rafId);
       }
-      window.removeEventListener('resize', measure);
+      window.removeEventListener('resize', handleResize);
       window.removeEventListener('scroll', measure, true);
       observer?.disconnect();
     };

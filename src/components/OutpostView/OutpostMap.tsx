@@ -377,15 +377,34 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
     }
   };
 
+  const prevSiteAndSeedRef = useRef(`${site.id}:${effectiveSeed}`);
+  const prevDayRef = useRef(currentDay);
+
   useEffect(() => {
     clearCommInterval();
     setCommState('idle');
     setCommProgress(0);
     setNotice2D(null);
+
+    const nextSiteAndSeed = `${site.id}:${effectiveSeed}`;
+    const siteOrSeedChanged = prevSiteAndSeedRef.current !== nextSiteAndSeed;
+    const restartedToDayOne = prevDayRef.current > 1 && currentDay === 1;
+    prevSiteAndSeedRef.current = nextSiteAndSeed;
+    prevDayRef.current = currentDay;
+
+    if (siteOrSeedChanged || restartedToDayOne) {
+      setViewMode(resolveInitialViewMode());
+      setSelectedModule('shielding');
+      setSelectedWorldModule('oxygen-module');
+      setShowSystemDetails(false);
+      setShowCommSimulator(false);
+      setSelectedPresetIdx(0);
+    }
+
     return () => {
       clearCommInterval();
     };
-  }, [site.id, currentDay]);
+  }, [site.id, effectiveSeed, currentDay]);
 
   const handleTestComms = () => {
     if (commState === 'transmitting' || commIntervalRef.current !== null) return;
@@ -856,8 +875,12 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 role="img"
                 aria-label={
                   isLunar
-                    ? 'Technical blueprint diagram of Artemis Lunar South Pole Outpost'
-                    : 'Technical blueprint diagram of Martian Jezero Crater Outpost'
+                    ? lang === 'es'
+                      ? 'Diagrama técnico de plano de la Base Lunar Polo Sur Artemis'
+                      : 'Technical blueprint diagram of Artemis Lunar South Pole Outpost'
+                    : lang === 'es'
+                      ? 'Diagrama técnico de plano de la Base Marciana Cráter Jezero'
+                      : 'Technical blueprint diagram of Martian Jezero Crater Outpost'
                 }
               >
                 {/* 1. Fondo Técnico Plano a Dos Tintas */}
@@ -894,7 +917,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   letterSpacing="0.8"
                 >
                   {isLunar
-                    ? `DWG // ARTEMIS-SHACKLETON-89.9S — DAY ${currentDay}`
+                    ? `DWG // ARTEMIS-SHACKLETON-89.9S — ${lang === 'es' ? 'DÍA' : 'DAY'} ${currentDay}`
                     : `DWG // MARS-JEZERO-18.3N — SOL ${currentDay}`}
                 </text>
 
@@ -942,7 +965,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                       fontSize="9.5"
                       fontFamily="IBM Plex Mono, monospace"
                     >
-                      TERRA // 1.3s
+                      {lang === 'es' ? 'TIERRA // 1.3s' : 'TERRA // 1.3s'}
                     </text>
                   </g>
                 ) : (
@@ -973,7 +996,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                       fontSize="9.5"
                       fontFamily="IBM Plex Mono, monospace"
                     >
-                      PHOBOS / DEIMOS
+                      {lang === 'es' ? 'FOBOS / DEIMOS' : 'PHOBOS / DEIMOS'}
                     </text>
                   </g>
                 )}
@@ -1010,7 +1033,9 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                     fontWeight="bold"
                   >
                     {isRimShadowPass
-                      ? 'LOW HORIZON SUN'
+                      ? lang === 'es'
+                        ? 'SOL BAJO'
+                        : 'LOW HORIZON SUN'
                       : weather.type === 'NOMINAL'
                         ? 'SOL // NOMINAL'
                         : `DONKI // ${weather.type}`}
@@ -1103,7 +1128,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                       fontSize="9.5"
                       fontFamily="IBM Plex Mono, monospace"
                     >
-                      ISRU // H2O ICE TRAP
+                      {lang === 'es' ? 'ISRU // HIELO H2O' : 'ISRU // H2O ICE TRAP'}
                     </text>
                   </g>
                 ) : (
@@ -1132,7 +1157,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                       fontSize="9.5"
                       fontFamily="IBM Plex Mono, monospace"
                     >
-                      ISRU // JEZERO DELTA
+                      {lang === 'es' ? 'ISRU // DELTA JEZERO' : 'ISRU // JEZERO DELTA'}
                     </text>
                   </g>
                 )}
@@ -1169,7 +1194,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                     fontFamily="IBM Plex Mono, monospace"
                     fontWeight="bold"
                   >
-                    ARRAY 01 — SOLAR PV
+                    {lang === 'es' ? 'MATRIZ 01 — SOLAR FV' : 'ARRAY 01 — SOLAR PV'}
                   </text>
 
                   {/* Panel izquierdo */}
@@ -1277,7 +1302,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                     fontFamily="IBM Plex Mono, monospace"
                     fontWeight="bold"
                   >
-                    BATT // {resources.power}% kWh
+                    {lang === 'es' ? 'BAT //' : 'BATT //'} {resources.power}% kWh
                   </text>
                 </g>
 
@@ -1310,7 +1335,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                     fontSize="8.5"
                     fontFamily="IBM Plex Mono, monospace"
                   >
-                    DSN RELAY
+                    {lang === 'es' ? 'ENLACE DSN' : 'DSN RELAY'}
                   </text>
                 </g>
 
@@ -1332,7 +1357,9 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                     fontFamily="IBM Plex Mono, monospace"
                     fontWeight="bold"
                   >
-                    SHIELD 02 — H2O WALL ({projection.effectiveShielding}%)
+                    {lang === 'es'
+                      ? `ESCUDO 02 — MURO H2O (${projection.effectiveShielding}%)`
+                      : `SHIELD 02 — H2O WALL (${projection.effectiveShielding}%)`}
                   </text>
 
                   {/* Arco exterior de blindaje contra radiación */}
@@ -1385,7 +1412,13 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                       fontFamily="IBM Plex Mono, monospace"
                       fontWeight="bold"
                     >
-                      {isLunar ? 'HABITAT — ECLSS' : 'HABITAT — ECLSS + MOXIE'}
+                      {isLunar
+                        ? lang === 'es'
+                          ? 'HÁBITAT — ECLSS'
+                          : 'HABITAT — ECLSS'
+                        : lang === 'es'
+                          ? 'HÁBITAT — ECLSS + MOXIE'
+                          : 'HABITAT — ECLSS + MOXIE'}
                     </text>
 
                     {/* Casco estructural del hábitat */}
@@ -1470,7 +1503,9 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                       fontFamily="IBM Plex Mono, monospace"
                       fontWeight="bold"
                     >
-                      ECLSS O2 {resources.lifeSupport}% // SHD {projection.effectiveShielding}%
+                      {lang === 'es'
+                        ? `ECLSS O2 ${resources.lifeSupport}% // ESC ${projection.effectiveShielding}%`
+                        : `ECLSS O2 ${resources.lifeSupport}% // SHD ${projection.effectiveShielding}%`}
                     </text>
                   </g>
                 </g>
@@ -1507,7 +1542,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                     fontFamily="IBM Plex Mono, monospace"
                     fontWeight="bold"
                   >
-                    AGR 04 — VEGGIE DOME
+                    {lang === 'es' ? 'AGR 04 — DOMO VEGGIE' : 'AGR 04 — VEGGIE DOME'}
                   </text>
 
                   {/* Cilindro técnico de invernadero */}
@@ -1580,7 +1615,9 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                     fontFamily="IBM Plex Mono, monospace"
                     fontWeight="bold"
                   >
-                    VEGGIE // FOOD {resources.food}%
+                    {lang === 'es'
+                      ? `VEGGIE // CULTIVO ${resources.food}%`
+                      : `VEGGIE // FOOD ${resources.food}%`}
                   </text>
                 </g>
 
@@ -1619,7 +1656,9 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                       fontFamily="IBM Plex Mono, monospace"
                       fontWeight="bold"
                     >
-                      ALERT // Martian dust veil active — solar output reduced
+                      {lang === 'es'
+                        ? 'ALERTA // Velo de polvo marciano activo — energía solar reducida'
+                        : 'ALERT // Martian dust veil active — solar output reduced'}
                     </text>
                   </g>
                 )}
@@ -1644,6 +1683,8 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                         : smp.accentHex === 0x00e5ff
                           ? '#00E5FF'
                           : '#FFB300';
+                      const hitX = Math.max(-pos.x, Math.min(-60, 860 - pos.x - 120));
+                      const hitY = Math.max(-pos.y, Math.min(-60, 280 - pos.y - 120));
                       return (
                         <g
                           key={smp.id}
@@ -1663,7 +1704,13 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                           onClick={() => handleCollect2DSample(smp)}
                           onKeyDown={(e) => handle2DSampleKeyDown(e, smp)}
                         >
-                          <circle cx="0" cy="0" r="18" fill="transparent" />
+                          <rect
+                            x={hitX}
+                            y={hitY}
+                            width="120"
+                            height="120"
+                            fill="transparent"
+                          />
                           <circle
                             cx="0"
                             cy="0"

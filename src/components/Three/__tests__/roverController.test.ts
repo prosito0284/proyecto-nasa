@@ -12,6 +12,7 @@ import {
   EMPTY_ROVER_INPUT,
   getColonyObstacleColliders,
   PLANET_ROVER_PHYSICS,
+  resolveCameraObstacleClearance,
   ROVER_COLLISION_RADIUS,
   ROVER_MAX_STEER_RAD,
   ROVER_WHEEL_RADIUS,
@@ -376,5 +377,45 @@ describe('Articulated Rover Mechanical Animations (R03)', () => {
 
     disposeObject3D(world.group);
   });
-});
 
+  it('evita que las cámaras 3D (chase, mastcam, orbital) atraviesen domos/módulos y restaura setRoverPose', () => {
+    const obstacles = getColonyObstacleColliders();
+    const hab = obstacles.find((o) => o.id === 'oxygen-module')!;
+
+    // Si una cámara cae dentro del perímetro del domo central (0,0) a baja altura, la empuja fuera del radio
+    const pushedOut = resolveCameraObstacleClearance(
+      hab.x + 1.2,
+      1.8,
+      hab.z + 0.5,
+      0,
+      obstacles,
+      0.8,
+      0.85,
+    );
+    expect(Math.hypot(pushedOut.x - hab.x, pushedOut.z - hab.z)).toBeGreaterThanOrEqual(
+      hab.radius + 0.85 - 0.01,
+    );
+    expect(pushedOut.y).toBeGreaterThanOrEqual(0.8);
+
+    // Si la cámara está en la corona superior del domo, la eleva por encima de la cúpula
+    const liftedOver = resolveCameraObstacleClearance(
+      hab.x + 0.4,
+      4.8,
+      hab.z,
+      0,
+      obstacles,
+      0.8,
+      0.85,
+    );
+    expect(liftedOver.y).toBeGreaterThan(6.4);
+
+    // setRoverPose restaura coordenadas y rumbo al alternar entre vistas 2D/3D
+    const world = buildColonyWorld({ siteId: 'moon-shackleton', terrainSeed: 20260415 });
+    world.setRoverPose({ x: -8.4, z: 9.2, heading: 1.25 });
+    const tele = world.getRoverTelemetry();
+    expect(tele.x).toBeCloseTo(-8.4, 2);
+    expect(tele.z).toBeCloseTo(9.2, 2);
+    expect(tele.heading).toBeCloseTo(1.25, 2);
+    disposeObject3D(world.group);
+  });
+});

@@ -11,6 +11,7 @@ import { simulateTrainingDrill } from './engine/trainingDrill';
 import { buildChallengeUrl, getDailyChallengeSeed, useMission } from './hooks/useMission';
 import { useClassBoard } from './hooks/useClassBoard';
 import { OutpostMap } from './components/OutpostView/OutpostMap';
+import { resetColonyWorldSessionCache } from './components/Three/ColonyWorld3D';
 import { BALANCED_POWER_ALLOCATION, ResourcePanel } from './components/MissionHUD/ResourcePanel';
 import { CommanderCertificate } from './components/MissionHUD/CommanderCertificate';
 import { PatchShowcaseModal } from './components/MissionHUD/PatchShowcaseModal';
@@ -30,6 +31,8 @@ import { useOnboarding } from './hooks/useOnboarding';
 import { usePatches } from './hooks/usePatches';
 import {
   ArrowIcon,
+  CheckIcon,
+  CloseIcon,
   HelmetIcon,
   LanguageIcon,
   PatchIcon,
@@ -54,15 +57,24 @@ export function resolvePostDrillAllocation(
 export function isExecutionLocked(
   executingId: string | null,
   hasPendingStamp = false,
+  hasActiveTurnReport = false,
 ): boolean {
-  return executingId !== null || hasPendingStamp;
+  return executingId !== null || hasPendingStamp || hasActiveTurnReport;
 }
 
-export function computeOutcomeFlagsAfterTutorialLaunch(
-  status: 'briefing' | 'playing' | 'won' | 'failed',
-  current: { linkCopied: boolean; boardSaved: boolean },
-): { linkCopied: boolean; boardSaved: boolean } {
-  if (status !== 'playing') return { linkCopied: false, boardSaved: false };
+export function computeOutcomeFlagsAfterTutorialLaunch<
+  T extends { linkCopied: boolean; boardSaved: boolean; boardName?: string },
+>(status: 'briefing' | 'playing' | 'won' | 'failed', current: T): T {
+  if (status !== 'playing') {
+    const next: { linkCopied: boolean; boardSaved: boolean; boardName?: string } = {
+      linkCopied: false,
+      boardSaved: false,
+    };
+    if ('boardName' in current) {
+      next.boardName = '';
+    }
+    return next as T;
+  }
   return current;
 }
 const siteShortName = (siteId: OutpostSiteId, lang: Language) =>
@@ -85,6 +97,7 @@ export const App: React.FC = () => {
   const [executingId, setExecutingId] = useState<string | null>(null);
   const [boardName, setBoardName] = useState('');
   const [boardSaved, setBoardSaved] = useState(false);
+  const [missionResetCount, setMissionResetCount] = useState(0);
   const stampTimer = useRef<number | null>(null);
   const processedTurnKeyRef = useRef<string | null>(null);
 
@@ -182,6 +195,7 @@ export const App: React.FC = () => {
     !isBriefing &&
     mission.status === 'playing' &&
     !lastTurn &&
+    executingId === null &&
     !isScienceOpen &&
     !isBadgesOpen &&
     !isShowcaseOpen;
@@ -291,11 +305,20 @@ export const App: React.FC = () => {
     [isEmergencyStepActive, mission],
   );
 
+  const isTurnReportOpen = Boolean(lastTurn);
+  const isModalLaunchLocked = isExecutionLocked(
+    executingId,
+    stampTimer.current !== null,
+    isTurnReportOpen,
+  );
+
   const openScience = (termId?: string) => {
-    if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
+    if (isExecutionLocked(executingId, stampTimer.current !== null, Boolean(lastTurn))) return;
     missionAudio.playClick();
     onboarding.completeOnboardingTarget('nasa-telemetry');
     tutorial.completeActionTrigger('step-science-button');
+    setIsBadgesOpen(false);
+    setIsShowcaseOpen(false);
     setFocusTermId(termId);
     setIsScienceOpen(true);
   };
@@ -305,11 +328,14 @@ export const App: React.FC = () => {
     missionAudio.playClick();
     clearStampTimer();
     setExecutingId(null);
+    setIsScienceOpen(false);
+    setIsBadgesOpen(false);
+    setIsShowcaseOpen(false);
     openBriefing();
   };
 
   const handleLaunchTutorial = () => {
-    if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
+    if (isExecutionLocked(executingId, stampTimer.current !== null, Boolean(lastTurn))) return;
     missionAudio.playClick();
     clearStampTimer();
     setExecutingId(null);
@@ -319,10 +345,14 @@ export const App: React.FC = () => {
     const nextFlags = computeOutcomeFlagsAfterTutorialLaunch(mission.status, {
       linkCopied,
       boardSaved,
+      boardName,
     });
     setLinkCopied(nextFlags.linkCopied);
     setBoardSaved(nextFlags.boardSaved);
+    setBoardName(nextFlags.boardName);
     if (mission.status !== 'playing') {
+      resetColonyWorldSessionCache();
+      setMissionResetCount((n) => n + 1);
       startMission(mission.siteId, challengeSeed);
       window.scrollTo({ top: 0 });
     } else if (isBriefing) {
@@ -338,8 +368,14 @@ export const App: React.FC = () => {
     clearStampTimer();
     patches.dismissUnlockBanner();
     setExecutingId(null);
+    setIsScienceOpen(false);
+    setIsBadgesOpen(false);
+    setIsShowcaseOpen(false);
     setLinkCopied(false);
     setBoardSaved(false);
+    setBoardName('');
+    resetColonyWorldSessionCache();
+    setMissionResetCount((n) => n + 1);
     startMission(siteId, seed);
     window.scrollTo({ top: 0 });
   };
@@ -348,6 +384,7 @@ export const App: React.FC = () => {
     clearStampTimer();
     setIsScienceOpen(false);
     setIsBadgesOpen(false);
+    setIsShowcaseOpen(false);
     const updated = decide(choice);
     setExecutingId(null);
     if (updated.status === 'won') missionAudio.playSuccess();
@@ -359,8 +396,11 @@ export const App: React.FC = () => {
 
   /** Firma la orden: muestra el sello un instante y luego avanza el día. */
   const handleExecute = (choice: TradeoffChoice) => {
-    if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
+    if (isExecutionLocked(executingId, stampTimer.current !== null, Boolean(lastTurn))) return;
     missionAudio.playClick();
+    setIsScienceOpen(false);
+    setIsBadgesOpen(false);
+    setIsShowcaseOpen(false);
     tutorial.completeActionTrigger('step-work-orders');
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (reduceMotion) {
@@ -386,8 +426,14 @@ export const App: React.FC = () => {
     clearStampTimer();
     patches.dismissUnlockBanner();
     setExecutingId(null);
+    setIsScienceOpen(false);
+    setIsBadgesOpen(false);
+    setIsShowcaseOpen(false);
     setLinkCopied(false);
     setBoardSaved(false);
+    setBoardName('');
+    resetColonyWorldSessionCache();
+    setMissionResetCount((n) => n + 1);
     restartMission();
   };
 
@@ -411,7 +457,8 @@ export const App: React.FC = () => {
       score: evaluation.score,
       rankTitle: evaluation.rank.title,
       won: mission.status === 'won',
-      badges: evaluation.badges.filter((b) => b.earned).length,
+      badges: evaluation.badges.filter((b) => b.earned || Boolean(patches.unlockedById[b.id]))
+        .length,
     });
     setBoardSaved(true);
   };
@@ -467,7 +514,7 @@ export const App: React.FC = () => {
             id="start-tutorial-btn"
             data-onboarding-id="training-button"
             className="btn-secondary tutorial-launch-btn"
-            disabled={executingId !== null}
+            disabled={isModalLaunchLocked}
             onClick={handleLaunchTutorial}
           >
             <HelmetIcon size={16} />{' '}
@@ -478,7 +525,7 @@ export const App: React.FC = () => {
             data-tutorial-id="science-button"
             data-onboarding-id="nasa-telemetry"
             className="btn-secondary"
-            disabled={executingId !== null}
+            disabled={isModalLaunchLocked}
             onClick={() => openScience()}
           >
             <ScienceIcon size={16} /> {es ? 'Ciencia NASA y quiz' : 'NASA science & quiz'}
@@ -488,8 +535,14 @@ export const App: React.FC = () => {
             data-testid="open-patches-showcase-btn"
             type="button"
             className="btn-secondary"
+            disabled={isModalLaunchLocked}
             onClick={() => {
+              if (isExecutionLocked(executingId, stampTimer.current !== null, Boolean(lastTurn))) {
+                return;
+              }
               missionAudio.playClick();
+              setIsScienceOpen(false);
+              setIsBadgesOpen(false);
               setIsShowcaseOpen(true);
             }}
           >
@@ -501,6 +554,7 @@ export const App: React.FC = () => {
           <button
             id="toggle-mute-btn"
             className="btn-secondary"
+            disabled={executingId !== null}
             onClick={() => setIsMuted(missionAudio.toggleMute())}
             aria-pressed={isMuted}
           >
@@ -510,6 +564,7 @@ export const App: React.FC = () => {
           <button
             id="toggle-lang-btn"
             className="btn-secondary"
+            disabled={executingId !== null}
             onClick={() => {
               missionAudio.playClick();
               setLang((l) => (l === 'es' ? 'en' : 'es'));
@@ -616,7 +671,11 @@ export const App: React.FC = () => {
               evaluation={evaluation}
               onChangeAllocation={handleAllocationChange}
               onOpenBadgesModal={() => {
-                if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
+                if (isExecutionLocked(executingId, stampTimer.current !== null, Boolean(lastTurn))) {
+                  return;
+                }
+                setIsScienceOpen(false);
+                setIsShowcaseOpen(false);
                 setIsBadgesOpen(true);
               }}
               crew={crew}
@@ -626,6 +685,7 @@ export const App: React.FC = () => {
               scienceBonus={projection.scienceBonus}
               roverSamplesCollected={mission.roverSamplesCollected ?? 0}
               roverScienceEarned={mission.roverScienceEarned ?? 0}
+              actionsDisabled={isModalLaunchLocked}
             />
 
             <div className="mission-center-col">
@@ -647,6 +707,7 @@ export const App: React.FC = () => {
               )}
 
               <OutpostMap
+                key={`outpost-${mission.siteId}-${missionResetCount}`}
                 lang={lang}
                 site={currentSite}
                 currentDay={mission.currentDay}
@@ -835,7 +896,7 @@ export const App: React.FC = () => {
                             className={check.met ? 'top-rank-met' : 'top-rank-missing'}
                           >
                             <span className="top-rank-mark" aria-hidden="true">
-                              {check.met ? '✓' : '·'}
+                              {check.met ? <CheckIcon size={13} /> : <CloseIcon size={12} />}
                             </span>
                             <span>
                               {check.label[lang]}
@@ -929,7 +990,7 @@ export const App: React.FC = () => {
 
       <ScienceModal
         lang={lang}
-        isOpen={isScienceOpen}
+        isOpen={isScienceOpen && !isModalLaunchLocked}
         onClose={() => {
           setIsScienceOpen(false);
           onboarding.completeOnboardingTarget('nasa-telemetry');
@@ -943,8 +1004,9 @@ export const App: React.FC = () => {
       />
 
       <CommanderCertificate
+        key={`cert-${mission.siteId}-${missionResetCount}`}
         lang={lang}
-        isOpen={isBadgesOpen}
+        isOpen={isBadgesOpen && !isModalLaunchLocked}
         onClose={() => setIsBadgesOpen(false)}
         evaluation={evaluation}
         site={currentSite}
@@ -960,6 +1022,7 @@ export const App: React.FC = () => {
         roverSamplesCollected={mission.roverSamplesCollected ?? 0}
         roverScienceEarned={mission.roverScienceEarned ?? 0}
         onOpenShowcase={() => {
+          if (isModalLaunchLocked) return;
           setIsBadgesOpen(false);
           setIsShowcaseOpen(true);
         }}
@@ -967,12 +1030,13 @@ export const App: React.FC = () => {
 
       <PatchShowcaseModal
         lang={lang}
-        isOpen={isShowcaseOpen}
+        isOpen={isShowcaseOpen && !isModalLaunchLocked}
         onClose={() => setIsShowcaseOpen(false)}
         unlockedById={patches.unlockedById}
         onOpenCertificate={
           !isBriefing
             ? () => {
+                if (isModalLaunchLocked) return;
                 setIsShowcaseOpen(false);
                 setIsBadgesOpen(true);
               }
@@ -983,9 +1047,10 @@ export const App: React.FC = () => {
       <PatchUnlockBanner
         lang={lang}
         record={patches.activeUnlockBanner}
-        suppressed={isScienceOpen || isBadgesOpen || isShowcaseOpen}
+        suppressed={isScienceOpen || isBadgesOpen || isShowcaseOpen || isModalLaunchLocked}
         onDismiss={patches.dismissUnlockBanner}
         onOpenShowcase={() => {
+          if (isModalLaunchLocked) return;
           missionAudio.playClick();
           patches.dismissUnlockBanner();
           setIsShowcaseOpen(true);

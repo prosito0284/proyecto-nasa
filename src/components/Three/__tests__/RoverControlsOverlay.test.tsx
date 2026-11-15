@@ -3,12 +3,16 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import {
   EMPTY_ROVER_DIRECTIONS,
+  isOverlayBlockedByModal,
   mapKeyToRoverDirection,
   mergeRoverDirections,
+  releaseAllDirections,
   resolveDirectionsFromKeys,
   RoverControlsOverlay,
   type RoverDirectionKey,
 } from '../RoverControlsOverlay';
+import { isEditableOrModalContext } from '../ColonyWorld3D';
+import { buildColonyWorld } from '../proceduralModels';
 
 const EMOJI_REGEX = /\p{Extended_Pictographic}/u;
 
@@ -305,5 +309,65 @@ describe('RoverControlsOverlay (R02 dual keyboard & tactile D-pad)', () => {
     const byId = findElementsByTestId(tree);
     (byId['rover-collect-btn'].props as { onClick: () => void }).onClick();
     expect(onCollectSample).toHaveBeenCalledWith('smp-ice-1');
+  });
+
+  it('B01: detiene el Rover en seco (0 m/s) y limpia pulsaciones pegadas al abrir cualquier modal o soltar Space/Enter/Escape', () => {
+    const world = buildColonyWorld({ siteId: 'moon-shackleton', terrainSeed: 20260415 });
+    world.setRoverControlInput({ forward: true, backward: false, left: false, right: false });
+    let t = 0;
+    for (let i = 0; i < 15; i++) {
+      t += 0.05;
+      world.animate(t, 0.05);
+    }
+    expect(world.getRoverTelemetry().linearVelocity).toBeGreaterThan(1.0);
+
+    world.stopRover();
+    const stopped = world.getRoverTelemetry();
+    expect(stopped.linearVelocity).toBe(0);
+    expect(stopped.isMoving).toBe(false);
+
+    const onDirectionChange = vi.fn();
+    releaseAllDirections(
+      { forward: true, backward: false, left: true, right: false },
+      onDirectionChange,
+    );
+    expect(onDirectionChange).toHaveBeenCalledWith('forward', false);
+    expect(onDirectionChange).toHaveBeenCalledWith('left', false);
+
+    const prevDoc = globalThis.document;
+    try {
+      Object.defineProperty(globalThis, 'document', {
+        value: {
+          querySelector: (sel: string) => (sel.includes('[role="dialog"]') ? {} : null),
+        },
+        configurable: true,
+        writable: true,
+      });
+      expect(isEditableOrModalContext()).toBe(true);
+      expect(isOverlayBlockedByModal()).toBe(true);
+
+      const onBlockedDir = vi.fn();
+      const tree = RoverControlsOverlay({
+        lang: 'es',
+        activeDirections: { forward: true, backward: false, left: false, right: false },
+        onDirectionChange: onBlockedDir,
+      });
+      const byId = findElementsByTestId(tree);
+      const fwdProps = byId['rover-dpad-forward'].props as Record<string, (e?: unknown) => void>;
+      fwdProps.onPointerDown({
+        pointerType: 'mouse',
+        button: 0,
+        stopPropagation: () => {},
+        preventDefault: () => {},
+      });
+      expect(onBlockedDir).toHaveBeenCalledWith('forward', false);
+      expect(onBlockedDir).not.toHaveBeenCalledWith('forward', true);
+    } finally {
+      Object.defineProperty(globalThis, 'document', {
+        value: prevDoc,
+        configurable: true,
+        writable: true,
+      });
+    }
   });
 });

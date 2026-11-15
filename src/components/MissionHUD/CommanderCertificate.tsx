@@ -97,11 +97,15 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
+  const historyCount = history?.length ?? 0;
+
   useEffect(() => {
     if (astronautName !== undefined) {
       setCommanderName(astronautName);
+    } else if (currentDay === 1 && missionStatus === 'playing' && historyCount === 0) {
+      setCommanderName('');
     }
-  }, [astronautName]);
+  }, [astronautName, site.id, currentDay, missionStatus, historyCount]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -230,7 +234,9 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
     commanderName.trim() ||
     (lang === 'es' ? 'Comandante Espacial Junior' : 'Junior Space Commander');
 
-  const earnedBadgesCount = evaluation.badges.filter((b) => b.earned).length;
+  const earnedBadgesCount = evaluation.badges.filter(
+    (b) => b.earned || Boolean(unlockedRecords?.[b.id]),
+  ).length;
 
   const defaultCrewMood: CrewMood =
     missionStatus === 'won' ? 'great' : missionStatus === 'failed' ? 'worried' : 'ok';
@@ -503,7 +509,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                       </div>
                       <div className="cert-history-detail">
                         <span className="cert-history-card-id">
-                          ORD: {formatCodeLabel(record.cardId)}
+                          {lang === 'es' ? 'ORD:' : 'WO:'} {formatCodeLabel(record.cardId)}
                         </span>
                         <span className="cert-history-choice-id">
                           <CheckIcon size={12} /> {lang === 'es' ? 'Opción:' : 'Choice:'}{' '}

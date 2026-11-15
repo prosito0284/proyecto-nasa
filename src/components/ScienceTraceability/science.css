@@ -433,6 +433,15 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.35rem 0.5rem;
+  box-sizing: border-box;
+}
+
+.nasa-source-stamp--link {
+  min-height: 44px;
+  min-width: 44px;
 }
 
 /* Galería Fotográfica Técnica */

@@ -5,6 +5,7 @@ import {
   createRoverController,
   EMPTY_ROVER_INPUT,
   getColonyObstacleColliders,
+  resolveCameraObstacleClearance,
   ROVER_MAX_STEER_RAD,
   ROVER_WHEEL_RADIUS,
   type RoverControlInput,
@@ -2640,6 +2641,8 @@ export interface ColonyWorldHandle {
   collectSample: (sampleId: string) => boolean;
   returnRoverToBase: () => boolean;
   setRoverControlInput: (input: RoverControlInput) => void;
+  setRoverPose: (pose: { x: number; z: number; heading?: number; manual?: boolean }) => void;
+  stopRover: () => void;
   getRoverTelemetry: () => RoverTelemetrySnapshot;
   getRoverPose: (outPos: THREE.Vector3, outForward: THREE.Vector3) => void;
   getMastcamPose: (outPos: THREE.Vector3, outTarget: THREE.Vector3, outUp: THREE.Vector3) => void;
@@ -4114,6 +4117,29 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     }
   };
 
+  const stopRover = () => {
+    roverInput = { ...EMPTY_ROVER_INPUT };
+    roverSpeed = 0;
+    roverSteerAngle = 0;
+    roverWheelSpinDelta = 0;
+    roverSuspensionHeave = 0;
+    roverSuspensionPitch = 0;
+    roverCtrl.setPose({
+      x: roverWorldX,
+      z: roverWorldZ,
+      heading: roverHeading,
+      velocity: 0,
+    });
+    if (roverTask.mode !== 'collecting-sample') {
+      hasManualDrive = true;
+      roverTask = { mode: 'manual' };
+    }
+    scannerBeamGroup.visible = false;
+    scannerBeamMesh.visible = false;
+    scannerRingMesh.visible = false;
+    wakeGeo.setDrawRange(0, 0);
+  };
+
   const getRoverTelemetry = (): RoverTelemetrySnapshot => {
     const nearest = findNearestAnomalySnapshot();
     const nearestSample = findNearestSampleSnapshot();
@@ -4240,6 +4266,43 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     mastCamPivot.visible = !enabled;
   };
 
+  const setRoverPose = (pose: {
+    x: number;
+    z: number;
+    heading?: number;
+    manual?: boolean;
+  }) => {
+    const safe = resolveObstacleAndBounds(pose.x, pose.z);
+    roverWorldX = safe.x;
+    roverWorldZ = safe.z;
+    if (typeof pose.heading === 'number' && Number.isFinite(pose.heading)) {
+      roverHeading = pose.heading;
+    }
+    const ry = sampleTerrainAt(roverWorldX, roverWorldZ);
+    roverSpeed = 0;
+    roverSteerAngle = 0;
+    roverCtrl.setPose({
+      x: roverWorldX,
+      y: ry,
+      z: roverWorldZ,
+      heading: roverHeading,
+      velocity: 0,
+    });
+    rover.motionRoot.position.set(
+      roverWorldX - roverHomeOrigin.x,
+      ry,
+      roverWorldZ - roverHomeOrigin.z,
+    );
+    rover.visual.rotation.order = 'YZX';
+    rover.visual.rotation.y = roverHeading;
+    if (pose.manual ?? true) {
+      hasManualDrive = true;
+      if (roverTask.mode !== 'collecting-sample') {
+        roverTask = { mode: 'manual' };
+      }
+    }
+  };
+
   const getRoverPose = (outPos: THREE.Vector3, outForward: THREE.Vector3) => {
     outPos.set(
       rover.group.position.x + rover.motionRoot.position.x,
@@ -4258,9 +4321,16 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     outPos.copy(mastEyeLocal);
     roverChassisGroup.localToWorld(outPos);
     const groundY = sampleTerrainAt(outPos.x, outPos.z);
-    if (outPos.y < groundY + 1.45) {
-      outPos.y = groundY + 1.45;
-    }
+    const cleared = resolveCameraObstacleClearance(
+      outPos.x,
+      outPos.y,
+      outPos.z,
+      groundY,
+      activeObstacles,
+      1.45,
+      0.65,
+    );
+    outPos.set(cleared.x, cleared.y, cleared.z);
     outTarget.copy(mastTargetLocal);
     roverChassisGroup.localToWorld(outTarget);
     roverChassisGroup.getWorldQuaternion(mastChassisQuat);
@@ -4985,6 +5055,8 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     collectSample,
     returnRoverToBase,
     setRoverControlInput,
+    setRoverPose,
+    stopRover,
     getRoverTelemetry,
     getRoverPose,
     getMastcamPose,
