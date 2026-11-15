@@ -1011,7 +1011,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     if (!host || !webglSupported) return;
 
     const width = Math.max(260, host.clientWidth || 640);
-    const viewHeight = Math.max(200, height);
+    const viewHeight = Math.max(200, host.clientHeight || height);
     const reducedMotion =
       typeof window.matchMedia === 'function' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1246,7 +1246,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     const resizeRenderer = () => {
       if (!hostRef.current) return;
       const nextW = Math.max(240, hostRef.current.clientWidth);
-      const nextH = Math.max(200, height);
+      const nextH = Math.max(200, hostRef.current.clientHeight || height);
       camera.aspect = nextW / nextH;
       camera.updateProjectionMatrix();
       renderer.setSize(nextW, nextH);
@@ -1467,7 +1467,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
         anchorVec.project(camera);
         if (anchorVec.z > -1 && anchorVec.z < 1) {
           const cw = host.clientWidth || width;
-          const ch = height;
+          const ch = host.clientHeight || height;
           const px = Math.max(115, Math.min(cw - 115, (anchorVec.x * 0.5 + 0.5) * cw));
           const py = Math.max(54, Math.min(ch - 32, (-anchorVec.y * 0.5 + 0.5) * ch));
           const key = `smp:${activeSample}:${Math.round(px)}:${Math.round(py)}`;
@@ -1480,7 +1480,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
         anchorVec.project(camera);
         if (anchorVec.z > -1 && anchorVec.z < 1) {
           const cw = host.clientWidth || width;
-          const ch = height;
+          const ch = host.clientHeight || height;
           const px = Math.max(115, Math.min(cw - 115, (anchorVec.x * 0.5 + 0.5) * cw));
           const py = Math.max(54, Math.min(ch - 32, (-anchorVec.y * 0.5 + 0.5) * ch));
           const key = `anom:${activeAnom}:${Math.round(px)}:${Math.round(py)}`;
@@ -1494,7 +1494,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
         anchorVec.project(camera);
         if (anchorVec.z > -1 && anchorVec.z < 1) {
           const cw = host.clientWidth || width;
-          const ch = height;
+          const ch = host.clientHeight || height;
           const px = Math.max(115, Math.min(cw - 115, (anchorVec.x * 0.5 + 0.5) * cw));
           const py = Math.max(54, Math.min(ch - 32, (-anchorVec.y * 0.5 + 0.5) * ch));
           const key = `mod:${taggedMod}:${Math.round(px)}:${Math.round(py)}`;

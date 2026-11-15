@@ -167,7 +167,14 @@ export const TurnReport: React.FC<TurnReportProps> = ({
           {(roverSamplesCollected ?? 0) > 0 && (
             <span className="turn-pill-metric turn-delta-pos" data-testid="turn-rover-samples">
               <AntennaIcon size={14} /> Rover: {roverSamplesCollected}{' '}
-              {lang === 'es' ? 'muestras' : 'samples'} (+{roverScienceEarned ?? 0} pts)
+              {roverSamplesCollected === 1
+                ? lang === 'es'
+                  ? 'muestra'
+                  : 'sample'
+                : lang === 'es'
+                  ? 'muestras'
+                  : 'samples'}{' '}
+              (+{roverScienceEarned ?? 0} pts)
             </span>
           )}
         </div>

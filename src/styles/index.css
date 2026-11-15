@@ -501,9 +501,13 @@ body {
     padding: 0.38rem 0.45rem;
   }
 
+  .outpost-3d-stage .viewer3d-canvas-shell {
+    --viewer-h: 236px !important;
+  }
+
   .outpost-3d-stage .viewer3d-viewport {
-    height: 215px !important;
-    min-height: 215px;
+    height: 236px !important;
+    min-height: 236px;
   }
 }
 
