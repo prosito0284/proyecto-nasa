@@ -58,6 +58,10 @@ import {
 } from './proceduralModels';
 import { formatSampleBadge } from './sampleManager';
 import {
+  getColonyObstacleColliders,
+  resolveCameraObstacleClearance,
+} from './roverController';
+import {
   type ColonyCameraMode,
   EMPTY_ROVER_DIRECTIONS,
   mapKeyToRoverDirection,
@@ -72,6 +76,17 @@ import '../../styles/viewer3d.css';
 
 export type { ColonyCameraMode };
 export type ColonyCameraModeInput = ColonyCameraMode | 'rover';
+
+interface PersistedColonySessionState {
+  localSeedBump: number;
+  roverPose?: { x: number; z: number; heading: number };
+}
+
+const persistedColonySessionBySite = new Map<string, PersistedColonySessionState>();
+
+export function resetColonyWorldSessionCache(): void {
+  persistedColonySessionBySite.clear();
+}
 
 export function normalizeCameraMode(mode?: ColonyCameraModeInput): ColonyCameraMode {
   if (mode === 'rover' || mode === 'chase') return 'chase';
@@ -253,12 +268,16 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   const isMars = siteId === 'mars-jezero';
   const atmo = getWorldAtmosphere(siteId);
   const baseSeed = normalizeTerrainSeed(options.terrainSeed ?? terrainSeed ?? DEFAULT_TERRAIN_SEED);
-  const [localSeedBump, setLocalSeedBump] = useState(0);
+  const sessionKey = `${siteId}:${baseSeed}`;
+  const [localSeedBump, setLocalSeedBump] = useState(
+    () => persistedColonySessionBySite.get(sessionKey)?.localSeedBump ?? 0,
+  );
   const effectiveSeed = normalizeTerrainSeed(baseSeed + localSeedBump);
 
   useEffect(() => {
-    setLocalSeedBump(0);
-  }, [baseSeed]);
+    const cachedBump = persistedColonySessionBySite.get(sessionKey)?.localSeedBump ?? 0;
+    setLocalSeedBump(cachedBump);
+  }, [sessionKey]);
 
   const latestOptionsRef = useRef<ColonyWorldStateOptions>(options);
   latestOptionsRef.current = { ...options, terrainSeed: effectiveSeed };
@@ -1162,7 +1181,16 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
 
     desiredPoseRef.current = null;
     const world = buildColonyWorld(latestOptionsRef.current);
+    const cachedSession = persistedColonySessionBySite.get(sessionKey);
+    if (cachedSession?.roverPose) {
+      world.setRoverPose({
+        x: cachedSession.roverPose.x,
+        z: cachedSession.roverPose.z,
+        heading: cachedSession.roverPose.heading,
+      });
+    }
     worldRef.current = world;
+    const obstacleColliders = getColonyObstacleColliders();
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(atmo.skyColor);
@@ -1209,6 +1237,22 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       controls.target.y = roverPosVec.y + 1.35;
       camera.position.copy(roverPosVec).addScaledVector(roverFwdVec, -7.2);
       camera.position.y = roverPosVec.y + 3.8;
+      const initChaseGround = sampleWorldTerrainHeight(
+        camera.position.x,
+        camera.position.z,
+        siteId,
+        effectiveSeed,
+      );
+      const safeInitChase = resolveCameraObstacleClearance(
+        camera.position.x,
+        camera.position.y,
+        camera.position.z,
+        initChaseGround,
+        obstacleColliders,
+        1.25,
+        0.85,
+      );
+      camera.position.set(safeInitChase.x, safeInitChase.y, safeInitChase.z);
       camera.lookAt(controls.target);
     } else if (prevCamMode === 'mastcam') {
       world.setFirstPersonMastcam(true);
@@ -1562,9 +1606,16 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           siteId,
           effectiveSeed,
         );
-        if (chaseGoalCam.y < camGround + 1.25) {
-          chaseGoalCam.y = camGround + 1.25;
-        }
+        const safeChaseCam = resolveCameraObstacleClearance(
+          chaseGoalCam.x,
+          chaseGoalCam.y,
+          chaseGoalCam.z,
+          camGround,
+          obstacleColliders,
+          1.25,
+          0.85,
+        );
+        chaseGoalCam.set(safeChaseCam.x, safeChaseCam.y, safeChaseCam.z);
         chaseGoalTarget.copy(roverPosVec).addScaledVector(roverFwdVec, 3.6);
         chaseGoalTarget.y = roverPosVec.y + 1.35;
 
@@ -1629,9 +1680,16 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           siteId,
           effectiveSeed,
         );
-        if (camera.position.y < groundY + 0.8) {
-          camera.position.y = groundY + 0.8;
-        }
+        const safeOrbitalCam = resolveCameraObstacleClearance(
+          camera.position.x,
+          camera.position.y,
+          camera.position.z,
+          groundY,
+          obstacleColliders,
+          0.8,
+          0.85,
+        );
+        camera.position.set(safeOrbitalCam.x, safeOrbitalCam.y, safeOrbitalCam.z);
       }
 
       renderer.render(scene, camera);
@@ -1693,6 +1751,16 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     return () => {
       isDisposed = true;
       window.cancelAnimationFrame(rafId);
+      const finalTele = world.getRoverTelemetry();
+      const prevCached = persistedColonySessionBySite.get(sessionKey);
+      persistedColonySessionBySite.set(sessionKey, {
+        localSeedBump: prevCached?.localSeedBump ?? localSeedBump,
+        roverPose: {
+          x: finalTele.x,
+          z: finalTele.z,
+          heading: finalTele.heading,
+        },
+      });
       ro?.disconnect();
       window.removeEventListener('resize', resizeRenderer);
       renderer.domElement.removeEventListener('pointermove', handlePointerMove);
@@ -1705,6 +1773,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       worldRef.current = null;
       disposeObject3D(scene);
       renderer.renderLists?.dispose?.();
+      renderer.forceContextLoss?.();
       renderer.dispose();
       if (renderer.domElement.parentNode === host) {
         host.removeChild(renderer.domElement);
