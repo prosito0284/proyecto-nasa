@@ -1,0 +1,308 @@
+/**
+ * Motor de Iluminación (Spotlight) de 4 Cuadrantes y Ficha de Entrenamiento (T03)
+ * Dirección de arte: "Cuaderno de Vuelo del Comandante" (Secciones 6 y 7 de AGENTS.md)
+ *
+ * Reglas estrictas:
+ * - 4 paneles independientes (Top, Bottom, Left, Right) con rgba(6, 10, 18, 0.85) y pointer-events: auto.
+ * - Recorte central libre de obstrucciones cuando requireAction es true.
+ * - Marco técnico de 2px con pointer-events: none (cian #00E5FF para 'info', ámbar #FFB300 para 'caution').
+ * - Esquinas estrictas de 2px, cero degradados y cero sombras difusas (box-shadow: none).
+ * - Tipografía: mayúsculas solo en etiquetas <= 3 palabras, títulos en tipo oración, cuerpo >= 16px.
+ */
+
+.tutorial-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  pointer-events: none;
+}
+
+/* 4 cuadrantes oscuros independientes alrededor del objetivo */
+.tutorial-quadrant {
+  position: fixed;
+  background-color: rgba(6, 10, 18, 0.85);
+  pointer-events: auto;
+  z-index: 9500;
+  transition:
+    top 140ms ease-out,
+    left 140ms ease-out,
+    width 140ms ease-out,
+    height 140ms ease-out;
+}
+
+/* Marco técnico de 2px sobre el borde del recorte (nunca bloquea clics) */
+.tutorial-cutout-frame {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9501;
+  border-width: 2px;
+  border-style: solid;
+  border-radius: 2px;
+  box-shadow: none;
+  background: transparent;
+  transition:
+    top 140ms ease-out,
+    left 140ms ease-out,
+    width 140ms ease-out,
+    height 140ms ease-out,
+    border-color 140ms ease-out;
+}
+
+.tutorial-tone-info {
+  border-color: #00E5FF;
+}
+
+.tutorial-tone-caution {
+  border-color: #FFB300;
+}
+
+/* Etiqueta técnica de telemetría en el borde del marco (pointer-events: none) */
+.tutorial-frame-tag {
+  position: absolute;
+  top: -22px;
+  left: -2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 2px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.tutorial-tone-info .tutorial-frame-tag {
+  background-color: #00E5FF;
+  color: #060A12;
+}
+
+.tutorial-tone-caution .tutorial-frame-tag {
+  background-color: #FFB300;
+  color: #060A12;
+}
+
+/* Ficha de instrucciones estilo Cuaderno de Vuelo */
+.tutorial-card {
+  position: fixed;
+  z-index: 9502;
+  pointer-events: auto;
+  width: min(392px, calc(100vw - 24px));
+  background-color: var(--paper-sheet, #F8F3E8);
+  color: var(--ink, #1B1F2A);
+  border: 2px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  box-shadow: none;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tutorial-card-tone-info {
+  border-top: 5px solid var(--nasa-blue, #0B3D91);
+}
+
+.tutorial-card-tone-caution {
+  border-top: 5px solid var(--nasa-red, #FC3D21);
+}
+
+.tutorial-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1.5px solid var(--rule, rgba(27, 31, 42, 0.25));
+}
+
+.tutorial-step-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nasa-blue, #0B3D91);
+}
+
+.tutorial-tone-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+}
+
+.tutorial-tone-pill-info {
+  background-color: var(--paper, #F2EBDD);
+  color: var(--nasa-blue, #0B3D91);
+}
+
+.tutorial-tone-pill-caution {
+  background-color: var(--paper, #F2EBDD);
+  color: var(--crit-red, #B31B12);
+}
+
+/* Regla tipográfica Ronda 4: título en tipo oración, nunca uppercase en frases largas */
+.tutorial-card-title {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--ink, #1B1F2A);
+  margin: 0;
+}
+
+/* Regla tipográfica Ronda 4: cuerpo mínimo 16px (1rem), entre 45 y 75 caracteres */
+.tutorial-card-body {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink-secondary, #2F3647);
+  max-width: 62ch;
+  margin: 0;
+}
+
+/* Aviso cuando el paso exige hacer clic directo en el control real */
+.tutorial-action-prompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background-color: var(--paper, #F2EBDD);
+  border: 1.5px dashed var(--nasa-red, #FC3D21);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink, #1B1F2A);
+}
+
+.tutorial-progress-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tutorial-progress-dot {
+  width: 10px;
+  height: 6px;
+  border: 1.5px solid var(--ink, #1B1F2A);
+  border-radius: 2px;
+  background-color: var(--paper, #F2EBDD);
+}
+
+.tutorial-progress-dot-done {
+  background-color: var(--ok-green, #2E7D4F);
+  border-color: var(--ok-green, #2E7D4F);
+}
+
+.tutorial-progress-dot-active {
+  width: 18px;
+  background-color: var(--nasa-blue, #0B3D91);
+  border-color: var(--nasa-blue, #0B3D91);
+}
+
+.tutorial-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1.5px solid var(--rule, rgba(27, 31, 42, 0.25));
+}
+
+.tutorial-nav-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.tutorial-btn {
+  min-height: 44px;
+  padding: 6px 12px;
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-radius: 2px;
+  border: 1.5px solid var(--ink, #1B1F2A);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: none;
+}
+
+.tutorial-btn-skip {
+  background-color: transparent;
+  color: var(--ink-secondary, #2F3647);
+}
+
+.tutorial-btn-skip:hover,
+.tutorial-btn-skip:focus-visible {
+  background-color: var(--paper-aged, #E5DEC9);
+  color: var(--ink, #1B1F2A);
+}
+
+.tutorial-btn-secondary {
+  background-color: var(--paper, #F2EBDD);
+  color: var(--ink, #1B1F2A);
+}
+
+.tutorial-btn-secondary:hover:not(:disabled),
+.tutorial-btn-secondary:focus-visible:not(:disabled) {
+  background-color: var(--paper-aged, #E5DEC9);
+}
+
+.tutorial-btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tutorial-btn-primary {
+  background-color: var(--nasa-red, #FC3D21);
+  color: #FFFFFF;
+  border-color: var(--ink, #1B1F2A);
+}
+
+.tutorial-btn-primary:hover,
+.tutorial-btn-primary:focus-visible {
+  background-color: #D92E14;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-quadrant,
+  .tutorial-cutout-frame {
+    transition: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .tutorial-card {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .tutorial-card-title {
+    font-size: 1.2rem;
+  }
+}
