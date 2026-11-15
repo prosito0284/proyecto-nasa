@@ -94,13 +94,21 @@ describe('sampleManager (R05 procedural surface samples)', () => {
           expect(samples.length).toBeGreaterThanOrEqual(4);
           expect(samples.length).toBeLessThanOrEqual(6);
 
+          let sawOuterSample = false;
           for (let i = 0; i < samples.length; i++) {
             const s = samples[i];
-            expect(Math.abs(s.position[0])).toBeLessThanOrEqual(19.25);
-            expect(Math.abs(s.position[2])).toBeLessThanOrEqual(19.25);
+            const distFromOrigin = Math.hypot(s.position[0], s.position[2]);
+            expect(Math.abs(s.position[0])).toBeLessThanOrEqual(40);
+            expect(Math.abs(s.position[2])).toBeLessThanOrEqual(40);
+            expect(distFromOrigin).toBeLessThanOrEqual(40.1);
             // Fuera del domo central y spawn del rover (11.4, 12.5)
-            expect(Math.hypot(s.position[0], s.position[2])).toBeGreaterThanOrEqual(8.2);
+            expect(distFromOrigin).toBeGreaterThanOrEqual(8.2);
             expect(Math.hypot(s.position[0] - 11.4, s.position[2] - 12.5)).toBeGreaterThanOrEqual(4.0);
+            // Muestras de alto valor (+20 / +25 PTS) se ubican en el anillo exterior (>= 25 u)
+            if (s.points >= 20) {
+              expect(distFromOrigin).toBeGreaterThanOrEqual(25.0);
+              sawOuterSample = true;
+            }
             for (const a of anomalies) {
               expect(
                 Math.hypot(s.position[0] - a.position[0], s.position[2] - a.position[2]),
@@ -112,6 +120,7 @@ describe('sampleManager (R05 procedural surface samples)', () => {
               ).toBeGreaterThanOrEqual(4.8);
             }
           }
+          expect(sawOuterSample).toBe(true);
         }
       }
     }

@@ -1203,12 +1203,12 @@ export const COLONY_WORLD_MODULES: Record<ColonyWorldModuleId, ColonyWorldModule
 export const COLONY_HIGHLIGHT_HEX = 0x38bdf8;
 
 export const COLONY_CAMERA_LIMITS = {
-  boundsMin: -24,
-  boundsMax: 24,
+  boundsMin: -46,
+  boundsMax: 46,
   /** Margen máximo que la vista puede ceder antes del retorno amortiguado */
   overshoot: 2.5,
   minDistance: 7,
-  maxDistance: 45,
+  maxDistance: 88,
   minPolarAngle: 0.18,
   maxPolarAngle: Math.PI / 2 - 0.06,
   minTargetY: 0.8,
@@ -1221,7 +1221,7 @@ export function clampToColonyBounds(value: number): number {
 
 /**
  * Amortiguación suave del objetivo de cámara: si el jugador arrastra la vista fuera
- * del perímetro [-24, 24], el objetivo regresa suavemente sin muros visibles.
+ * del perímetro [-46, 46], el objetivo regresa suavemente sin muros visibles.
  */
 export function softClampColonyTarget(
   x: number,
@@ -1278,7 +1278,7 @@ function poseFromSpherical(
   };
 }
 
-export const COLONY_DEFAULT_POSE: ColonyCameraPose = poseFromSpherical([0, 2.4, 0], 33, 1.24, 0.45);
+export const COLONY_DEFAULT_POSE: ColonyCameraPose = poseFromSpherical([0, 2.4, 0], 38, 1.24, 0.45);
 
 export function computeColonyFocusPose(
   moduleId: ColonyWorldModuleId,
@@ -1335,7 +1335,7 @@ export const WORLD_ATMOSPHERES: Record<WorldAtmosphereKind, WorldAtmosphere> = {
     kind: 'lunar',
     skyColor: 0x03060c,
     fogColor: 0x03060c,
-    fogDensity: 0.0028,
+    fogDensity: 0.0021,
     sunColor: 0xfff8ee,
     sunIntensity: 3.1,
     sunDirection: [0.78, 0.14, -0.6],
@@ -1362,7 +1362,7 @@ export const WORLD_ATMOSPHERES: Record<WorldAtmosphereKind, WorldAtmosphere> = {
     kind: 'mars',
     skyColor: 0x2d160e,
     fogColor: 0x2d160e,
-    fogDensity: 0.0044,
+    fogDensity: 0.0033,
     sunColor: 0xffd9b0,
     sunIntensity: 1.55,
     sunDirection: [0.42, 0.62, 0.3],
@@ -1475,18 +1475,25 @@ function getSeededTerrainProfile(kind: WorldAtmosphereKind, rawSeed?: number): S
     });
   }
   if (isLunar) {
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 12; i++) {
       const angle = rng() * Math.PI * 2;
-      const dist = 33 + rng() * 15;
-      const r = 2.4 + rng() * 3.4;
+      const dist = 26 + rng() * 24;
+      const r = 2.4 + rng() * 3.8;
       craters.push({ x: Math.cos(angle) * dist, z: Math.sin(angle) * dist, r, depth: r * 0.24 });
+    }
+  } else {
+    for (let i = 0; i < 6; i++) {
+      const angle = rng() * Math.PI * 2;
+      const dist = 27 + rng() * 21;
+      const r = 2.8 + rng() * 3.6;
+      craters.push({ x: Math.cos(angle) * dist, z: Math.sin(angle) * dist, r, depth: r * 0.14 });
     }
   }
 
   const outcrops: RidgeOutcropSpec[] = [];
   for (let i = 0; i < 6; i++) {
     const angle = rng() * Math.PI * 2;
-    const dist = 46 + rng() * 140;
+    const dist = 48 + rng() * 140;
     outcrops.push({
       x: Math.cos(angle) * dist,
       z: Math.sin(angle) * dist,
@@ -1538,7 +1545,7 @@ function computeColonyPadMask(x: number, z: number): number {
 /**
  * Altura determinista del terreno en (x, z) modulada por `terrainSeed`;
  * las plataformas de edificios quedan niveladas en `y = 0`, mientras las
- * rutas exteriores del Rover conservan dunas/cráteres transitables.
+ * rutas exteriores del Rover (hasta ±48) conservan dunas/cráteres transitables.
  */
 export function sampleWorldTerrainHeight(
   x: number,
@@ -1548,13 +1555,13 @@ export function sampleWorldTerrainHeight(
 ): number {
   const kind: WorldAtmosphereKind = siteId === 'mars-jezero' ? 'mars' : 'lunar';
   const r = Math.hypot(x, z);
-  const outside = smoothstep(BASE_PAD_RADIUS, BASE_PAD_RADIUS + 16, r);
+  const outside = smoothstep(BASE_PAD_RADIUS, BASE_PAD_RADIUS + 20, r);
   const padMask = computeColonyPadMask(x, z);
   const prof = getSeededTerrainProfile(kind, terrainSeed);
   const rx = x * Math.cos(prof.ridgeRot) - z * Math.sin(prof.ridgeRot);
   const rz = x * Math.sin(prof.ridgeRot) + z * Math.cos(prof.ridgeRot);
 
-  // Microrrelieve transitable dentro del perímetro de la colonia (dunas y cráteres bajos)
+  // Microrrelieve transitable dentro del perímetro ampliado [-48, 48] (dunas y cráteres bajos)
   let localH = 0;
   if (padMask > 0 && outside < 1) {
     if (kind === 'mars') {
@@ -1566,6 +1573,8 @@ export function sampleWorldTerrainHeight(
       const craterA = Math.hypot(x + 14.5, z + 13.5);
       const craterB = Math.hypot(x - 15.5, z + 12.5);
       const craterC = Math.hypot(x - 0.5, z - 16.5);
+      const craterD = Math.hypot(x + 28.0, z - 24.0);
+      const craterE = Math.hypot(x - 29.0, z - 25.0);
       const craterTerm = (dist: number, rad: number, dep: number) => {
         if (dist > rad * 1.55) return 0;
         const u = dist / rad;
@@ -1577,7 +1586,9 @@ export function sampleWorldTerrainHeight(
         Math.sin(rx * 0.21 + prof.phaseX) * Math.cos(rz * 0.18 + prof.phaseZ) * 0.34 +
         craterTerm(craterA, 4.4, 0.78) +
         craterTerm(craterB, 4.1, 0.72) +
-        craterTerm(craterC, 4.2, 0.74);
+        craterTerm(craterC, 4.2, 0.74) +
+        craterTerm(craterD, 5.2, 0.84) +
+        craterTerm(craterE, 4.8, 0.8);
     }
   }
 
@@ -1619,7 +1630,7 @@ export function sampleWorldTerrainHeight(
         4 * Math.sin(angle * 29 + prof.phaseZ));
   } else {
     const dunes =
-      smoothstep(40, 90, r) *
+      smoothstep(32, 85, r) *
       (1 - smoothstep(260, 420, r)) *
       (Math.sin(rx * 0.085 + prof.phaseX + Math.sin(rz * 0.031 + prof.phaseZ) * 2.2) * 1.45 + 0.6);
     const mesaMask = Math.max(
@@ -1645,9 +1656,9 @@ function buildConformingColonyGrid(
   siteId: OutpostSiteId,
   terrainSeed?: number,
 ): THREE.LineSegments {
-  const half = 24;
-  const step = 2;
-  const segsPerLine = 48;
+  const half = 48;
+  const step = 4;
+  const segsPerLine = 64;
   const positions: number[] = [];
 
   for (let c = -half; c <= half; c += step) {
@@ -1728,7 +1739,7 @@ function buildRockField(
   terrainSeed?: number,
 ): THREE.InstancedMesh {
   const rng = createSeededPrng(normalizeTerrainSeed(terrainSeed) ^ 0x517cc1b7);
-  const count = 260;
+  const count = 320;
   const geo = new THREE.DodecahedronGeometry(1, 0);
   const mat = new THREE.MeshStandardMaterial({ color: atmo.rockColor, roughness: 0.92, flatShading: true });
   const rocks = new THREE.InstancedMesh(geo, mat, count);
@@ -1741,7 +1752,7 @@ function buildRockField(
   let placed = 0;
   for (let i = 0; placed < count && i < count * 4; i++) {
     const angle = rng() * Math.PI * 2;
-    const dist = 24 + Math.pow(rng(), 1.35) * 165;
+    const dist = 22 + Math.pow(rng(), 1.25) * 175;
     const x = Math.cos(angle) * dist;
     const z = Math.sin(angle) * dist;
     let blocked = false;
@@ -4742,14 +4753,14 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
           const dist = Math.hypot(dx, dz);
           const distToSample = Math.hypot(roverTask.lookX - roverWorldX, roverTask.lookZ - roverWorldZ);
           if (dist > 0.35 && distToSample >= SAMPLE_COLLECT_RADIUS * 0.92) {
-            const step = Math.min(dist, dtSec * 8.4);
+            const step = Math.min(dist, dtSec * 11.2);
             const safe = computeDetourStep(roverWorldX, roverWorldZ, roverTask.targetX, roverTask.targetZ, step);
             roverWorldX = safe.x;
             roverWorldZ = safe.z;
             const deltaY = shortestAngleDelta(roverHeading, safe.moveYaw);
             roverSteerAngle = Math.max(-0.48, Math.min(0.48, deltaY));
             roverHeading += deltaY * Math.min(1, dtSec * 6.5);
-            roverSpeed = 7.6;
+            roverSpeed = 9.6;
           } else {
             if (!collectSample(roverTask.sampleId)) {
               roverTask = hasManualDrive ? { mode: 'manual' } : { mode: 'returning' };
@@ -4791,14 +4802,14 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
           scannerArmPivot.rotation.y += (0 - scannerArmPivot.rotation.y) * retractBlend;
           mastCamPivot.rotation.y *= 0.9;
           if (dist > 0.35) {
-            const step = Math.min(dist, dtSec * 6.5);
+            const step = Math.min(dist, dtSec * 7.8);
             const safe = computeDetourStep(roverWorldX, roverWorldZ, targetX, targetZ, step);
             roverWorldX = safe.x;
             roverWorldZ = safe.z;
             const deltaY = shortestAngleDelta(roverHeading, safe.moveYaw);
             roverSteerAngle = Math.max(-0.48, Math.min(0.48, deltaY));
             roverHeading += deltaY * Math.min(1, dtSec * 5.5);
-            roverSpeed = 5.5;
+            roverSpeed = 6.6;
           } else {
             roverTask = { mode: 'patrol' };
           }
@@ -4812,14 +4823,14 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
           scannerArmPivot.rotation.y += (0 - scannerArmPivot.rotation.y) * retractBlend;
           mastCamPivot.rotation.y *= 0.9;
           if (dist > 0.42) {
-            const step = Math.min(dist, dtSec * 8.2);
+            const step = Math.min(dist, dtSec * 10.6);
             const safe = computeDetourStep(roverWorldX, roverWorldZ, roverTask.targetX, roverTask.targetZ, step);
             roverWorldX = safe.x;
             roverWorldZ = safe.z;
             const deltaY = shortestAngleDelta(roverHeading, safe.moveYaw);
             roverSteerAngle = Math.max(-0.48, Math.min(0.48, deltaY));
             roverHeading += deltaY * Math.min(1, dtSec * 6.5);
-            roverSpeed = Math.min(7.8, Math.max(2.2, dist * 1.4));
+            roverSpeed = Math.min(9.5, Math.max(2.2, dist * 1.4));
           } else {
             roverWorldX = roverTask.targetX;
             roverWorldZ = roverTask.targetZ;

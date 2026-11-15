@@ -2177,8 +2177,8 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
           })}
 
           {turnSamples.map((smp) => {
-            const sx = Math.max(20, Math.min(340, Math.round(185 + smp.position[0] * 7.6)));
-            const sy = Math.max(72, Math.min(174, Math.round(112 + smp.position[2] * 3.0)));
+            const sx = Math.max(20, Math.min(340, Math.round(180 + smp.position[0] * 3.8)));
+            const sy = Math.max(72, Math.min(174, Math.round(123 + smp.position[2] * 1.3)));
             const collected = Boolean(smp.collected) || isSampleSlotCollected(smp, collectedSamplesSet);
             const sampleHex = collected ? '#2E7D4F' : smp.accentHex === 0x00e5ff ? '#00E5FF' : '#FFB300';
             return (

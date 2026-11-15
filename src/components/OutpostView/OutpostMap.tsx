@@ -1717,20 +1717,62 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   </g>
                 )}
 
-                {/* 12. R08: Marcadores accesibles de muestras científicas del turno en Mapa 2D */}
+                {/* 12. R08 / A03: Marcadores accesibles de muestras científicas del turno en Mapa 2D (proyección [-40, 40] -> 860×280) */}
                 <g className="svg-2d-samples-layer">
                   {(() => {
-                    const blueprintSlots: ReadonlyArray<{ x: number; y: number }> = [
-                      { x: 56, y: 230 },
-                      { x: 238, y: 224 },
-                      { x: 314, y: 248 },
-                      { x: 415, y: 250 },
-                      { x: 526, y: 224 },
-                      { x: 622, y: 250 },
-                    ];
+                    const WORLD_SAMPLE_RADIUS = 40;
+                    const SVG_MIN_X = 56;
+                    const SVG_MAX_X = 804;
+                    const SVG_MIN_Y = 220;
+                    const SVG_MAX_Y = 252;
+                    const MIN_NODE_GAP_X = 96;
+
                     const ordered = [...turnSamples].sort((a, b) => a.position[0] - b.position[0]);
-                    return ordered.map((smp, idx) => {
-                      const pos = blueprintSlots[idx % blueprintSlots.length];
+                    const projected = ordered.map((smp, idx) => {
+                      const normX = Math.max(
+                        -1,
+                        Math.min(1, smp.position[0] / WORLD_SAMPLE_RADIUS),
+                      );
+                      const normZ = Math.max(
+                        -1,
+                        Math.min(1, smp.position[2] / WORLD_SAMPLE_RADIUS),
+                      );
+                      const rawX = Math.round(
+                        SVG_MIN_X + ((normX + 1) * 0.5) * (SVG_MAX_X - SVG_MIN_X),
+                      );
+                      const staggerY = idx % 2 === 0 ? -4 : 5;
+                      const rawY = Math.round(
+                        Math.max(
+                          SVG_MIN_Y,
+                          Math.min(
+                            SVG_MAX_Y,
+                            SVG_MIN_Y + ((normZ + 1) * 0.5) * (SVG_MAX_Y - SVG_MIN_Y) + staggerY,
+                          ),
+                        ),
+                      );
+                      return { smp, x: rawX, y: rawY };
+                    });
+
+                    // Garantizar separación horizontal mínima entre etiquetas y mantener dentro de [SVG_MIN_X, SVG_MAX_X]
+                    for (let i = 1; i < projected.length; i++) {
+                      if (projected[i].x - projected[i - 1].x < MIN_NODE_GAP_X) {
+                        projected[i].x = projected[i - 1].x + MIN_NODE_GAP_X;
+                      }
+                    }
+                    if (projected.length > 0 && projected[projected.length - 1].x > SVG_MAX_X) {
+                      projected[projected.length - 1].x = SVG_MAX_X;
+                      for (let i = projected.length - 2; i >= 0; i--) {
+                        if (projected[i + 1].x - projected[i].x < MIN_NODE_GAP_X) {
+                          projected[i].x = Math.max(
+                            SVG_MIN_X,
+                            projected[i + 1].x - MIN_NODE_GAP_X,
+                          );
+                        }
+                      }
+                    }
+
+                    return projected.map(({ smp, x, y }) => {
+                      const pos = { x, y };
                       const collected =
                         Boolean(smp.collected) || isSampleSlotCollected(smp, collected2DSamplesSet);
                       const accent = collected
