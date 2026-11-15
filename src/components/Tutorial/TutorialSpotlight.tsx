@@ -15,6 +15,7 @@ import type {
   TutorialStep,
   TutorialTargetRect,
 } from '../../types/tutorial';
+import type { TrainingDrillReadout } from '../../engine/trainingDrill';
 import { computeCalloutPosition, TutorialCallout } from './TutorialCallout';
 import { TutorialPointer } from './TutorialPointer';
 
@@ -28,6 +29,8 @@ export interface TutorialSpotlightProps {
   onNext: () => void;
   onPrev: () => void;
   onSkip: () => void;
+  /** Lectura opcional del simulacro de micro-emergencia (T09) */
+  drillReadout?: TrainingDrillReadout | null;
 }
 
 export function computeCutoutBox(
@@ -66,6 +69,7 @@ export const TutorialSpotlight: React.FC<TutorialSpotlightProps> = ({
   onNext,
   onPrev,
   onSkip,
+  drillReadout,
 }) => {
   const vw = typeof window !== 'undefined' ? window.innerWidth : 1280;
   const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
@@ -244,6 +248,7 @@ export const TutorialSpotlight: React.FC<TutorialSpotlightProps> = ({
         onNext={onNext}
         onPrev={onPrev}
         onSkip={onSkip}
+        drillReadout={drillReadout}
         onPositionChange={handleCalloutPositionChange}
       />
     </div>

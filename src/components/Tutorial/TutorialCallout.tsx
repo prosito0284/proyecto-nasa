@@ -19,6 +19,7 @@ import type {
   TutorialStep,
   TutorialTargetRect,
 } from '../../types/tutorial';
+import type { TrainingDrillReadout } from '../../engine/trainingDrill';
 import {
   AlertIcon,
   ArrowIcon,
@@ -36,6 +37,8 @@ export interface TutorialCalloutProps {
   onNext: () => void;
   onPrev: () => void;
   onSkip: () => void;
+  /** Lectura opcional del simulacro de micro-emergencia (T09) */
+  drillReadout?: TrainingDrillReadout | null;
   /** Callback opcional para reportar la caja y orientación final a TutorialPointer (T06) */
   onPositionChange?: (
     calloutRect: TutorialTargetRect,
@@ -201,6 +204,7 @@ export const TutorialCallout: React.FC<TutorialCalloutProps> = ({
   onNext,
   onPrev,
   onSkip,
+  drillReadout,
   onPositionChange,
 }) => {
   const calloutRef = useRef<HTMLElement | null>(null);
@@ -303,6 +307,34 @@ export const TutorialCallout: React.FC<TutorialCalloutProps> = ({
       <p id="tutorial-callout-body" className="tutorial-card-body">
         {step.body[lang]}
       </p>
+
+      {step.drill && drillReadout && (
+        <div
+          className="tutorial-drill-readout"
+          data-testid="tutorial-drill-readout"
+          role="region"
+          aria-label={es ? 'Lectura del simulacro' : 'Training drill readout'}
+        >
+          <div className="tutorial-drill-header">
+            <span className="tutorial-drill-badge">
+              {es ? 'SIMULACRO CONTROLADO' : 'TRAINING DRILL'}
+            </span>
+            <span className="tutorial-drill-event">
+              {drillReadout.event.classOrIntensity}
+            </span>
+          </div>
+          <div className="tutorial-drill-metrics">
+            <span>
+              {es ? 'Actual' : 'Current'}:{' '}
+              <strong>+{drillReadout.current.doseMsv} mSv</strong>
+            </span>
+            <span>
+              {es ? 'Escudo Tormenta' : 'Storm Shield'}:{' '}
+              <strong>+{drillReadout.stormShield.doseMsv} mSv</strong>
+            </span>
+          </div>
+        </div>
+      )}
 
       {step.requireAction && (
         <div

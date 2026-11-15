@@ -145,10 +145,13 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
     onTutorialAction?.('step-power-presets');
   };
 
-  const applyPreset = (preset: PowerAllocation) => {
+  const applyPreset = (preset: PowerAllocation, presetId?: string) => {
     missionAudio.playClick();
     onChangeAllocation(preset);
     onTutorialAction?.('step-power-presets');
+    if (presetId) {
+      onTutorialAction?.(`power-preset-${presetId}`);
+    }
   };
 
   const getCombinedDelta = (
@@ -486,9 +489,10 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                   key={preset.id}
                   type="button"
                   id={`power-preset-${preset.id}-btn`}
+                  data-tutorial-id={`power-preset-${preset.id}`}
                   className={`preset-large-btn ${isActive ? 'preset-large-active' : ''}`}
                   aria-pressed={isActive}
-                  onClick={() => applyPreset(preset.alloc)}
+                  onClick={() => applyPreset(preset.alloc, preset.id)}
                 >
                   <span className="preset-large-icon" aria-hidden="true">
                     {preset.icon}

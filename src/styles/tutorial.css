@@ -185,6 +185,60 @@
   margin: 0;
 }
 
+/* T09: Lectura táctica del simulacro de micro-emergencia (sin daño real) */
+.tutorial-drill-readout {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background-color: #1F1808;
+  border: 2px solid #FFB300;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: #FFE082;
+}
+
+.tutorial-drill-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.tutorial-drill-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  background-color: #FFB300;
+  color: #0B101B;
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: 2px;
+}
+
+.tutorial-drill-event {
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 0.76rem;
+}
+
+.tutorial-drill-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid #4A3810;
+  color: #F4EFE4;
+}
+
+.tutorial-drill-metrics strong {
+  color: #FFB300;
+}
+
 /* Aviso cuando el paso exige hacer clic directo en el control real */
 .tutorial-action-prompt {
   display: flex;

@@ -1,8 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Language, OutpostSiteId, TradeoffChoice } from './types/mission';
+import { Language, OutpostSiteId, PowerAllocation, TradeoffChoice } from './types/mission';
 import { OUTPOST_SITES } from './data/scenarios';
 import { KID_SCIENCE_GLOSSARY, getGlossaryTerm } from './data/nasa-datasets';
-import { getCommDelaySeconds, getCrewReaction, getCrewStatus } from './engine/simulationEngine';
+import {
+  DEFAULT_POWER_ALLOCATION,
+  getCommDelaySeconds,
+  getCrewReaction,
+  getCrewStatus,
+} from './engine/simulationEngine';
+import { simulateTrainingDrill } from './engine/trainingDrill';
 import { buildChallengeUrl, getDailyChallengeSeed, useMission } from './hooks/useMission';
 import { useClassBoard } from './hooks/useClassBoard';
 import { OutpostMap } from './components/OutpostView/OutpostMap';
@@ -130,16 +136,45 @@ export const App: React.FC = () => {
   const todaySeed = getDailyChallengeSeed();
   const weatherIsLive = mission.currentWeather.isLiveNasaData;
 
+  const tutorialEnabled =
+    !isBriefing &&
+    mission.status === 'playing' &&
+    !lastTurn &&
+    !isScienceOpen &&
+    !isBadgesOpen;
+
   const tutorial = useTutorial(TUTORIAL_STEPS, {
     autoStart: true,
-    enabled:
-      !isBriefing &&
-      mission.status === 'playing' &&
-      !lastTurn &&
-      !isScienceOpen &&
-      !isBadgesOpen,
+    enabled: tutorialEnabled,
     siteId: mission.siteId,
   });
+
+  const savedDrillAllocationRef = useRef<PowerAllocation | null>(null);
+  const isDrillStepActive = Boolean(
+    tutorial.isActive && tutorialEnabled && tutorial.currentStep?.drill,
+  );
+
+  useEffect(() => {
+    if (isDrillStepActive) {
+      if (!savedDrillAllocationRef.current) {
+        savedDrillAllocationRef.current = { ...mission.powerAllocation };
+        if (mission.powerAllocation.shieldingAlloc >= 40) {
+          setAllocation(DEFAULT_POWER_ALLOCATION);
+        }
+      }
+      return;
+    }
+    if (savedDrillAllocationRef.current) {
+      const restored = savedDrillAllocationRef.current;
+      savedDrillAllocationRef.current = null;
+      setAllocation(restored);
+    }
+  }, [isDrillStepActive, mission.powerAllocation, setAllocation]);
+
+  const drillReadout = useMemo(
+    () => (isDrillStepActive ? simulateTrainingDrill(mission) : null),
+    [isDrillStepActive, mission],
+  );
 
   const openScience = (termId?: string) => {
     missionAudio.playClick();
@@ -699,11 +734,12 @@ export const App: React.FC = () => {
 
       <TutorialSpotlight
         lang={lang}
-        isActive={tutorial.isActive}
+        isActive={tutorial.isActive && tutorialEnabled}
         step={tutorial.currentStep}
         stepIndex={tutorial.currentStepIndex}
         totalSteps={tutorial.totalSteps}
         targetRect={tutorial.targetRect}
+        drillReadout={drillReadout}
         onNext={() => {
           missionAudio.playClick();
           tutorial.nextStep();

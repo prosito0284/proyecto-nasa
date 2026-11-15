@@ -47,6 +47,11 @@ export interface TutorialStep {
   actionHint?: LocalizedText;
   /** Filtro opcional por escenario si el paso aplica solo a Luna o Marte */
   siteFilter?: OutpostSiteId | 'both';
+  /**
+   * Si es true, el paso forma parte del simulacro de micro-emergencia (T09): la ficha muestra
+   * la lectura de entrenamiento y la app restaura el reparto de energía al salir del simulacro.
+   */
+  drill?: boolean;
 }
 
 /** Coordenadas en tiempo real del elemento objetivo medidas con getBoundingClientRect(). */

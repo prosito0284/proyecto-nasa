@@ -106,16 +106,37 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
       en: 'NASA science annex and quiz',
     },
     body: {
-      es: 'En este anexo puedes consultar el glosario para niños, estudios OSDR y fotos reales de la NASA. Haz clic en el botón iluminado para abrir el anexo y completar tu entrenamiento.',
-      en: 'In this annex you can explore the kid-friendly glossary, OSDR studies, and real NASA photos. Click the highlighted button to open the annex and complete your training.',
+      es: 'En este anexo puedes consultar el glosario para niños, estudios OSDR y fotos reales de la NASA. Haz clic en el botón iluminado para abrir el anexo antes del simulacro final.',
+      en: 'In this annex you can explore the kid-friendly glossary, OSDR studies, and real NASA photos. Click the highlighted button to open the annex before the final drill.',
     },
     actionHint: {
-      es: 'Haz clic en "Ciencia NASA y quiz" para finalizar el entrenamiento.',
-      en: 'Click "NASA science & quiz" to finish your training.',
+      es: 'Abre "Ciencia NASA y quiz" y luego ciérralo para pasar al simulacro final.',
+      en: 'Open "NASA science & quiz" and then close it to start the final drill.',
     },
     placement: 'bottom',
     spotlightPadding: 6,
     requireAction: true,
     tone: 'info',
+  },
+  {
+    id: 'step-training-drill',
+    targetSelector: 'power-preset-storm',
+    title: {
+      es: 'Simulacro de emergencia: pico de radiación solar',
+      en: 'Emergency drill: solar radiation spike',
+    },
+    body: {
+      es: 'Simulamos una lluvia de protones SEP del catálogo DONKI de la NASA como la que midió Curiosity RAD en mayo de 2024 (8.1 mGy). Activa Escudo Tormenta para desviar energía al blindaje rico en hidrógeno y frenar esas partículas sin dañar tu partida real.',
+      en: 'We are simulating a NASA DONKI solar proton (SEP) surge like the 8.1 mGy spike measured by Curiosity RAD in May 2024. Activate Storm Shield to route power to the hydrogen-rich shielding and block those particles without hurting your real mission.',
+    },
+    actionHint: {
+      es: 'Haz clic en "Escudo Tormenta" para mitigar la alerta del simulacro y completar tu entrenamiento.',
+      en: 'Click "Storm Shield" to mitigate the drill alert and complete your training.',
+    },
+    placement: 'right',
+    spotlightPadding: 6,
+    requireAction: true,
+    tone: 'caution',
+    drill: true,
   },
 ];
