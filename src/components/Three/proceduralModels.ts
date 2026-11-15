@@ -1163,11 +1163,11 @@ export const COLONY_WORLD_MODULES: Record<ColonyWorldModuleId, ColonyWorldModule
 export const COLONY_HIGHLIGHT_HEX = 0x38bdf8;
 
 export const COLONY_CAMERA_LIMITS = {
-  boundsMin: -22,
-  boundsMax: 22,
+  boundsMin: -24,
+  boundsMax: 24,
   /** Margen máximo que la vista puede ceder antes del retorno amortiguado */
   overshoot: 2.5,
-  minDistance: 8,
+  minDistance: 7,
   maxDistance: 45,
   minPolarAngle: 0.18,
   maxPolarAngle: Math.PI / 2 - 0.06,
@@ -1181,7 +1181,7 @@ export function clampToColonyBounds(value: number): number {
 
 /**
  * Amortiguación suave del objetivo de cámara: si el jugador arrastra la vista fuera
- * del perímetro [-22, 22], el objetivo regresa suavemente sin muros visibles.
+ * del perímetro [-24, 24], el objetivo regresa suavemente sin muros visibles.
  */
 export function softClampColonyTarget(
   x: number,
@@ -1353,7 +1353,30 @@ export function getWorldAtmosphere(siteId?: OutpostSiteId): WorldAtmosphere {
 
 export const WORLD_TERRAIN_SIZE = 2000;
 export const WORLD_TERRAIN_SEGMENTS = 128;
+export const DEFAULT_TERRAIN_SEED = 20260415;
 const BASE_PAD_RADIUS = 27;
+
+/** Generador pseudoaleatorio determinista (Mulberry32) para terrenos e ítems reproducibles por semilla. */
+export function createSeededPrng(seed: number): () => number {
+  let a = (Math.floor(Math.abs(seed)) || DEFAULT_TERRAIN_SEED) >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function normalizeTerrainSeed(seed?: number): number {
+  if (typeof seed !== 'number' || !Number.isFinite(seed)) return DEFAULT_TERRAIN_SEED;
+  const s = Math.floor(Math.abs(seed)) % 1_000_000_000;
+  return s > 0 ? s : DEFAULT_TERRAIN_SEED;
+}
+
+export function formatTerrainSeedBadge(seed?: number): string {
+  const n = normalizeTerrainSeed(seed);
+  return String(n).slice(-6).padStart(4, '0');
+}
 
 function hash01(n: number): number {
   const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
@@ -1372,51 +1395,109 @@ interface CraterSpec {
   depth: number;
 }
 
-const craterCache: Partial<Record<WorldAtmosphereKind, CraterSpec[]>> = {};
+interface RidgeOutcropSpec {
+  x: number;
+  z: number;
+  height: number;
+  radius: number;
+}
 
-function getCraters(kind: WorldAtmosphereKind): CraterSpec[] {
-  const cached = craterCache[kind];
+interface SeededTerrainProfile {
+  craters: CraterSpec[];
+  outcrops: RidgeOutcropSpec[];
+  phaseX: number;
+  phaseZ: number;
+  ridgeRot: number;
+  marsMesaPhase: number;
+}
+
+const terrainProfileCache = new Map<string, SeededTerrainProfile>();
+
+function getSeededTerrainProfile(kind: WorldAtmosphereKind, rawSeed?: number): SeededTerrainProfile {
+  const seed = normalizeTerrainSeed(rawSeed);
+  const key = `${kind}:${seed}`;
+  const cached = terrainProfileCache.get(key);
   if (cached) return cached;
+
   const isLunar = kind === 'lunar';
-  const list: CraterSpec[] = [];
-  const count = isLunar ? 46 : 14;
+  const rng = createSeededPrng(seed ^ (isLunar ? 0x9e3779b9 : 0x85ebca6b));
+  const craters: CraterSpec[] = [];
+  const count = isLunar ? 46 : 16;
   for (let i = 0; i < count; i++) {
-    const angle = hash01(i * 3.1 + (isLunar ? 0 : 50)) * Math.PI * 2;
-    const dist = 48 + Math.pow(hash01(i * 7.7 + 1), 0.8) * 620;
-    const r = (isLunar ? 6 : 5) + Math.pow(hash01(i * 1.9 + 2), 2) * (isLunar ? 46 : 26);
-    list.push({
+    const angle = rng() * Math.PI * 2;
+    const dist = 48 + Math.pow(rng(), 0.78) * 620;
+    const r = (isLunar ? 6 : 5) + Math.pow(rng(), 2) * (isLunar ? 46 : 26);
+    craters.push({
       x: Math.cos(angle) * dist,
       z: Math.sin(angle) * dist,
       r,
-      depth: r * (isLunar ? 0.18 : 0.1),
+      depth: r * (isLunar ? 0.19 : 0.11),
     });
   }
   if (isLunar) {
-    for (let i = 0; i < 7; i++) {
-      const angle = hash01(i * 11.3 + 90) * Math.PI * 2;
-      const dist = 33 + hash01(i * 5.1 + 91) * 14;
-      const r = 2.4 + hash01(i * 2.7 + 92) * 3.2;
-      list.push({ x: Math.cos(angle) * dist, z: Math.sin(angle) * dist, r, depth: r * 0.22 });
+    for (let i = 0; i < 8; i++) {
+      const angle = rng() * Math.PI * 2;
+      const dist = 33 + rng() * 15;
+      const r = 2.4 + rng() * 3.4;
+      craters.push({ x: Math.cos(angle) * dist, z: Math.sin(angle) * dist, r, depth: r * 0.24 });
     }
   }
-  craterCache[kind] = list;
-  return list;
+
+  const outcrops: RidgeOutcropSpec[] = [];
+  for (let i = 0; i < 6; i++) {
+    const angle = rng() * Math.PI * 2;
+    const dist = 46 + rng() * 140;
+    outcrops.push({
+      x: Math.cos(angle) * dist,
+      z: Math.sin(angle) * dist,
+      height: (isLunar ? 2.4 : 3.4) + rng() * 4.5,
+      radius: 4.5 + rng() * 7.5,
+    });
+  }
+
+  const profile: SeededTerrainProfile = {
+    craters,
+    outcrops,
+    phaseX: rng() * Math.PI * 2,
+    phaseZ: rng() * Math.PI * 2,
+    ridgeRot: rng() * Math.PI * 2,
+    marsMesaPhase: rng() * Math.PI * 2,
+  };
+
+  if (terrainProfileCache.size > 24) {
+    const firstKey = terrainProfileCache.keys().next().value;
+    if (firstKey !== undefined) terrainProfileCache.delete(firstKey);
+  }
+  terrainProfileCache.set(key, profile);
+  return profile;
 }
 
-/** Altura determinista del terreno en (x, z); la plaza de la base queda nivelada (y = 0). */
-export function sampleWorldTerrainHeight(x: number, z: number, siteId?: OutpostSiteId): number {
+/**
+ * Altura determinista del terreno en (x, z) modulada por `terrainSeed`;
+ * la plaza de la base queda nivelada en `y = 0`.
+ */
+export function sampleWorldTerrainHeight(
+  x: number,
+  z: number,
+  siteId?: OutpostSiteId,
+  terrainSeed?: number,
+): number {
   const kind: WorldAtmosphereKind = siteId === 'mars-jezero' ? 'mars' : 'lunar';
   const r = Math.hypot(x, z);
   const outside = smoothstep(BASE_PAD_RADIUS, BASE_PAD_RADIUS + 16, r);
   if (outside <= 0) return 0;
+
+  const prof = getSeededTerrainProfile(kind, terrainSeed);
   const angle = Math.atan2(z, x);
+  const rx = x * Math.cos(prof.ridgeRot) - z * Math.sin(prof.ridgeRot);
+  const rz = x * Math.sin(prof.ridgeRot) + z * Math.cos(prof.ridgeRot);
 
   let h =
-    Math.sin(x * 0.13) * Math.cos(z * 0.11) * 0.35 +
-    Math.sin(x * 0.041 + z * 0.027) * 1.2 +
-    Math.sin((x - z) * 0.23) * 0.18;
+    Math.sin(rx * 0.13 + prof.phaseX) * Math.cos(rz * 0.11 + prof.phaseZ) * 0.36 +
+    Math.sin(rx * 0.041 + rz * 0.027 + prof.phaseX) * 1.25 +
+    Math.sin((rx - rz) * 0.23 + prof.phaseZ) * 0.19;
 
-  for (const c of getCraters(kind)) {
+  for (const c of prof.craters) {
     const dx = x - c.x;
     const dz = z - c.z;
     const dd = dx * dx + dz * dz;
@@ -1427,18 +1508,33 @@ export function sampleWorldTerrainHeight(x: number, z: number, siteId?: OutpostS
     h += c.depth * 0.42 * Math.exp(-Math.pow((d - 1) / 0.2, 2));
   }
 
+  for (const o of prof.outcrops) {
+    const dx = x - o.x;
+    const dz = z - o.z;
+    const dd = dx * dx + dz * dz;
+    if (dd > o.radius * o.radius * 4) continue;
+    h += o.height * Math.exp(-dd / (o.radius * o.radius));
+  }
+
   if (kind === 'lunar') {
     h +=
-      smoothstep(240, 620, r) *
-      (28 + 14 * Math.sin(angle * 5 + 0.7) + 8 * Math.sin(angle * 13 + 2.1) + 4 * Math.sin(angle * 29));
+      smoothstep(230, 620, r) *
+      (28 +
+        14 * Math.sin(angle * 5 + prof.ridgeRot) +
+        8 * Math.sin(angle * 13 + prof.phaseX) +
+        4 * Math.sin(angle * 29 + prof.phaseZ));
   } else {
     const dunes =
       smoothstep(40, 90, r) *
       (1 - smoothstep(260, 420, r)) *
-      (Math.sin(x * 0.085 + Math.sin(z * 0.031) * 2.2) * 1.4 + 0.6);
-    const mesaMask = Math.max(0, Math.sin(angle * 3 + 1.3) * 0.65 + Math.sin(angle * 7 + 0.4) * 0.45);
-    const mesa = Math.min(40, smoothstep(240, 360, r) * mesaMask * 65);
-    const farHills = smoothstep(500, 800, r) * (20 + 9 * Math.sin(angle * 4 + 0.2));
+      (Math.sin(rx * 0.085 + prof.phaseX + Math.sin(rz * 0.031 + prof.phaseZ) * 2.2) * 1.45 + 0.6);
+    const mesaMask = Math.max(
+      0,
+      Math.sin(angle * 3 + prof.marsMesaPhase) * 0.65 +
+        Math.sin(angle * 7 + prof.ridgeRot) * 0.45,
+    );
+    const mesa = Math.min(42, smoothstep(240, 360, r) * mesaMask * 65);
+    const farHills = smoothstep(500, 800, r) * (20 + 9 * Math.sin(angle * 4 + prof.phaseX));
     h += dunes + mesa + farHills;
   }
 
@@ -1450,7 +1546,11 @@ function warpGridCoord(t: number): number {
   return half * (0.06 * t + 0.94 * t * t * t);
 }
 
-function buildWorldTerrain(atmo: WorldAtmosphere, siteId: OutpostSiteId): THREE.Mesh {
+function buildWorldTerrain(
+  atmo: WorldAtmosphere,
+  siteId: OutpostSiteId,
+  terrainSeed?: number,
+): THREE.Mesh {
   const geo = new THREE.PlaneGeometry(2, 2, WORLD_TERRAIN_SEGMENTS, WORLD_TERRAIN_SEGMENTS);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position as THREE.BufferAttribute;
@@ -1459,14 +1559,15 @@ function buildWorldTerrain(atmo: WorldAtmosphere, siteId: OutpostSiteId): THREE.
   const cLight = new THREE.Color(atmo.terrainLight);
   const cDark = new THREE.Color(atmo.terrainDark);
   const tmp = new THREE.Color();
+  const seedPhase = normalizeTerrainSeed(terrainSeed) % 997;
 
   for (let i = 0; i < pos.count; i++) {
     const x = warpGridCoord(pos.getX(i));
     const z = warpGridCoord(pos.getZ(i));
-    const y = sampleWorldTerrainHeight(x, z, siteId);
+    const y = sampleWorldTerrainHeight(x, z, siteId, terrainSeed);
     pos.setXYZ(i, x, y, z);
 
-    const patch = 0.5 + 0.5 * Math.sin(x * 0.05 + 1.3) * Math.cos(z * 0.07 - 0.4);
+    const patch = 0.5 + 0.5 * Math.sin(x * 0.05 + seedPhase * 0.13) * Math.cos(z * 0.07 - seedPhase * 0.09);
     tmp.copy(cBase).lerp(cLight, patch * 0.6);
     if (y < -0.4) tmp.lerp(cDark, Math.min(1, -y / 6));
     if (atmo.kind === 'mars' && y > 18) tmp.lerp(cDark, Math.min(0.5, (y - 18) / 60));
@@ -1490,11 +1591,17 @@ function buildWorldTerrain(atmo: WorldAtmosphere, siteId: OutpostSiteId): THREE.
   return mesh;
 }
 
-function buildRockField(atmo: WorldAtmosphere, siteId: OutpostSiteId): THREE.InstancedMesh {
+function buildRockField(
+  atmo: WorldAtmosphere,
+  siteId: OutpostSiteId,
+  terrainSeed?: number,
+): THREE.InstancedMesh {
+  const rng = createSeededPrng(normalizeTerrainSeed(terrainSeed) ^ 0x517cc1b7);
   const count = 260;
   const geo = new THREE.DodecahedronGeometry(1, 0);
   const mat = new THREE.MeshStandardMaterial({ color: atmo.rockColor, roughness: 0.92, flatShading: true });
   const rocks = new THREE.InstancedMesh(geo, mat, count);
+  rocks.name = 'world-rocks';
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const e = new THREE.Euler();
@@ -1502,24 +1609,24 @@ function buildRockField(atmo: WorldAtmosphere, siteId: OutpostSiteId): THREE.Ins
   const p = new THREE.Vector3();
   let placed = 0;
   for (let i = 0; placed < count && i < count * 4; i++) {
-    const angle = hash01(i * 4.3 + 7) * Math.PI * 2;
-    const dist = 9 + Math.pow(hash01(i * 2.1 + 3), 1.6) * 170;
+    const angle = rng() * Math.PI * 2;
+    const dist = 9 + Math.pow(rng(), 1.5) * 170;
     const x = Math.cos(angle) * dist;
     const z = Math.sin(angle) * dist;
     let blocked = false;
     for (const id of COLONY_WORLD_MODULE_IDS) {
       const meta = COLONY_WORLD_MODULES[id];
-      if (Math.hypot(x - meta.position[0], z - meta.position[1]) < meta.outlineRadius + 2.2) {
+      if (Math.hypot(x - meta.position[0], z - meta.position[1]) < meta.outlineRadius + 2.4) {
         blocked = true;
         break;
       }
     }
     if (blocked) continue;
-    const scale = (0.18 + hash01(i * 9.1) * 0.9) * (dist > 60 ? 2.6 : 1);
-    e.set(hash01(i * 1.3) * 3, hash01(i * 2.9) * 3, hash01(i * 3.7) * 3);
+    const scale = (0.18 + rng() * 0.95) * (dist > 60 ? 2.6 : 1);
+    e.set(rng() * 3.1, rng() * 3.1, rng() * 3.1);
     q.setFromEuler(e);
-    s.set(scale, scale * (0.55 + hash01(i * 6.6) * 0.4), scale);
-    p.set(x, sampleWorldTerrainHeight(x, z, siteId) + scale * 0.2, z);
+    s.set(scale, scale * (0.55 + rng() * 0.42), scale);
+    p.set(x, sampleWorldTerrainHeight(x, z, siteId, terrainSeed) + scale * 0.2, z);
     m.compose(p, q, s);
     rocks.setMatrixAt(placed, m);
     placed++;
@@ -1530,6 +1637,38 @@ function buildRockField(atmo: WorldAtmosphere, siteId: OutpostSiteId): THREE.Ins
   rocks.receiveShadow = true;
   rocks.raycast = () => undefined;
   return rocks;
+}
+
+function buildOutcropSpires(
+  atmo: WorldAtmosphere,
+  siteId: OutpostSiteId,
+  terrainSeed?: number,
+): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'world-outcrops';
+  const prof = getSeededTerrainProfile(atmo.kind, terrainSeed);
+  const rng = createSeededPrng(normalizeTerrainSeed(terrainSeed) ^ 0x3c6ef372);
+  const wire = atmo.wireTint;
+
+  for (const outcrop of prof.outcrops) {
+    const baseY = sampleWorldTerrainHeight(outcrop.x, outcrop.z, siteId, terrainSeed);
+    const radiusTop = atmo.kind === 'mars' ? outcrop.radius * 0.42 : outcrop.radius * 0.14;
+    const radiusBottom = outcrop.radius * 0.72;
+    const height = outcrop.height * (atmo.kind === 'mars' ? 1.35 : 1.15);
+    const geo = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 7);
+    const spire = addWorldMesh(group, geo, atmo.terrainDark, wire, {
+      pos: [outcrop.x, baseY + height * 0.42, outcrop.z],
+      rot: [(rng() - 0.5) * 0.14, rng() * Math.PI * 2, (rng() - 0.5) * 0.14],
+      edgeThreshold: 26,
+    });
+    spire.castShadow = true;
+    spire.receiveShadow = true;
+  }
+
+  group.traverse((o) => {
+    o.raycast = () => undefined;
+  });
+  return group;
 }
 
 function buildStarField(): THREE.Points {
@@ -1683,13 +1822,361 @@ function createCornerBracketGeometry(box: THREE.Box3, armRatio = 0.22): THREE.Bu
   return geo;
 }
 
+export type ColonyCameraMode = 'orbital' | 'rover' | '2d';
+
+export type WorldAnomalyKind =
+  | 'ice-vein'
+  | 'lava-skylight'
+  | 'metallic-meteorite'
+  | 'seismic-probe'
+  | 'delta-clay'
+  | 'silica-vein'
+  | 'paleolake-boulder'
+  | 'ancient-shoreline';
+
+export interface WorldAnomalySpec {
+  id: string;
+  kind: WorldAnomalyKind;
+  position: [number, number, number];
+  title: LocalizedText;
+  /** Hallazgo científico breve (<= 15 palabras por idioma) */
+  finding: LocalizedText;
+  nasaSource: 'ARTEMIS' | 'MARS';
+}
+
+export interface ModuleMaintenanceIssue {
+  moduleId: ColonyWorldModuleId;
+  kind: 'dust' | 'frost' | 'thermal' | 'calibration';
+  /** Aviso de mantenimiento breve (<= 15 palabras por idioma) */
+  prompt: LocalizedText;
+  /** Confirmación breve al limpiar o calibrar (<= 15 palabras por idioma) */
+  confirmation: LocalizedText;
+}
+
 export interface ColonyWorldStateOptions extends Model3DStateOptions {
+  /** Semilla determinista para generar cráteres, dunas y rocas únicas en cada partida */
+  terrainSeed?: number;
+  /** Día o Sol actual de la misión (1..8+) */
+  currentDay?: number;
+  /** Duración total planificada de la misión */
+  totalDays?: number;
+  /** Puntos científicos acumulados */
+  sciencePoints?: number;
+  /** Asignación actual a soporte vital (%) */
+  lifeSupportAllocPercent?: number;
+  /** Asignación actual al invernadero (%) */
+  greenhouseAllocPercent?: number;
+  /** Asignación actual a ciencia y comunicaciones (%) */
+  scienceAllocPercent?: number;
+  /** Anomalías ya escaneadas por el Rover en la partida actual */
+  scannedAnomalyIds?: string[];
+  /** Módulos ya limpiados o calibrados durante el turno actual */
+  maintainedModuleIds?: ColonyWorldModuleId[];
   /** Alerta ambiental de entrenamiento (p. ej. caída térmica del onboarding) */
   isEnvironmentalAlert?: boolean;
   /** Transmisión activa hacia la Tierra (simulador de retraso) */
   commsActive?: boolean;
   /** Retraso de señal en segundos para la etiqueta de la antena */
   commDelaySeconds?: number;
+}
+
+export interface ColonyEvolutionState {
+  day: number;
+  solarWingLeft: boolean;
+  solarWingRight: boolean;
+  tunnelAirlockSpur: boolean;
+  tunnelNorthUmbilical: boolean;
+  greenhouseTier2: boolean;
+  greenhouseTier3: boolean;
+  regolithWall: boolean;
+  regolithArches: boolean;
+}
+
+export function computeColonyEvolutionState(opts: ColonyWorldStateOptions): ColonyEvolutionState {
+  const day = Math.max(1, Math.round(opts.currentDay ?? 1));
+  const sciencePoints = Math.max(0, opts.sciencePoints ?? 0);
+  const solarAlloc = opts.solarAllocPercent ?? 50;
+  const shieldAlloc = opts.shieldingAllocPercent ?? 25;
+  const greenhouseAlloc = opts.greenhouseAllocPercent ?? 25;
+  const lifeSupportVal = opts.lifeSupportPercent ?? 80;
+  const powerVal = opts.powerPercent ?? 80;
+  const foodVal = opts.foodPercent ?? 80;
+  const stormDeployed = isStormShieldDeployed(opts);
+
+  return {
+    day,
+    solarWingLeft: day >= 2 || solarAlloc >= 55,
+    solarWingRight: day >= 4 || (day >= 3 && powerVal >= 75),
+    tunnelAirlockSpur: day >= 3 || sciencePoints >= 35,
+    tunnelNorthUmbilical: day >= 5 || (day >= 3 && lifeSupportVal >= 75),
+    greenhouseTier2: day >= 2 || greenhouseAlloc >= 25,
+    greenhouseTier3: (day >= 4 || greenhouseAlloc >= 35) && !opts.isGreenhouseWilted && foodVal >= 50,
+    regolithWall: day >= 2 || shieldAlloc >= 30 || stormDeployed,
+    regolithArches: day >= 4 || shieldAlloc >= 40 || stormDeployed,
+  };
+}
+
+export function computeDynamicSunDirection(
+  siteId: OutpostSiteId | undefined,
+  opts: ColonyWorldStateOptions,
+): [number, number, number] {
+  const isMars = siteId === 'mars-jezero';
+  const day = Math.max(1, opts.currentDay ?? 1);
+  if (isMars) {
+    const baseAz = Math.atan2(0.42, 0.3);
+    const az = baseAz + (day - 1) * 0.34;
+    const elev = opts.isDustStorm
+      ? 0.38
+      : Math.max(0.32, Math.min(0.84, 0.5 + Math.sin(day * 0.72) * 0.24));
+    const horiz = Math.sqrt(Math.max(0.05, 1 - elev * elev));
+    return [horiz * Math.sin(az), elev, horiz * Math.cos(az)];
+  }
+  const baseAz = Math.atan2(0.78, -0.6);
+  const az = baseAz + (day - 1) * 0.26;
+  const elev = opts.isRimShadowPass
+    ? 0.075
+    : 0.14 + 0.05 * Math.sin(day * 0.85);
+  const horiz = Math.sqrt(Math.max(0.05, 1 - elev * elev));
+  return [horiz * Math.sin(az), elev, horiz * Math.cos(az)];
+}
+
+const ANOMALY_CATALOG: Record<
+  WorldAnomalyKind,
+  { title: LocalizedText; finding: LocalizedText; nasaSource: 'ARTEMIS' | 'MARS' }
+> = {
+  'ice-vein': {
+    title: { es: 'Veta de hielo lunar', en: 'Surface water ice' },
+    finding: {
+      es: 'LCROSS y LRO hallaron hielo oculto en cráteres fríos para beber y crear oxígeno.',
+      en: 'LCROSS and LRO found hidden ice in cold craters for drinking water and oxygen.',
+    },
+    nasaSource: 'ARTEMIS',
+  },
+  'lava-skylight': {
+    title: { es: 'Tubo de lava lunar', en: 'Lava tube skylight' },
+    finding: {
+      es: 'LRO fotografió túneles volcánicos ideales para proteger futuros módulos de la radiación.',
+      en: 'LRO imaged volcanic underground tunnels that shield astronauts from harsh cosmic radiation.',
+    },
+    nasaSource: 'ARTEMIS',
+  },
+  'metallic-meteorite': {
+    title: { es: 'Meteorito de hierro', en: 'Metallic meteorite sample' },
+    finding: {
+      es: 'Apolo halló ferroaleaciones en el regolito útiles para fabricar piezas impresas en 3D.',
+      en: 'Apollo samples revealed metallic grains in regolith useful for 3D-printed colony tools.',
+    },
+    nasaSource: 'ARTEMIS',
+  },
+  'seismic-probe': {
+    title: { es: 'Sismómetro de regolito', en: 'Lunar seismic sensor' },
+    finding: {
+      es: 'Los sismómetros Apolo midieron sismos lunares para diseñar cimientos estables de hábitat.',
+      en: 'Apollo seismometers measured shallow moonquakes to guide safe lunar habitat foundations.',
+    },
+    nasaSource: 'ARTEMIS',
+  },
+  'delta-clay': {
+    title: { es: 'Arcilla del antiguo delta', en: 'Ancient delta clay' },
+    finding: {
+      es: 'Perseverance halló arcillas fluviales en Jezero capaces de conservar huellas de vida pasada.',
+      en: 'Perseverance sampled river clays in Jezero capable of preserving signs of ancient life.',
+    },
+    nasaSource: 'MARS',
+  },
+  'silica-vein': {
+    title: { es: 'Veta de sílice blanca', en: 'Hydrated silica vein' },
+    finding: {
+      es: 'Curiosity descubrió venas minerales donde circuló agua líquida tibia hace millones de años.',
+      en: 'Curiosity found bright mineral veins formed where warm liquid water flowed ages ago.',
+    },
+    nasaSource: 'MARS',
+  },
+  'paleolake-boulder': {
+    title: { es: 'Roca moldeada por río', en: 'River-worn boulder' },
+    finding: {
+      es: 'Cantos rodados en Jezero demuestran que ríos veloces inundaron este cráter marciano.',
+      en: 'Rounded cobbles in Jezero prove fast-flowing rivers once rushed into the Martian crater.',
+    },
+    nasaSource: 'MARS',
+  },
+  'ancient-shoreline': {
+    title: { es: 'Borde de lago marciano', en: 'Martian lake shoreline' },
+    finding: {
+      es: 'Los carbonatos del borde de Jezero atraparon minerales del antiguo lago marciano.',
+      en: 'Carbonate rocks along Jezero’s rim trapped minerals from the ancient Martian lake.',
+    },
+    nasaSource: 'MARS',
+  },
+};
+
+const ANOMALY_KEEP_OUT: Array<{ x: number; z: number; r: number }> = [
+  { x: 0, z: 0, r: 8.2 },
+  { x: -13, z: 4, r: 7.4 },
+  { x: 12.5, z: 3, r: 6.4 },
+  { x: -6, z: -13, r: 4.5 },
+  { x: 9, z: 12.5, r: 4.8 },
+  { x: 4.8, z: 8.8, r: 2.6 },
+];
+
+export function generateTurnAnomalies(
+  siteId: OutpostSiteId | undefined,
+  terrainSeed?: number,
+  day = 1,
+): WorldAnomalySpec[] {
+  const isMars = siteId === 'mars-jezero';
+  const normSeed = normalizeTerrainSeed(terrainSeed);
+  const normDay = Math.max(1, Math.round(day));
+  const rng = createSeededPrng((normSeed ^ (normDay * 0x9e3779b1) ^ (isMars ? 0x4f1bbcdc : 0x11425367)) >>> 0);
+  const kinds: WorldAnomalyKind[] = isMars
+    ? ['delta-clay', 'silica-vein', 'paleolake-boulder', 'ancient-shoreline']
+    : ['ice-vein', 'lava-skylight', 'metallic-meteorite', 'seismic-probe'];
+
+  const specs: WorldAnomalySpec[] = [];
+  const slotAngles = [rng() * Math.PI * 2, 0];
+  slotAngles[1] = slotAngles[0] + Math.PI * (0.75 + rng() * 0.5);
+
+  for (let slot = 0; slot < 2; slot++) {
+    let chosenX = slot === 0 ? -15 : 15;
+    let chosenZ = slot === 0 ? -14 : -13;
+    for (let attempt = 0; attempt < 28; attempt++) {
+      const a = slotAngles[slot] + (attempt * 0.41) + (rng() - 0.5) * 0.35;
+      const dist = 12.5 + rng() * 8.5;
+      const candX = Math.max(-19.5, Math.min(19.5, Math.cos(a) * dist));
+      const candZ = Math.max(-19.5, Math.min(19.5, Math.sin(a) * dist));
+      let clear = true;
+      for (const zone of ANOMALY_KEEP_OUT) {
+        if (Math.hypot(candX - zone.x, candZ - zone.z) < zone.r) {
+          clear = false;
+          break;
+        }
+      }
+      if (clear) {
+        for (const prev of specs) {
+          if (Math.hypot(candX - prev.position[0], candZ - prev.position[2]) < 10) {
+            clear = false;
+            break;
+          }
+        }
+      }
+      if (clear) {
+        chosenX = candX;
+        chosenZ = candZ;
+        break;
+      }
+    }
+    const kindIdx = (Math.floor(rng() * kinds.length) + slot + normDay) % kinds.length;
+    const kind = kinds[kindIdx];
+    const meta = ANOMALY_CATALOG[kind];
+    const y = sampleWorldTerrainHeight(chosenX, chosenZ, siteId, normSeed);
+    specs.push({
+      id: `${siteId ?? 'moon-shackleton'}-s${normSeed}-d${normDay}-a${slot + 1}-${kind}`,
+      kind,
+      position: [Number(chosenX.toFixed(2)), Number(y.toFixed(2)), Number(chosenZ.toFixed(2))],
+      title: meta.title,
+      finding: meta.finding,
+      nasaSource: meta.nasaSource,
+    });
+  }
+  return specs;
+}
+
+const MAINTENANCE_DEFINITIONS: Record<
+  'power-grid' | 'oxygen-module' | 'greenhouse' | 'comms-array',
+  Omit<ModuleMaintenanceIssue, 'moduleId'>
+> = {
+  'power-grid': {
+    kind: 'dust',
+    prompt: {
+      es: 'Polvo o escarcha en paneles solares. Haz clic para cepillar y restaurar watts.',
+      en: 'Dust or frost on solar panels. Click module to brush arrays clean.',
+    },
+    confirmation: {
+      es: 'Paneles solares cepillados y calibrados (+2 % recuperación de batería hoy).',
+      en: 'Solar panels brushed clean and recalibrated (+2% battery recovery today).',
+    },
+  },
+  'oxygen-module': {
+    kind: 'thermal',
+    prompt: {
+      es: 'Escarcha en radiadores del hábitat. Haz clic para purgar las válvulas térmicas.',
+      en: 'Frost buildup on habitat radiators. Click dome to purge thermal valves.',
+    },
+    confirmation: {
+      es: 'Radiadores ECLSS purgados con éxito (+2 % soporte vital hoy).',
+      en: 'ECLSS thermal radiators purged cleanly (+2% life support today).',
+    },
+  },
+  greenhouse: {
+    kind: 'frost',
+    prompt: {
+      es: 'Boquillas hidropónicas con sedimentos. Haz clic para irrigar la cúpula vegetal.',
+      en: 'Hydroponic nozzles clogged with dust. Click greenhouse dome to rinse lines.',
+    },
+    confirmation: {
+      es: 'Boquillas Veggie limpias e irrigación reactivada (+2 % cosecha hoy).',
+      en: 'Veggie nozzles rinsed and irrigation restored (+2% crop yield today).',
+    },
+  },
+  'comms-array': {
+    kind: 'calibration',
+    prompt: {
+      es: 'Antena desalineada por clima espacial. Haz clic para recalibrar hacia la Tierra.',
+      en: 'Dish antenna misaligned by weather. Click array to recalibrate Earth link.',
+    },
+    confirmation: {
+      es: 'Antena parabólica recalibrada hacia la Tierra (+1 punto científico).',
+      en: 'Deep-space dish recalibrated toward Earth (+1 science telemetry point).',
+    },
+  },
+};
+
+export function getModulesNeedingMaintenance(
+  opts: ColonyWorldStateOptions,
+  maintainedIds: ColonyWorldModuleId[] = [],
+): ModuleMaintenanceIssue[] {
+  const done = new Set(maintainedIds);
+  const issues: ModuleMaintenanceIssue[] = [];
+
+  if (
+    !done.has('power-grid') &&
+    (opts.isDustStorm || opts.isRimShadowPass || (opts.powerPercent !== undefined && opts.powerPercent < 40))
+  ) {
+    issues.push({ moduleId: 'power-grid', ...MAINTENANCE_DEFINITIONS['power-grid'] });
+  }
+  if (
+    !done.has('oxygen-module') &&
+    (opts.isSolarStorm ||
+      opts.isEnvironmentalAlert ||
+      (opts.lifeSupportPercent !== undefined && opts.lifeSupportPercent < 45))
+  ) {
+    issues.push({ moduleId: 'oxygen-module', ...MAINTENANCE_DEFINITIONS['oxygen-module'] });
+  }
+  if (
+    !done.has('greenhouse') &&
+    (opts.isGreenhouseWilted || opts.isDustStorm || (opts.foodPercent !== undefined && opts.foodPercent < 40))
+  ) {
+    issues.push({ moduleId: 'greenhouse', ...MAINTENANCE_DEFINITIONS.greenhouse });
+  }
+  if (!done.has('comms-array') && (opts.isSolarStorm || opts.isDustStorm)) {
+    issues.push({ moduleId: 'comms-array', ...MAINTENANCE_DEFINITIONS['comms-array'] });
+  }
+
+  return issues;
+}
+
+export function getMaintenanceConfirmation(
+  moduleId: ColonyWorldModuleId,
+): LocalizedText | null {
+  if (
+    moduleId === 'power-grid' ||
+    moduleId === 'oxygen-module' ||
+    moduleId === 'greenhouse' ||
+    moduleId === 'comms-array'
+  ) {
+    return MAINTENANCE_DEFINITIONS[moduleId].confirmation;
+  }
+  return null;
 }
 
 export function isStormShieldDeployed(opts: ColonyWorldStateOptions): boolean {
@@ -1708,48 +2195,67 @@ export function getColonyModuleStatus(
   const es = lang === 'es';
   const tone = (v: number): ColonyStatusTone => (v < 25 ? 'crit' : v < 45 ? 'warn' : 'ok');
   const isMars = opts.siteId === 'mars-jezero';
+  const pendingMaint = getModulesNeedingMaintenance(opts, opts.maintainedModuleIds).some(
+    (m) => m.moduleId === moduleId,
+  );
   switch (moduleId) {
     case 'power-grid': {
       const p = Math.round(opts.powerPercent ?? 0);
       const stowed = isStormShieldDeployed(opts) || opts.isDustStorm;
       return {
-        text: es
-          ? `Batería ${p} % · ${stowed ? 'paneles protegidos' : 'siguiendo al Sol'}`
-          : `Battery ${p}% · ${stowed ? 'panels stowed' : 'tracking the Sun'}`,
-        tone: tone(p),
+        text: pendingMaint
+          ? es
+            ? `Batería ${p} % · limpiar paneles (clic)`
+            : `Battery ${p}% · brush panels (click)`
+          : es
+            ? `Batería ${p} % · ${stowed ? 'paneles protegidos' : 'siguiendo al Sol'}`
+            : `Battery ${p}% · ${stowed ? 'panels stowed' : 'tracking the Sun'}`,
+        tone: pendingMaint ? 'warn' : tone(p),
       };
     }
     case 'oxygen-module': {
       const ls = Math.round(opts.lifeSupportPercent ?? 0);
       const deployed = isStormShieldDeployed(opts);
       return {
-        text: es
-          ? `O₂ y agua ${ls} % · escudo ${deployed ? 'desplegado' : 'plegado'}`
-          : `O₂ and water ${ls}% · shield ${deployed ? 'deployed' : 'retracted'}`,
-        tone: opts.isEnvironmentalAlert ? 'warn' : tone(ls),
+        text: pendingMaint
+          ? es
+            ? `O₂ y agua ${ls} % · purgar radiador (clic)`
+            : `O₂ and water ${ls}% · purge radiator (click)`
+          : es
+            ? `O₂ y agua ${ls} % · escudo ${deployed ? 'desplegado' : 'plegado'}`
+            : `O₂ and water ${ls}% · shield ${deployed ? 'deployed' : 'retracted'}`,
+        tone: pendingMaint || opts.isEnvironmentalAlert ? 'warn' : tone(ls),
       };
     }
     case 'greenhouse': {
       const f = Math.round(opts.foodPercent ?? 0);
       return {
-        text: es
-          ? `Cosecha ${f} %${opts.isGreenhouseWilted ? ' · cultivos marchitos' : ''}`
-          : `Harvest ${f}%${opts.isGreenhouseWilted ? ' · crops wilting' : ''}`,
-        tone: tone(f),
+        text: pendingMaint
+          ? es
+            ? `Cosecha ${f} % · limpiar boquillas (clic)`
+            : `Harvest ${f}% · rinse nozzles (click)`
+          : es
+            ? `Cosecha ${f} %${opts.isGreenhouseWilted ? ' · cultivos marchitos' : ''}`
+            : `Harvest ${f}%${opts.isGreenhouseWilted ? ' · crops wilting' : ''}`,
+        tone: pendingMaint ? 'warn' : tone(f),
       };
     }
     case 'comms-array': {
       const sec = opts.commDelaySeconds ?? (isMars ? 720 : 1.3);
       const delay = sec < 60 ? `${sec.toFixed(1)} s` : `${(sec / 60).toFixed(1)} min`;
       return {
-        text: opts.commsActive
+        text: pendingMaint
           ? es
-            ? `Transmitiendo · retraso ${delay}`
-            : `Transmitting · ${delay} delay`
-          : es
-            ? `Enlace con la Tierra · ${delay}`
-            : `Earth link · ${delay}`,
-        tone: 'ok',
+            ? `Enlace ${delay} · recalibrar antena (clic)`
+            : `Link ${delay} · recalibrate dish (click)`
+          : opts.commsActive
+            ? es
+              ? `Transmitiendo · retraso ${delay}`
+              : `Transmitting · ${delay} delay`
+            : es
+              ? `Enlace con la Tierra · ${delay}`
+              : `Earth link · ${delay}`,
+        tone: pendingMaint ? 'warn' : 'ok',
       };
     }
     case 'rover-moxie': {
@@ -1783,13 +2289,23 @@ export interface ColonyWorldHandle {
   group: THREE.Group;
   fog: THREE.FogExp2;
   atmosphere: WorldAtmosphere;
+  terrainSeed: number;
   pickables: THREE.Object3D[];
+  anomalyPickables: THREE.Object3D[];
   modules: Record<ColonyWorldModuleId, THREE.Group>;
   updateState: (next: ColonyWorldStateOptions) => void;
   setHovered: (id: ColonyWorldModuleId | null) => void;
+  setHoveredAnomaly: (id: string | null) => void;
   setSelected: (id: ColonyWorldModuleId | null) => void;
   pulse: (id: ColonyWorldModuleId) => void;
   getModuleAnchor: (id: ColonyWorldModuleId, out: THREE.Vector3) => THREE.Vector3;
+  getAnomalyAnchor: (id: string, out: THREE.Vector3) => THREE.Vector3 | null;
+  getSunDirection: (out: THREE.Vector3) => THREE.Vector3;
+  getEvolutionState: () => ColonyEvolutionState;
+  getAnomalies: () => WorldAnomalySpec[];
+  dispatchRoverToAnomaly: (anomalyId: string) => boolean;
+  getRoverPose: (outPos: THREE.Vector3, outForward: THREE.Vector3) => void;
+  triggerMaintenanceAnimation: (id: ColonyWorldModuleId) => void;
   replaceModuleVisual: (id: ColonyWorldModuleId, object: THREE.Object3D) => void;
   animate: (elapsedSec: number, dtSec: number) => void;
 }
@@ -1804,8 +2320,19 @@ export function findColonyModuleId(obj: THREE.Object3D | null): ColonyWorldModul
   return null;
 }
 
+export function findAnomalyId(obj: THREE.Object3D | null): string | null {
+  let cur: THREE.Object3D | null = obj;
+  while (cur) {
+    const id = cur.userData?.anomalyId as string | undefined;
+    if (id) return id;
+    cur = cur.parent;
+  }
+  return null;
+}
+
 export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyWorldHandle {
   const siteId: OutpostSiteId = options.siteId ?? 'moon-shackleton';
+  const terrainSeed = normalizeTerrainSeed(options.terrainSeed);
   const atmo = getWorldAtmosphere(siteId);
   const isLunar = atmo.kind === 'lunar';
   const wire = atmo.wireTint;
@@ -1816,9 +2343,9 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
 
   const ambient = new THREE.AmbientLight(atmo.ambientColor, atmo.ambientIntensity);
   const hemi = new THREE.HemisphereLight(atmo.hemiSkyColor, atmo.hemiGroundColor, atmo.hemiIntensity);
+  const sunDirVec = new THREE.Vector3(...computeDynamicSunDirection(siteId, options)).normalize();
   const sun = new THREE.DirectionalLight(atmo.sunColor, atmo.sunIntensity);
-  const sunDir = new THREE.Vector3(...atmo.sunDirection).normalize();
-  sun.position.copy(sunDir).multiplyScalar(80);
+  sun.position.copy(sunDirVec).multiplyScalar(80);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.camera.left = -42;
@@ -1832,10 +2359,13 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
 
   if (atmo.showStars) root.add(buildStarField());
   if (atmo.showEarth) root.add(buildEarth());
-  root.add(buildSunDisc(atmo));
+  const sunDisc = buildSunDisc(atmo);
+  sunDisc.position.copy(sunDirVec).multiplyScalar(1300);
+  root.add(sunDisc);
 
-  root.add(buildWorldTerrain(atmo, siteId));
-  root.add(buildRockField(atmo, siteId));
+  root.add(buildWorldTerrain(atmo, siteId, terrainSeed));
+  root.add(buildRockField(atmo, siteId, terrainSeed));
+  root.add(buildOutcropSpires(atmo, siteId, terrainSeed));
   const grid = new THREE.GridHelper(48, 24, wire, atmo.gridColor);
   const gridMat = grid.material as THREE.Material;
   gridMat.transparent = true;
@@ -1848,6 +2378,28 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   addConnector(connectors, [4.6, 0.9, 1.4], [9.4, 0.9, 2.4], 0.8, atmo.hullColor, wire);
   addConnector(connectors, [-4.8, 0.15, 1.2], [-9.4, 0.15, 4.2], 0.14, 0x475569, wire);
   addConnector(connectors, [-2.6, 0.15, -4.2], [-5.4, 0.15, -11.6], 0.14, 0x475569, wire);
+
+  // M02: Túnel presurizado hacia nodo del rover y umbilical norte hacia la antena
+  const evoTunnelAirlock = new THREE.Group();
+  evoTunnelAirlock.name = 'evo-tunnel-airlock';
+  addConnector(evoTunnelAirlock, [1.5, 0.8, 4.7], [4.8, 0.8, 8.8], 0.52, atmo.hullColor, wire);
+  addWorldMesh(evoTunnelAirlock, new THREE.CylinderGeometry(0.95, 1.05, 1.56, 14), 0x475569, wire, {
+    pos: [4.8, 0.78, 8.8],
+  });
+  addWorldMesh(evoTunnelAirlock, new THREE.CylinderGeometry(1.0, 1.0, 0.24, 14), atmo.accentColor, wire, {
+    pos: [4.8, 0.92, 8.8],
+    emissive: atmo.accentColor,
+    emissiveIntensity: 0.22,
+  });
+
+  const evoTunnelNorth = new THREE.Group();
+  evoTunnelNorth.name = 'evo-tunnel-north';
+  addConnector(evoTunnelNorth, [-1.9, 0.82, -3.7], [-4.8, 0.82, -10.8], 0.56, atmo.hullColor, wire);
+  addWorldMesh(evoTunnelNorth, new THREE.BoxGeometry(1.5, 1.3, 1.5), 0x3b4656, wire, {
+    pos: [-4.8, 0.65, -10.8],
+  });
+
+  connectors.add(evoTunnelAirlock, evoTunnelNorth);
   connectors.traverse((o) => {
     o.raycast = () => undefined;
   });
@@ -1855,6 +2407,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
 
   const runtimes = {} as Record<ColonyWorldModuleId, ColonyModuleRuntime>;
   const modules = {} as Record<ColonyWorldModuleId, THREE.Group>;
+  const expansionAdditions: Partial<Record<ColonyWorldModuleId, THREE.Group[]>> = {};
 
   const createModuleShell = (id: ColonyWorldModuleId): ColonyModuleRuntime => {
     const meta = COLONY_WORLD_MODULES[id];
@@ -1879,15 +2432,8 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   // 1. MATRIZ DE PANELES SOLARES (power-grid)
   const power = createModuleShell('power-grid');
   const panelPivots: Array<{ yaw: THREE.Group; tilt: THREE.Group }> = [];
-  for (const [px, pz] of [
-    [-3.3, -2.2],
-    [0, -2.2],
-    [3.3, -2.2],
-    [-3.3, 1.7],
-    [0, 1.7],
-    [3.3, 1.7],
-  ] as Array<[number, number]>) {
-    addWorldMesh(power.visual, new THREE.CylinderGeometry(0.14, 0.22, 3.4, 8), 0x9aa5b4, wire, {
+  const addSolarUnit = (parent: THREE.Object3D, px: number, pz: number) => {
+    addWorldMesh(parent, new THREE.CylinderGeometry(0.14, 0.22, 3.4, 8), 0x9aa5b4, wire, {
       pos: [px, 1.7, pz],
     });
     const yaw = new THREE.Group();
@@ -1899,14 +2445,48 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       emissiveIntensity: 0.22,
     });
     addWorldMesh(tilt, new THREE.BoxGeometry(2.9, 0.1, 0.05), 0x93c5fd, 0x93c5fd, { pos: [0, 0.02, 0] });
-    power.visual.add(yaw);
+    parent.add(yaw);
     panelPivots.push({ yaw, tilt });
+  };
+  for (const [px, pz] of [
+    [-3.3, -2.2],
+    [0, -2.2],
+    [3.3, -2.2],
+    [-3.3, 1.7],
+    [0, 1.7],
+    [3.3, 1.7],
+  ] as Array<[number, number]>) {
+    addSolarUnit(power.visual, px, pz);
   }
   const batteryMesh = addWorldMesh(power.visual, new THREE.BoxGeometry(3.4, 1.2, 1.4), 0x2e7d4f, wire, {
     pos: [0, 0.6, 4.3],
     emissive: 0x2e7d4f,
     emissiveIntensity: 0.3,
   });
+
+  // M02: Alas solares de expansión (mantienen límites dentro de [-24, 24] sin invadir el hábitat)
+  const evoSolarWingLeft = new THREE.Group();
+  evoSolarWingLeft.name = 'evo-solar-wing-left';
+  addWorldMesh(evoSolarWingLeft, new THREE.BoxGeometry(2.6, 0.22, 0.35), 0x64748b, wire, {
+    pos: [-4.55, 0.95, -0.4],
+  });
+  addSolarUnit(evoSolarWingLeft, -5.8, -2.1);
+  addSolarUnit(evoSolarWingLeft, -5.8, 1.3);
+
+  const evoSolarWingRight = new THREE.Group();
+  evoSolarWingRight.name = 'evo-solar-wing-right';
+  addWorldMesh(evoSolarWingRight, new THREE.BoxGeometry(0.35, 0.22, 2.6), 0x64748b, wire, {
+    pos: [0, 0.95, -3.6],
+  });
+  addSolarUnit(evoSolarWingRight, -1.9, -5.0);
+  addSolarUnit(evoSolarWingRight, 1.9, -5.0);
+  const auxBatteryMesh = addWorldMesh(evoSolarWingRight, new THREE.BoxGeometry(2.2, 0.95, 1.1), 0x2e7d4f, wire, {
+    pos: [0, 0.48, -3.5],
+    emissive: 0x2e7d4f,
+    emissiveIntensity: 0.3,
+  });
+
+  expansionAdditions['power-grid'] = [evoSolarWingLeft, evoSolarWingRight];
   runtimes['power-grid'] = power;
 
   // 2. HÁBITAT + SOPORTE VITAL ECLSS + ESCUDO (oxygen-module)
@@ -1981,6 +2561,46 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   shieldDome.add(shieldWire);
   shieldDome.scale.set(1, 0.06, 1);
   hab.visual.add(shieldDome);
+
+  // M02: Bloques y arcos físicos de regolito sinterizado contra radiación
+  const regolithArmorColor = isLunar ? 0x6c7a89 : 0x8b4a2b;
+  const evoRegolithWall = new THREE.Group();
+  evoRegolithWall.name = 'evo-regolith-wall';
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    if (Math.abs(Math.atan2(Math.sin(a), Math.cos(a))) < 0.46) continue;
+    addWorldMesh(evoRegolithWall, new THREE.BoxGeometry(1.55, 0.85, 0.65), regolithArmorColor, wire, {
+      pos: [Math.sin(a) * 5.2, 0.82, Math.cos(a) * 5.2],
+      rot: [0, a, 0],
+    });
+    if (i % 2 === 0) {
+      addWorldMesh(evoRegolithWall, new THREE.BoxGeometry(1.35, 0.65, 0.55), atmo.terrainDark, wire, {
+        pos: [Math.sin(a) * 5.15, 1.54, Math.cos(a) * 5.15],
+        rot: [0, a, 0],
+      });
+    }
+  }
+
+  const evoRegolithArches = new THREE.Group();
+  evoRegolithArches.name = 'evo-regolith-arches';
+  for (const archAngle of [0.38, 1.18, 1.98, 2.78]) {
+    addWorldMesh(
+      evoRegolithArches,
+      new THREE.TorusGeometry(4.42, 0.24, 6, 18, Math.PI),
+      regolithArmorColor,
+      wire,
+      {
+        pos: [0, 0.6, 0],
+        rot: [0, archAngle, 0],
+        edgeThreshold: 26,
+      },
+    );
+  }
+  addWorldMesh(evoRegolithArches, new THREE.CylinderGeometry(1.45, 1.85, 0.42, 16), regolithArmorColor, wire, {
+    pos: [0, 4.72, 0],
+  });
+
+  expansionAdditions['oxygen-module'] = [evoRegolithWall, evoRegolithArches];
   runtimes['oxygen-module'] = hab;
 
   // 3. INVERNADERO HIDROPÓNICO (greenhouse)
@@ -1991,6 +2611,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     emissive: 0x2e7d4f,
     emissiveIntensity: 0.5,
   });
+  const cropMeshes: THREE.Mesh[] = [cropMesh];
   addWorldMesh(
     gh.visual,
     new THREE.CylinderGeometry(1.75, 1.75, 6.0, 18, 1, false, 0, Math.PI),
@@ -2011,6 +2632,82 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   const growLight = new THREE.PointLight(0xd946ef, 2.4, 10, 2);
   growLight.position.set(0, 1.4, 0);
   gh.visual.add(growLight);
+
+  // M02: Niveles de cultivo y módulos anexos del invernadero
+  const evoGreenhouseTier2 = new THREE.Group();
+  evoGreenhouseTier2.name = 'evo-greenhouse-tier2';
+  for (const [rx, rz] of [
+    [-1.4, -0.55],
+    [1.4, 0.55],
+  ] as Array<[number, number]>) {
+    cropMeshes.push(
+      addWorldMesh(evoGreenhouseTier2, new THREE.BoxGeometry(2.1, 0.28, 0.8), 0x2e7d4f, 0x14532d, {
+        pos: [rx, 1.24, rz],
+        emissive: 0x2e7d4f,
+        emissiveIntensity: 0.52,
+      }),
+    );
+  }
+  addWorldMesh(evoGreenhouseTier2, new THREE.BoxGeometry(4.4, 0.38, 1.9), 0x334155, wire, {
+    pos: [0, 0.19, 2.65],
+  });
+  cropMeshes.push(
+    addWorldMesh(evoGreenhouseTier2, new THREE.BoxGeometry(3.7, 0.42, 1.3), 0x2e7d4f, 0x14532d, {
+      pos: [0, 0.58, 2.65],
+      emissive: 0x2e7d4f,
+      emissiveIntensity: 0.5,
+    }),
+  );
+  addWorldMesh(
+    evoGreenhouseTier2,
+    new THREE.CylinderGeometry(1.02, 1.02, 4.1, 14, 1, false, 0, Math.PI),
+    0xdbeafe,
+    COLONY_HIGHLIGHT_HEX,
+    { pos: [0, 0.38, 2.65], rot: [0, 0, Math.PI / 2], opacity: 0.3 },
+  );
+  ledMeshes.push(
+    addWorldMesh(evoGreenhouseTier2, new THREE.BoxGeometry(3.4, 0.06, 0.1), 0xf0abfc, 0xf0abfc, {
+      pos: [0, 1.22, 2.65],
+      emissive: 0xd946ef,
+      emissiveIntensity: 1.0,
+    }),
+  );
+
+  const evoGreenhouseTier3 = new THREE.Group();
+  evoGreenhouseTier3.name = 'evo-greenhouse-tier3';
+  addWorldMesh(evoGreenhouseTier3, new THREE.BoxGeometry(4.4, 0.38, 1.9), 0x334155, wire, {
+    pos: [0, 0.19, -2.65],
+  });
+  cropMeshes.push(
+    addWorldMesh(evoGreenhouseTier3, new THREE.BoxGeometry(3.7, 0.46, 1.3), 0x2e7d4f, 0x14532d, {
+      pos: [0, 0.6, -2.65],
+      emissive: 0x2e7d4f,
+      emissiveIntensity: 0.55,
+    }),
+  );
+  for (const fx of [-1.2, 0, 1.2]) {
+    addWorldMesh(evoGreenhouseTier3, new THREE.SphereGeometry(0.18, 8, 8), 0xfc3d21, 0xfde68a, {
+      pos: [fx, 0.92, -2.65],
+      emissive: 0xd97706,
+      emissiveIntensity: 0.4,
+    });
+  }
+  addWorldMesh(
+    evoGreenhouseTier3,
+    new THREE.CylinderGeometry(1.02, 1.02, 4.1, 14, 1, false, 0, Math.PI),
+    0xdbeafe,
+    COLONY_HIGHLIGHT_HEX,
+    { pos: [0, 0.38, -2.65], rot: [0, 0, Math.PI / 2], opacity: 0.3 },
+  );
+  ledMeshes.push(
+    addWorldMesh(evoGreenhouseTier3, new THREE.BoxGeometry(3.4, 0.06, 0.1), 0xf0abfc, 0xf0abfc, {
+      pos: [0, 1.22, -2.65],
+      emissive: 0xd946ef,
+      emissiveIntensity: 1.0,
+    }),
+  );
+
+  expansionAdditions.greenhouse = [evoGreenhouseTier2, evoGreenhouseTier3];
   runtimes.greenhouse = gh;
 
   // 4. ANTENA DE COMUNICACIONES (comms-array)
@@ -2078,14 +2775,36 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     pos: [1.0, 3.25, 0.55],
     partId: 'mastcam-z',
   });
-  addWorldMesh(rover.visual, new THREE.BoxGeometry(1.2, 0.12, 0.12), 0x94a3b8, wire, {
-    pos: [1.75, 1.05, -0.35],
-    rot: [0, 0, -0.4],
+  const scannerArmPivot = new THREE.Group();
+  scannerArmPivot.name = 'rover-scanner-arm';
+  scannerArmPivot.position.set(1.25, 1.15, -0.35);
+  addWorldMesh(scannerArmPivot, new THREE.BoxGeometry(1.15, 0.12, 0.12), 0x94a3b8, wire, {
+    pos: [0.52, -0.1, 0],
+    rot: [0, 0, -0.25],
   });
-  addWorldMesh(rover.visual, new THREE.CylinderGeometry(0.18, 0.18, 0.22, 8), 0xfc3d21, 0xf2ebdd, {
-    pos: [2.3, 0.8, -0.35],
+  addWorldMesh(scannerArmPivot, new THREE.CylinderGeometry(0.18, 0.18, 0.22, 8), 0xfc3d21, 0xf2ebdd, {
+    pos: [1.06, -0.24, 0],
     rot: [Math.PI / 2, 0, 0],
   });
+  const scannerBeamMat = new THREE.MeshBasicMaterial({
+    color: 0x00e5ff,
+    transparent: true,
+    opacity: 0.72,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const scannerBeamMesh = new THREE.Mesh(
+    new THREE.ConeGeometry(0.45, 1.65, 12, 1, true),
+    scannerBeamMat,
+  );
+  scannerBeamMesh.name = 'rover-scanner-beam';
+  scannerBeamMesh.position.set(1.38, -0.78, 0);
+  scannerBeamMesh.rotation.z = 0.38;
+  scannerBeamMesh.visible = false;
+  scannerBeamMesh.raycast = () => undefined;
+  scannerArmPivot.add(scannerBeamMesh);
+  rover.visual.add(scannerArmPivot);
+
   const wheels: THREE.Mesh[] = [];
   for (const side of [-1.05, 1.05]) {
     addWorldMesh(rover.visual, new THREE.BoxGeometry(2.2, 0.1, 0.1), 0x64748b, wire, { pos: [0, 0.85, side] });
@@ -2100,19 +2819,99 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   }
   runtimes['rover-moxie'] = rover;
 
+  // M03: Overlays de polvo/escarcha y balizas ámbar de mantenimiento directo por módulo
+  const maintGroups: Partial<Record<ColonyWorldModuleId, THREE.Group>> = {};
+  const maintBeaconMats: Partial<Record<ColonyWorldModuleId, THREE.MeshStandardMaterial>> = {};
+  const addMaintVisual = (
+    modId: 'power-grid' | 'oxygen-module' | 'greenhouse' | 'comms-array',
+    beaconY: number,
+    buildFn: (g: THREE.Group, matColor: number) => void,
+  ) => {
+    const mg = new THREE.Group();
+    mg.name = `maint-${modId}`;
+    mg.visible = false;
+    const coatHex = isLunar ? 0xdbeafe : 0xd97706;
+    buildFn(mg, coatHex);
+    const beaconGeo = new THREE.OctahedronGeometry(0.42, 0);
+    const bMat = new THREE.MeshStandardMaterial({
+      color: 0xffb300,
+      emissive: 0xffb300,
+      emissiveIntensity: 0.95,
+      roughness: 0.3,
+    });
+    const bMesh = new THREE.Mesh(beaconGeo, bMat);
+    bMesh.position.set(0, beaconY, 0);
+    bMesh.name = `maint-beacon-${modId}`;
+    mg.add(bMesh);
+    mg.traverse((o) => {
+      o.userData.skipHoverTint = true;
+    });
+    maintGroups[modId] = mg;
+    maintBeaconMats[modId] = bMat;
+    if (!expansionAdditions[modId]) expansionAdditions[modId] = [];
+    expansionAdditions[modId]!.push(mg);
+  };
+
+  addMaintVisual('power-grid', 5.2, (g, coatHex) => {
+    for (const [px, pz] of [
+      [-3.3, -2.2],
+      [0, -2.2],
+      [3.3, -2.2],
+      [-3.3, 1.7],
+      [0, 1.7],
+      [3.3, 1.7],
+    ] as Array<[number, number]>) {
+      addWorldMesh(g, new THREE.BoxGeometry(2.75, 0.06, 1.6), coatHex, 0xffb300, {
+        pos: [px, 3.65, pz],
+        rot: [isLunar ? 1.1 : 0.35, 0, 0],
+        opacity: 0.68,
+      });
+    }
+  });
+  addMaintVisual('oxygen-module', 6.1, (g, coatHex) => {
+    for (const sx of [-1, 1]) {
+      addWorldMesh(g, new THREE.BoxGeometry(0.28, 1.85, 3.45), coatHex, 0xffb300, {
+        pos: [sx * 5.6, 1.25, -1.0],
+        opacity: 0.65,
+      });
+    }
+  });
+  addMaintVisual('greenhouse', 3.4, (g, coatHex) => {
+    addWorldMesh(g, new THREE.CylinderGeometry(1.88, 1.88, 5.8, 14, 1, false, 0.35, Math.PI - 0.7), coatHex, 0xffb300, {
+      pos: [0, 0.55, 0],
+      rot: [0, 0, Math.PI / 2],
+      opacity: 0.55,
+    });
+  });
+  addMaintVisual('comms-array', 7.9, (g, coatHex) => {
+    addWorldMesh(g, new THREE.TorusGeometry(2.15, 0.14, 6, 18), coatHex, 0xffb300, {
+      pos: [0, 5.5, 0],
+      rot: [0.9, 0, 0],
+      opacity: 0.72,
+    });
+  });
+
   const bracketMats: THREE.LineBasicMaterial[] = [];
   for (const id of COLONY_WORLD_MODULE_IDS) {
     const rt = runtimes[id];
     const meta = COLONY_WORLD_MODULES[id];
+
+    // Calcular caja delimitadora sobre el núcleo base para que los corchetes queden ajustados en Día 1
+    rt.group.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(rt.visual);
+    box.translate(rt.group.position.clone().negate());
+    box.expandByScalar(0.35);
+
+    const extras = expansionAdditions[id];
+    if (extras) {
+      for (const ex of extras) rt.visual.add(ex);
+    }
+
     rt.group.userData.worldModuleId = id;
     rt.group.traverse((o) => {
       o.userData.worldModuleId = id;
     });
 
-    rt.group.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(rt.visual);
-    box.translate(rt.group.position.clone().negate());
-    box.expandByScalar(0.35);
     const bracketMat = new THREE.LineBasicMaterial({
       color: COLONY_HIGHLIGHT_HEX,
       transparent: true,
@@ -2148,6 +2947,150 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     root.add(rt.group);
   }
 
+  // M03: Contenedor dinámico de anomalías escaneables por turno
+  const anomalyContainer = new THREE.Group();
+  anomalyContainer.name = 'world-anomalies';
+  root.add(anomalyContainer);
+  const anomalyPickables: THREE.Object3D[] = [];
+  let currentAnomalies: WorldAnomalySpec[] = [];
+  let loadedAnomalyDay = -1;
+  let hoveredAnomalyId: string | null = null;
+  const scannedVisualIds = new Set<string>(options.scannedAnomalyIds ?? []);
+  interface AnomalyRuntime {
+    spec: WorldAnomalySpec;
+    group: THREE.Group;
+    ring: THREE.Mesh;
+    beaconMat: THREE.MeshStandardMaterial;
+  }
+  const anomalyRuntimes = new Map<string, AnomalyRuntime>();
+
+  const buildAnomalyMesh = (spec: WorldAnomalySpec): AnomalyRuntime => {
+    const g = new THREE.Group();
+    g.name = `anomaly-${spec.id}`;
+    g.position.set(...spec.position);
+    const crystalColor =
+      spec.kind === 'ice-vein'
+        ? 0x38bdf8
+        : spec.kind === 'lava-skylight'
+          ? 0xfc3d21
+          : spec.kind === 'silica-vein'
+            ? 0xfef08a
+            : spec.kind === 'delta-clay'
+              ? 0xf59e0b
+              : spec.kind === 'metallic-meteorite'
+                ? 0x94a3b8
+                : spec.kind === 'seismic-probe'
+                  ? 0xe2e8f0
+                  : 0xfb923c;
+
+    if (spec.kind === 'lava-skylight') {
+      addWorldMesh(g, new THREE.CylinderGeometry(1.45, 1.85, 0.4, 14), atmo.terrainDark, wire, {
+        pos: [0, 0.15, 0],
+      });
+      addWorldMesh(g, new THREE.CylinderGeometry(0.95, 0.95, 0.45, 14), 0x03060c, 0xfc3d21, {
+        pos: [0, 0.18, 0],
+      });
+    } else if (spec.kind === 'ice-vein' || spec.kind === 'silica-vein') {
+      addWorldMesh(g, new THREE.DodecahedronGeometry(0.62, 0), atmo.rockColor, wire, {
+        pos: [0, 0.25, 0],
+        scale: [1.3, 0.65, 1.1],
+      });
+      for (const [cx, cz, s] of [
+        [-0.35, 0.2, 0.9],
+        [0.28, -0.18, 1.15],
+        [0.05, 0.35, 0.78],
+      ] as Array<[number, number, number]>) {
+        addWorldMesh(g, new THREE.ConeGeometry(0.24 * s, 1.1 * s, 5), crystalColor, 0xe0f2fe, {
+          pos: [cx, 0.6 * s, cz],
+          rot: [(cx - 0.1) * 0.4, cx * 2, -cz * 0.4],
+          emissive: crystalColor,
+          emissiveIntensity: 0.42,
+        });
+      }
+    } else if (spec.kind === 'seismic-probe') {
+      addWorldMesh(g, new THREE.CylinderGeometry(0.5, 0.65, 0.65, 8), 0xe2e8f0, 0x38bdf8, {
+        pos: [0, 0.32, 0],
+      });
+      addWorldMesh(g, new THREE.CylinderGeometry(0.05, 0.05, 1.5, 6), 0x94a3b8, wire, {
+        pos: [0, 1.05, 0],
+      });
+    } else {
+      addWorldMesh(g, new THREE.DodecahedronGeometry(0.92, 0), crystalColor, wire, {
+        pos: [0, 0.42, 0],
+        scale: [1.2, 0.72, 1.0],
+        emissive: crystalColor,
+        emissiveIntensity: 0.2,
+      });
+      addWorldMesh(g, new THREE.DodecahedronGeometry(0.45, 0), atmo.terrainLight, wire, {
+        pos: [0.65, 0.22, -0.35],
+      });
+    }
+
+    const beaconMat = new THREE.MeshStandardMaterial({
+      color: 0xffb300,
+      emissive: 0xffb300,
+      emissiveIntensity: 0.85,
+    });
+    const floatBeacon = new THREE.Mesh(new THREE.OctahedronGeometry(0.3, 0), beaconMat);
+    floatBeacon.position.set(0, 2.05, 0);
+    g.add(floatBeacon);
+
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(1.6, 1.9, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0x38bdf8,
+        transparent: true,
+        opacity: 0.85,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.09;
+    ring.raycast = () => undefined;
+    g.add(ring);
+
+    g.userData.anomalyId = spec.id;
+    g.traverse((o) => {
+      o.userData.anomalyId = spec.id;
+    });
+    return { spec, group: g, ring, beaconMat };
+  };
+
+  const refreshAnomalyAppearance = () => {
+    for (const [id, rt] of anomalyRuntimes.entries()) {
+      const scanned = scannedVisualIds.has(id);
+      const hovered = hoveredAnomalyId === id;
+      const ringMat = rt.ring.material as THREE.MeshBasicMaterial;
+      const colorHex = scanned ? 0x2e7d4f : hovered ? 0x00e5ff : 0xffb300;
+      ringMat.color.setHex(colorHex);
+      ringMat.opacity = hovered ? 0.98 : scanned ? 0.55 : 0.82;
+      rt.beaconMat.color.setHex(colorHex);
+      rt.beaconMat.emissive.setHex(colorHex);
+      rt.beaconMat.emissiveIntensity = scanned ? 0.4 : hovered ? 1.3 : 0.9;
+    }
+  };
+
+  const syncTurnAnomalies = (day: number) => {
+    const normDay = Math.max(1, Math.round(day));
+    if (normDay === loadedAnomalyDay && anomalyRuntimes.size > 0) return;
+    loadedAnomalyDay = normDay;
+    for (const rt of anomalyRuntimes.values()) {
+      anomalyContainer.remove(rt.group);
+      disposeObject3D(rt.group);
+    }
+    anomalyRuntimes.clear();
+    anomalyPickables.length = 0;
+    currentAnomalies = generateTurnAnomalies(siteId, terrainSeed, normDay);
+    for (const spec of currentAnomalies) {
+      const rt = buildAnomalyMesh(spec);
+      anomalyRuntimes.set(spec.id, rt);
+      anomalyContainer.add(rt.group);
+      anomalyPickables.push(rt.group);
+    }
+    refreshAnomalyAppearance();
+  };
+
   const dust = createWorldParticles(Math.max(1, atmo.dustStormCount), atmo.dustColor, 0.32);
   const radiation = createWorldParticles(1400, 0xfc3d21, 0.26);
   root.add(dust, radiation);
@@ -2155,6 +3098,8 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   let hoveredId: ColonyWorldModuleId | null = null;
   let selectedId: ColonyWorldModuleId | null = null;
   let state: ColonyWorldStateOptions = { ...options, siteId };
+  let evoState: ColonyEvolutionState = computeColonyEvolutionState(state);
+  let hasInitializedState = false;
   let shieldTarget = 0.06;
   let panelTiltTarget = isLunar ? 1.35 : 0.38;
   let dustTarget = atmo.dustBaseCount;
@@ -2163,8 +3108,42 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   let radiationCurrent = 0;
   let fogTarget = atmo.fogDensity;
   let sunTarget = atmo.sunIntensity;
+
+  // M03: Estado cinemático y navegación sobre el terreno del Rover
+  const roverHomeMeta = COLONY_WORLD_MODULES['rover-moxie'].position;
+  const roverHomeOrigin = new THREE.Vector3(roverHomeMeta[0], 0, roverHomeMeta[1]);
   let roverAngle = 0;
   let roverMoving = true;
+  let roverWorldX = roverHomeOrigin.x + 2.4;
+  let roverWorldZ = roverHomeOrigin.z;
+  let roverHeading = -Math.PI / 2;
+  let roverSpeed = 0;
+  rover.motionRoot.position.set(roverWorldX - roverHomeOrigin.x, 0, roverWorldZ - roverHomeOrigin.z);
+  rover.visual.rotation.y = roverHeading;
+  type RoverTask =
+    | { mode: 'patrol' }
+    | { mode: 'driving'; anomalyId: string; targetX: number; targetZ: number; lookX: number; lookZ: number }
+    | { mode: 'scanning'; anomalyId: string; lookX: number; lookZ: number; timer: number }
+    | { mode: 'returning' };
+  let roverTask: RoverTask = { mode: 'patrol' };
+
+  const maintAnimTimers: Record<ColonyWorldModuleId, number> = {
+    'power-grid': 0,
+    'oxygen-module': 0,
+    greenhouse: 0,
+    'comms-array': 0,
+    'rover-moxie': 0,
+  };
+
+  const syncEvolutionPart = (obj: THREE.Group, visible: boolean) => {
+    const wasVisible = obj.visible;
+    obj.visible = visible;
+    if (visible && !wasVisible && hasInitializedState) {
+      obj.scale.set(0.95, 0.2, 0.95);
+    } else if (visible && !hasInitializedState) {
+      obj.scale.set(1, 1, 1);
+    }
+  };
 
   const applyBaseEmissive = (mat: THREE.MeshStandardMaterial, hex: number, intensity: number, owner: ColonyWorldModuleId) => {
     mat.userData.baseEmissive = { hex, intensity };
@@ -2176,6 +3155,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
 
   const applyHoverTint = (id: ColonyWorldModuleId, on: boolean) => {
     runtimes[id].visual.traverse((o) => {
+      if (o.userData?.skipHoverTint) return;
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
       const mat = mesh.material as THREE.MeshStandardMaterial;
@@ -2206,6 +3186,50 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
 
   const updateState = (next: ColonyWorldStateOptions) => {
     state = { ...state, ...next, siteId };
+    evoState = computeColonyEvolutionState(state);
+    syncEvolutionPart(evoSolarWingLeft, evoState.solarWingLeft);
+    syncEvolutionPart(evoSolarWingRight, evoState.solarWingRight);
+    syncEvolutionPart(evoTunnelAirlock, evoState.tunnelAirlockSpur);
+    syncEvolutionPart(evoTunnelNorth, evoState.tunnelNorthUmbilical);
+    syncEvolutionPart(evoGreenhouseTier2, evoState.greenhouseTier2);
+    syncEvolutionPart(evoGreenhouseTier3, evoState.greenhouseTier3);
+    syncEvolutionPart(evoRegolithWall, evoState.regolithWall);
+    syncEvolutionPart(evoRegolithArches, evoState.regolithArches);
+    hasInitializedState = true;
+
+    syncTurnAnomalies(state.currentDay ?? 1);
+    if (Array.isArray(state.scannedAnomalyIds)) {
+      if (state.scannedAnomalyIds.length === 0) {
+        scannedVisualIds.clear();
+      } else {
+        for (const sid of state.scannedAnomalyIds) scannedVisualIds.add(sid);
+      }
+    }
+    refreshAnomalyAppearance();
+
+    const activeIssues = new Set(
+      getModulesNeedingMaintenance(state, state.maintainedModuleIds).map((m) => m.moduleId),
+    );
+    for (const modId of ['power-grid', 'oxygen-module', 'greenhouse', 'comms-array'] as const) {
+      const mg = maintGroups[modId];
+      if (mg) mg.visible = activeIssues.has(modId);
+    }
+
+    const [sx, sy, sz] = computeDynamicSunDirection(siteId, state);
+    sunDirVec.set(sx, sy, sz).normalize();
+    sun.position.copy(sunDirVec).multiplyScalar(80);
+    sunDisc.position.copy(sunDirVec).multiplyScalar(1300);
+    sun.updateMatrixWorld();
+    const dynamicSunHex = state.isDustStorm
+      ? 0xf59e0b
+      : state.isSolarStorm
+        ? 0xfff3c4
+        : atmo.sunColor;
+    sun.color.setHex(dynamicSunHex);
+    (sunDisc.material as THREE.MeshBasicMaterial).color.setHex(
+      state.isSolarStorm ? 0xffffff : atmo.kind === 'mars' ? 0xfff1dc : 0xfffbeb,
+    );
+
     const deployed = isStormShieldDeployed(state);
     const powerVal = state.powerPercent ?? 80;
     const isBlackout = Boolean(state.isLowPowerBlackout);
@@ -2228,9 +3252,11 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     }
 
     const battHex = powerVal < 15 ? 0xfc3d21 : powerVal < 40 ? 0xd97706 : 0x2e7d4f;
-    const battMat = batteryMesh.material as THREE.MeshStandardMaterial;
-    battMat.color.setHex(battHex);
-    applyBaseEmissive(battMat, battHex, 0.35, 'power-grid');
+    for (const bMesh of [batteryMesh, auxBatteryMesh]) {
+      const battMat = bMesh.material as THREE.MeshStandardMaterial;
+      battMat.color.setHex(battHex);
+      applyBaseEmissive(battMat, battHex, 0.35, 'power-grid');
+    }
 
     for (const w of portholes) {
       const mat = w.material as THREE.MeshStandardMaterial;
@@ -2239,14 +3265,21 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     }
     for (const rad of radiators) {
       const mat = rad.material as THREE.MeshStandardMaterial;
-      applyBaseEmissive(mat, state.isEnvironmentalAlert ? 0xffb300 : 0x000000, state.isEnvironmentalAlert ? 0.6 : 0, 'oxygen-module');
+      applyBaseEmissive(
+        mat,
+        state.isEnvironmentalAlert ? 0xffb300 : 0x000000,
+        state.isEnvironmentalAlert ? 0.6 : 0,
+        'oxygen-module',
+      );
     }
 
     const wilted = Boolean(state.isGreenhouseWilted);
-    const cropMat = cropMesh.material as THREE.MeshStandardMaterial;
-    cropMat.color.setHex(wilted ? 0x991b1b : 0x2e7d4f);
-    applyBaseEmissive(cropMat, wilted ? 0xfc3d21 : 0x2e7d4f, wilted ? 0.3 : 0.55, 'greenhouse');
-    growLight.intensity = isBlackout ? 0 : 2.4;
+    for (const cm of cropMeshes) {
+      const cropMat = cm.material as THREE.MeshStandardMaterial;
+      cropMat.color.setHex(wilted ? 0x991b1b : 0x2e7d4f);
+      applyBaseEmissive(cropMat, wilted ? 0xfc3d21 : 0x2e7d4f, wilted ? 0.3 : 0.55, 'greenhouse');
+    }
+    growLight.intensity = isBlackout ? 0 : evoState.greenhouseTier3 ? 3.2 : 2.4;
     for (const led of ledMeshes) {
       applyBaseEmissive(led.material as THREE.MeshStandardMaterial, 0xd946ef, isBlackout ? 0.05 : 1.1, 'greenhouse');
     }
@@ -2282,6 +3315,12 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     refreshHighlights();
   };
 
+  const setHoveredAnomaly = (id: string | null) => {
+    if (id === hoveredAnomalyId) return;
+    hoveredAnomalyId = id;
+    refreshAnomalyAppearance();
+  };
+
   const setSelected = (id: ColonyWorldModuleId | null) => {
     selectedId = id;
     refreshHighlights();
@@ -2292,10 +3331,60 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     refreshHighlights();
   };
 
+  const triggerMaintenanceAnimation = (id: ColonyWorldModuleId) => {
+    maintAnimTimers[id] = 0.9;
+    pulse(id);
+  };
+
   const getModuleAnchor = (id: ColonyWorldModuleId, out: THREE.Vector3) => {
     runtimes[id].motionRoot.getWorldPosition(out);
     out.y += COLONY_WORLD_MODULES[id].labelHeight;
     return out;
+  };
+
+  const getAnomalyAnchor = (id: string, out: THREE.Vector3): THREE.Vector3 | null => {
+    const rt = anomalyRuntimes.get(id);
+    if (!rt) return null;
+    out.copy(rt.group.position);
+    out.y += 2.3;
+    return out;
+  };
+
+  const getSunDirection = (out: THREE.Vector3) => out.copy(sunDirVec);
+
+  const getEvolutionState = () => ({ ...evoState });
+
+  const getAnomalies = () => currentAnomalies.map((a) => ({ ...a }));
+
+  const dispatchRoverToAnomaly = (anomalyId: string): boolean => {
+    const rt = anomalyRuntimes.get(anomalyId);
+    if (!rt) return false;
+    const ax = rt.spec.position[0];
+    const az = rt.spec.position[2];
+    const vx = roverWorldX - ax;
+    const vz = roverWorldZ - az;
+    const len = Math.max(0.01, Math.hypot(vx, vz));
+    const standOff = 2.35;
+    const targetX = clampToColonyBounds(ax + (vx / len) * standOff);
+    const targetZ = clampToColonyBounds(az + (vz / len) * standOff);
+    roverTask = {
+      mode: 'driving',
+      anomalyId,
+      targetX,
+      targetZ,
+      lookX: ax,
+      lookZ: az,
+    };
+    return true;
+  };
+
+  const getRoverPose = (outPos: THREE.Vector3, outForward: THREE.Vector3) => {
+    outPos.set(
+      rover.group.position.x + rover.motionRoot.position.x,
+      rover.group.position.y + rover.motionRoot.position.y,
+      rover.group.position.z + rover.motionRoot.position.z,
+    );
+    outForward.set(Math.cos(roverHeading), 0, -Math.sin(roverHeading)).normalize();
   };
 
   const replaceModuleVisual = (id: ColonyWorldModuleId, object: THREE.Object3D) => {
@@ -2327,34 +3416,180 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     rt.motionRoot.add(wrapper);
   };
 
+  const evolutionGroups = [
+    evoSolarWingLeft,
+    evoSolarWingRight,
+    evoTunnelAirlock,
+    evoTunnelNorth,
+    evoGreenhouseTier2,
+    evoGreenhouseTier3,
+    evoRegolithWall,
+    evoRegolithArches,
+  ];
+
+  const shortestAngleDelta = (from: number, to: number) => {
+    let diff = (to - from + Math.PI) % (Math.PI * 2);
+    if (diff < 0) diff += Math.PI * 2;
+    return diff - Math.PI;
+  };
+
   const animate = (elapsedSec: number, dtSec: number) => {
     const k = Math.min(1, dtSec * 3);
+
+    for (const eg of evolutionGroups) {
+      if (!eg.visible) continue;
+      if (eg.scale.y < 0.999) {
+        eg.scale.x += (1 - eg.scale.x) * Math.min(1, dtSec * 5);
+        eg.scale.y += (1 - eg.scale.y) * Math.min(1, dtSec * 5);
+        eg.scale.z += (1 - eg.scale.z) * Math.min(1, dtSec * 5);
+      }
+    }
+
+    for (const modId of COLONY_WORLD_MODULE_IDS) {
+      if (maintAnimTimers[modId] > 0) {
+        maintAnimTimers[modId] = Math.max(0, maintAnimTimers[modId] - dtSec);
+      }
+      const bMat = maintBeaconMats[modId];
+      if (bMat && maintGroups[modId]?.visible) {
+        bMat.emissiveIntensity = 0.65 + Math.sin(elapsedSec * 7) * 0.45;
+      }
+    }
+    for (const rt of anomalyRuntimes.values()) {
+      const floatBeacon = rt.group.children.find(
+        (c) => c instanceof THREE.Mesh && c.geometry instanceof THREE.OctahedronGeometry,
+      );
+      if (floatBeacon) {
+        floatBeacon.position.y = 2.0 + Math.sin(elapsedSec * 3.2) * 0.16;
+        floatBeacon.rotation.y += dtSec * 1.4;
+      }
+    }
 
     shieldDome.scale.y += (shieldTarget - shieldDome.scale.y) * k;
     shieldMat.opacity = shieldTarget > 0.5 ? 0.24 + Math.sin(elapsedSec * 4) * 0.06 : 0.18;
 
+    const powerMaintShake =
+      maintAnimTimers['power-grid'] > 0 ? Math.sin(elapsedSec * 28) * 0.28 : 0;
+    const sunAzimuth = Math.atan2(sunDirVec.x, sunDirVec.z);
     for (let i = 0; i < panelPivots.length; i++) {
       const p = panelPivots[i];
-      p.tilt.rotation.x += (panelTiltTarget - p.tilt.rotation.x) * k;
-      const trackYaw = isLunar ? Math.atan2(sunDir.x, sunDir.z) - Math.PI : Math.sin(elapsedSec * 0.05) * 0.5;
-      p.yaw.rotation.y += (trackYaw - p.yaw.rotation.y) * Math.min(1, dtSec * 0.8);
+      p.tilt.rotation.x += (panelTiltTarget + powerMaintShake - p.tilt.rotation.x) * Math.min(1, dtSec * 8);
+      const trackYaw = isLunar ? sunAzimuth - Math.PI : sunAzimuth * 0.35 + Math.sin(elapsedSec * 0.05) * 0.2;
+      p.yaw.rotation.y += (trackYaw - p.yaw.rotation.y) * Math.min(1, dtSec * 1.1);
     }
 
     const earthYaw = Math.atan2(WORLD_EARTH_DIRECTION[0], WORLD_EARTH_DIRECTION[2]);
-    const yawGoal = state.commsActive ? earthYaw : earthYaw + Math.sin(elapsedSec * 0.25) * 0.6;
-    dishYaw.rotation.y += (yawGoal - dishYaw.rotation.y) * Math.min(1, dtSec * (state.commsActive ? 3 : 0.8));
+    const commsSweepOffset =
+      maintAnimTimers['comms-array'] > 0 ? Math.sin(elapsedSec * 14) * 0.42 : 0;
+    const yawGoal = (state.commsActive ? earthYaw : earthYaw + Math.sin(elapsedSec * 0.25) * 0.6) + commsSweepOffset;
+    dishYaw.rotation.y += (yawGoal - dishYaw.rotation.y) * Math.min(1, dtSec * (state.commsActive || commsSweepOffset ? 5 : 0.8));
+    dishElev.rotation.x = 0.9 + (maintAnimTimers['comms-array'] > 0 ? Math.sin(elapsedSec * 12) * 0.2 : 0);
     const blink = state.commsActive ? Math.sin(elapsedSec * 14) > 0 : Math.sin(elapsedSec * 3) > 0.6;
     beaconMat.emissiveIntensity = blink ? 1.4 : 0.15;
 
+    if (maintAnimTimers.greenhouse > 0) {
+      growLight.color.setHex(0x38bdf8);
+      growLight.intensity = 4.2;
+    } else {
+      growLight.color.setHex(0xd946ef);
+      growLight.intensity = state.isLowPowerBlackout ? 0 : evoState.greenhouseTier3 ? 3.2 : 2.4;
+    }
+
+    // Cinemática del Rover: patrulla elíptica o expedición al terreno con brazo escáner
     if (roverMoving) {
-      roverAngle += dtSec * 0.09;
-      const rx = Math.cos(roverAngle) * 2.4;
-      const rz = Math.sin(roverAngle) * 1.6;
-      const tx = -Math.sin(roverAngle) * 2.4;
-      const tz = Math.cos(roverAngle) * 1.6;
-      rover.motionRoot.position.set(rx, 0, rz);
-      rover.visual.rotation.y = Math.atan2(-tz, tx);
-      for (const w of wheels) w.rotation.y -= dtSec * 1.8;
+      if (roverTask.mode === 'patrol') {
+        roverAngle += dtSec * 0.09;
+        const targetX = roverHomeOrigin.x + Math.cos(roverAngle) * 2.4;
+        const targetZ = roverHomeOrigin.z + Math.sin(roverAngle) * 1.6;
+        const dx = targetX - roverWorldX;
+        const dz = targetZ - roverWorldZ;
+        const dist = Math.hypot(dx, dz);
+        if (dist > 0.01) {
+          roverWorldX += dx * Math.min(1, dtSec * 2.5);
+          roverWorldZ += dz * Math.min(1, dtSec * 2.5);
+          const desiredYaw = Math.atan2(-dz, dx);
+          roverHeading += shortestAngleDelta(roverHeading, desiredYaw) * Math.min(1, dtSec * 5);
+        }
+        roverSpeed = 1.8;
+        scannerBeamMesh.visible = false;
+        scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * Math.min(1, dtSec * 5);
+      } else if (roverTask.mode === 'driving') {
+        const dx = roverTask.targetX - roverWorldX;
+        const dz = roverTask.targetZ - roverWorldZ;
+        const dist = Math.hypot(dx, dz);
+        const desiredYaw = Math.atan2(-dz, dx);
+        roverHeading += shortestAngleDelta(roverHeading, desiredYaw) * Math.min(1, dtSec * 6.5);
+        const step = Math.min(dist, dtSec * 7.8);
+        if (dist > 0.25) {
+          roverWorldX = clampToColonyBounds(roverWorldX + (dx / dist) * step);
+          roverWorldZ = clampToColonyBounds(roverWorldZ + (dz / dist) * step);
+          roverSpeed = 7.2;
+        } else {
+          roverWorldX = roverTask.targetX;
+          roverWorldZ = roverTask.targetZ;
+          roverTask = {
+            mode: 'scanning',
+            anomalyId: roverTask.anomalyId,
+            lookX: roverTask.lookX,
+            lookZ: roverTask.lookZ,
+            timer: 0,
+          };
+          roverSpeed = 0;
+        }
+        scannerBeamMesh.visible = false;
+        scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * Math.min(1, dtSec * 5);
+      } else if (roverTask.mode === 'scanning') {
+        roverTask.timer += dtSec;
+        const lookYaw = Math.atan2(-(roverTask.lookZ - roverWorldZ), roverTask.lookX - roverWorldX);
+        roverHeading += shortestAngleDelta(roverHeading, lookYaw) * Math.min(1, dtSec * 7);
+        roverSpeed = 0;
+        scannerArmPivot.rotation.z = -0.52 + Math.sin(elapsedSec * 7) * 0.12;
+        scannerBeamMesh.visible = roverTask.timer < 1.8;
+        scannerBeamMat.opacity = 0.55 + Math.sin(elapsedSec * 18) * 0.25;
+        if (roverTask.timer >= 1.8 && !scannedVisualIds.has(roverTask.anomalyId)) {
+          scannedVisualIds.add(roverTask.anomalyId);
+          refreshAnomalyAppearance();
+        }
+        if (roverTask.timer >= 1.8) {
+          scannerBeamMesh.visible = false;
+        }
+        if (roverTask.timer >= 2.8) {
+          roverTask = { mode: 'returning' };
+        }
+      } else if (roverTask.mode === 'returning') {
+        const targetX = roverHomeOrigin.x + Math.cos(roverAngle) * 2.4;
+        const targetZ = roverHomeOrigin.z + Math.sin(roverAngle) * 1.6;
+        const dx = targetX - roverWorldX;
+        const dz = targetZ - roverWorldZ;
+        const dist = Math.hypot(dx, dz);
+        const desiredYaw = Math.atan2(-dz, dx);
+        roverHeading += shortestAngleDelta(roverHeading, desiredYaw) * Math.min(1, dtSec * 5.5);
+        scannerBeamMesh.visible = false;
+        scannerArmPivot.rotation.z += (0 - scannerArmPivot.rotation.z) * Math.min(1, dtSec * 5);
+        if (dist > 0.35) {
+          const step = Math.min(dist, dtSec * 6.5);
+          roverWorldX += (dx / dist) * step;
+          roverWorldZ += (dz / dist) * step;
+          roverSpeed = 5.5;
+        } else {
+          roverTask = { mode: 'patrol' };
+        }
+      }
+
+      const ry = sampleWorldTerrainHeight(roverWorldX, roverWorldZ, siteId, terrainSeed);
+      rover.motionRoot.position.set(
+        roverWorldX - roverHomeOrigin.x,
+        ry,
+        roverWorldZ - roverHomeOrigin.z,
+      );
+      rover.visual.rotation.y = roverHeading;
+      // Inclinación suave siguiendo la pendiente del terreno en dirección de avance
+      const fx = Math.cos(roverHeading);
+      const fz = -Math.sin(roverHeading);
+      const yAhead = sampleWorldTerrainHeight(roverWorldX + fx * 1.1, roverWorldZ + fz * 1.1, siteId, terrainSeed);
+      const ySide = sampleWorldTerrainHeight(roverWorldX - fz * 0.9, roverWorldZ + fx * 0.9, siteId, terrainSeed);
+      rover.visual.rotation.z = Math.max(-0.28, Math.min(0.28, Math.atan2(yAhead - ry, 1.1)));
+      rover.visual.rotation.x = Math.max(-0.25, Math.min(0.25, Math.atan2(ry - ySide, 0.9)));
+      for (const w of wheels) w.rotation.y -= dtSec * roverSpeed;
     }
 
     for (const id of COLONY_WORLD_MODULE_IDS) {
@@ -2406,13 +3641,23 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     group: root,
     fog,
     atmosphere: atmo,
+    terrainSeed,
     pickables: COLONY_WORLD_MODULE_IDS.map((id) => runtimes[id].group),
+    anomalyPickables,
     modules,
     updateState,
     setHovered,
+    setHoveredAnomaly,
     setSelected,
     pulse,
     getModuleAnchor,
+    getAnomalyAnchor,
+    getSunDirection,
+    getEvolutionState,
+    getAnomalies,
+    dispatchRoverToAnomaly,
+    getRoverPose,
+    triggerMaintenanceAnimation,
     replaceModuleVisual,
     animate,
   };

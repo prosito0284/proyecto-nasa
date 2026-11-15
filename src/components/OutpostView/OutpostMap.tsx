@@ -31,7 +31,12 @@ import {
 } from '../icons';
 import { isWebGLAvailable } from '../Three/ModelViewer3D';
 import { ColonyWorld3D } from '../Three/ColonyWorld3D';
-import type { ColonyWorldModuleId } from '../Three/proceduralModels';
+import {
+  type ColonyWorldModuleId,
+  type ColonyWorldStateOptions,
+  getModulesNeedingMaintenance,
+  type WorldAnomalySpec,
+} from '../Three/proceduralModels';
 
 export interface OutpostMapProps {
   lang: Language;
@@ -46,10 +51,20 @@ export interface OutpostMapProps {
   commDelaySeconds?: number;
   /** T08: Callback opcional para disparar avance del tutorial al interactuar con la colonia */
   onTutorialAction?: (stepId: string) => void;
-  /** M02: Modo inicial opcional ('2d' | '3d'); por defecto usa '3d' si WebGL está disponible */
-  defaultViewMode?: '2d' | '3d';
+  /** M02/M03: Modo inicial opcional ('2d' | 'orbital' | 'rover' | '3d'); por defecto usa 'orbital' si WebGL está disponible */
+  defaultViewMode?: '2d' | '3d' | 'orbital' | 'rover';
   /** M02: Marca si hay alerta ambiental de entrenamiento (ej. caída térmica nocturna) */
   isEnvironmentalAlert?: boolean;
+  /** M01: Semilla procedural de topografía */
+  terrainSeed?: number;
+  /** M01: Permite regenerar topografía en partida libre */
+  canRegenerateTerrain?: boolean;
+  onRegenerateTerrain?: () => void;
+  /** M03: Estado de anomalías escaneadas y módulos mantenidos */
+  scannedAnomalyIds?: string[];
+  maintainedModules?: ColonyWorldModuleId[];
+  onScanAnomaly?: (anomaly: WorldAnomalySpec) => void | boolean;
+  onMaintainModule?: (moduleId: ColonyWorldModuleId) => void | boolean;
 }
 
 type ModuleKey = 'solar' | 'eclss' | 'shielding' | 'greenhouse' | 'rover';
@@ -146,13 +161,25 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   onTutorialAction,
   defaultViewMode,
   isEnvironmentalAlert = false,
+  terrainSeed,
+  canRegenerateTerrain = true,
+  onRegenerateTerrain,
+  scannedAnomalyIds,
+  maintainedModules,
+  onScanAnomaly,
+  onMaintainModule,
 }) => {
   const [selectedModule, setSelectedModule] = useState<ModuleKey>('shielding');
   const [selectedWorldModule, setSelectedWorldModule] =
     useState<ColonyWorldModuleId>('oxygen-module');
-  const [viewMode, setViewMode] = useState<'2d' | '3d'>(
-    () => defaultViewMode ?? (isWebGLAvailable() ? '3d' : '2d'),
-  );
+  const resolveInitialViewMode = (): '2d' | 'orbital' | 'rover' => {
+    if (defaultViewMode === '2d' || defaultViewMode === 'orbital' || defaultViewMode === 'rover') {
+      return defaultViewMode;
+    }
+    if (defaultViewMode === '3d') return 'orbital';
+    return isWebGLAvailable() ? 'orbital' : '2d';
+  };
+  const [viewMode, setViewMode] = useState<'2d' | 'orbital' | 'rover'>(resolveInitialViewMode);
   const [showSystemDetails, setShowSystemDetails] = useState(false);
   const [showCommSimulator, setShowCommSimulator] = useState(false);
   const [selectedPresetIdx, setSelectedPresetIdx] = useState(0);
@@ -178,6 +205,42 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
       ? site.commDelaySeconds
       : Math.round(site.commDelaySeconds + Math.sin(currentDay * 0.7) * 120));
   const realDelayMin = (realDelaySec / 60).toFixed(1);
+
+  const colonyWorldOptions: ColonyWorldStateOptions = {
+    siteId: site.id,
+    terrainSeed,
+    currentDay,
+    totalDays: site.totalMissionDays,
+    sciencePoints: resources.sciencePoints,
+    powerPercent: resources.power,
+    lifeSupportPercent: resources.lifeSupport,
+    shieldingPercent: projection.effectiveShielding,
+    foodPercent: resources.food,
+    solarAllocPercent: Math.min(
+      100,
+      Math.round(
+        (allocation.greenhouseAlloc + allocation.scienceAndCommsAlloc * 0.5) *
+          weather.solarEfficiencyMultiplier +
+          resources.power * 0.3,
+      ),
+    ),
+    lifeSupportAllocPercent: allocation.lifeSupportAlloc,
+    shieldingAllocPercent: allocation.shieldingAlloc,
+    greenhouseAllocPercent: allocation.greenhouseAlloc,
+    scienceAllocPercent: allocation.scienceAndCommsAlloc,
+    weatherType: weather.type,
+    isDustStorm,
+    isSolarStorm,
+    isRimShadowPass,
+    isLowPowerBlackout,
+    isGreenhouseWilted,
+    isEnvironmentalAlert,
+    commsActive: commState === 'transmitting',
+    commDelaySeconds: realDelaySec,
+    scannedAnomalyIds,
+    maintainedModuleIds: maintainedModules,
+  };
+  const pendingMaintenance = getModulesNeedingMaintenance(colonyWorldOptions, maintainedModules);
 
   useEffect(() => {
     clearCommInterval();
@@ -429,13 +492,25 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                 type="button"
                 id="outpost-view-3d-btn"
                 className="view-mode-btn"
-                aria-pressed={viewMode === '3d'}
+                aria-pressed={viewMode === 'orbital'}
                 onClick={() => {
                   missionAudio.playClick();
-                  setViewMode('3d');
+                  setViewMode('orbital');
                 }}
               >
-                {lang === 'es' ? 'VISTA 3D' : '3D VIEW'}
+                {lang === 'es' ? 'CÁMARA ORBITAL' : 'ORBITAL CAMERA'}
+              </button>
+              <button
+                type="button"
+                id="outpost-cam-rover-btn"
+                className="view-mode-btn"
+                aria-pressed={viewMode === 'rover'}
+                onClick={() => {
+                  missionAudio.playClick();
+                  setViewMode('rover');
+                }}
+              >
+                {lang === 'es' ? 'CÁMARA ROVER' : 'ROVER CAMERA'}
               </button>
             </div>
 
@@ -478,8 +553,12 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
           </div>
         </div>
 
-        {/* C5: Indicadores visuales de estado activo en el mapa */}
-        {(isDustStorm || isRimShadowPass || isLowPowerBlackout || isGreenhouseWilted) && (
+        {/* C5 & M03: Indicadores visuales de estado activo y mantenimiento pendiente en el mapa */}
+        {(isDustStorm ||
+          isRimShadowPass ||
+          isLowPowerBlackout ||
+          isGreenhouseWilted ||
+          pendingMaintenance.length > 0) && (
           <div className="outpost-state-badges" role="status" aria-live="polite">
             {isDustStorm && (
               <span className="state-alert-chip state-chip-dust">
@@ -511,42 +590,40 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                   : 'Greenhouse Wilted (Food < 25%)'}
               </span>
             )}
+            {pendingMaintenance.length > 0 && (
+              <span className="state-alert-chip state-chip-maint" data-testid="outpost-maint-chip">
+                <SlidersIcon size={14} />{' '}
+                {lang === 'es'
+                  ? `Mantenimiento 3D pendiente en ${pendingMaintenance.length} módulo${
+                      pendingMaintenance.length > 1 ? 's' : ''
+                    } (baliza ámbar)`
+                  : `3D maintenance needed on ${pendingMaintenance.length} module${
+                      pendingMaintenance.length > 1 ? 's' : ''
+                    } (amber beacon)`}
+              </span>
+            )}
           </div>
         )}
 
-        {/* M02: Mundo 3D interactivo de horizonte infinito por defecto + acceso rápido a módulos */}
-        {viewMode === '3d' ? (
+        {/* M02/M03: Mundo 3D interactivo (orbital o cámara Rover) + acceso rápido a módulos */}
+        {viewMode !== '2d' ? (
           <div className="outpost-3d-stage" data-testid="outpost-3d-stage">
             <ColonyWorld3D
               lang={lang}
               height={308}
               selectedModule={selectedWorldModule}
               onSelectModule={handleSelect3DModule}
-              options={{
-                siteId: site.id,
-                powerPercent: resources.power,
-                lifeSupportPercent: resources.lifeSupport,
-                shieldingPercent: projection.effectiveShielding,
-                foodPercent: resources.food,
-                solarAllocPercent: Math.min(
-                  100,
-                  Math.round(
-                    (allocation.greenhouseAlloc + allocation.scienceAndCommsAlloc * 0.5) *
-                      weather.solarEfficiencyMultiplier +
-                      resources.power * 0.3,
-                  ),
-                ),
-                shieldingAllocPercent: allocation.shieldingAlloc,
-                weatherType: weather.type,
-                isDustStorm,
-                isSolarStorm,
-                isRimShadowPass,
-                isLowPowerBlackout,
-                isGreenhouseWilted,
-                isEnvironmentalAlert,
-                commsActive: commState === 'transmitting',
-                commDelaySeconds: realDelaySec,
+              cameraMode={viewMode === 'rover' ? 'rover' : 'orbital'}
+              onCameraModeChange={(m) => setViewMode(m)}
+              onScanAnomaly={(anomaly) => {
+                onTutorialAction?.('step-outpost-map');
+                return onScanAnomaly?.(anomaly);
               }}
+              onMaintainModule={onMaintainModule}
+              terrainSeed={terrainSeed}
+              canRegenerateTerrain={canRegenerateTerrain}
+              onRegenerateTerrain={onRegenerateTerrain}
+              options={colonyWorldOptions}
             />
 
             <div

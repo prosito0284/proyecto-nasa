@@ -11,6 +11,18 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { VERIFIED_NASA_WEATHER_EVENTS } from '../../../data/nasa-datasets';
+import { OUTPOST_SITES } from '../../../data/scenarios';
+import {
+  createInitialMissionState,
+  projectSystemsTurn,
+  selectStartingWeather,
+} from '../../../engine/simulationEngine';
+import {
+  applyAnomalyScanToMission,
+  applyMaintenanceToMission,
+} from '../../../hooks/useMission';
+import { OutpostMap } from '../../OutpostView/OutpostMap';
 import { ColonyWorld3D, resolveColonyKeyCommand } from '../ColonyWorld3D';
 import {
   buildColonyWorld,
@@ -22,10 +34,16 @@ import {
   COLONY_WORLD_MODULE_IDS,
   COLONY_WORLD_MODULES,
   type ColonyWorldModuleId,
+  computeColonyEvolutionState,
   computeColonyFocusPose,
+  computeDynamicSunDirection,
   disposeObject3D,
+  findAnomalyId,
   findColonyModuleId,
+  generateTurnAnomalies,
   getColonyModuleStatus,
+  getMaintenanceConfirmation,
+  getModulesNeedingMaintenance,
   getWorldAtmosphere,
   isStormShieldDeployed,
   resolveColonyModuleGlbUrl,
@@ -36,6 +54,13 @@ import {
 } from '../proceduralModels';
 
 const EMOJI_REGEX = /\p{Extended_Pictographic}/u;
+
+function countWords(text: string): number {
+  return text
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w.length > 0).length;
+}
 
 describe('Interactive 3D Colony World (M01–M04)', () => {
   const originalDocument = globalThis.document;
@@ -134,16 +159,17 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
     disposeObject3D(world.group);
   });
 
-  it('M01: aplica límites invisibles de cámara en [-22, 22] con retorno amortiguado y focos seguros', () => {
-    expect(COLONY_CAMERA_LIMITS.boundsMin).toBe(-22);
-    expect(COLONY_CAMERA_LIMITS.boundsMax).toBe(22);
-    expect(COLONY_CAMERA_LIMITS.minDistance).toBe(8);
+  it('M01: aplica límites invisibles de cámara en [-24, 24] con retorno amortiguado y focos seguros', () => {
+    expect(COLONY_CAMERA_LIMITS.boundsMin).toBe(-24);
+    expect(COLONY_CAMERA_LIMITS.boundsMax).toBe(24);
+    expect(COLONY_CAMERA_LIMITS.minDistance).toBe(7);
     expect(COLONY_CAMERA_LIMITS.maxDistance).toBe(45);
+    expect(COLONY_CAMERA_LIMITS.minPolarAngle).toBe(0.18);
     expect(COLONY_CAMERA_LIMITS.maxPolarAngle).toBeLessThan(Math.PI / 2);
 
-    expect(clampToColonyBounds(-99)).toBe(-22);
-    expect(clampToColonyBounds(99)).toBe(22);
-    expect(clampColonyCameraDistance(2)).toBe(8);
+    expect(clampToColonyBounds(-99)).toBe(-24);
+    expect(clampToColonyBounds(99)).toBe(24);
+    expect(clampColonyCameraDistance(2)).toBe(7);
     expect(clampColonyCameraDistance(120)).toBe(45);
     expect(clampColonyPolarAngle(0.01)).toBe(COLONY_CAMERA_LIMITS.minPolarAngle);
     expect(clampColonyPolarAngle(Math.PI)).toBe(COLONY_CAMERA_LIMITS.maxPolarAngle);
@@ -155,28 +181,60 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
 
     const soft = softClampColonyTarget(40, -35, 0.5);
     expect(soft.wasOutside).toBe(true);
-    expect(soft.x).toBeLessThanOrEqual(22 + COLONY_CAMERA_LIMITS.overshoot);
-    expect(soft.z).toBeGreaterThanOrEqual(-22 - COLONY_CAMERA_LIMITS.overshoot);
+    expect(soft.x).toBeLessThanOrEqual(24 + COLONY_CAMERA_LIMITS.overshoot);
+    expect(soft.z).toBeGreaterThanOrEqual(-24 - COLONY_CAMERA_LIMITS.overshoot);
 
     const hard = softClampColonyTarget(80, -80, 1);
     expect(hard.wasOutside).toBe(true);
-    expect(hard.x).toBe(22);
-    expect(hard.z).toBe(-22);
+    expect(hard.x).toBe(24);
+    expect(hard.z).toBe(-24);
 
     for (const id of COLONY_WORLD_MODULE_IDS) {
       const pose = computeColonyFocusPose(id);
-      expect(pose.target[0]).toBeGreaterThanOrEqual(-22);
-      expect(pose.target[0]).toBeLessThanOrEqual(22);
-      expect(pose.target[2]).toBeGreaterThanOrEqual(-22);
-      expect(pose.target[2]).toBeLessThanOrEqual(22);
+      expect(pose.target[0]).toBeGreaterThanOrEqual(-24);
+      expect(pose.target[0]).toBeLessThanOrEqual(24);
+      expect(pose.target[2]).toBeGreaterThanOrEqual(-24);
+      expect(pose.target[2]).toBeLessThanOrEqual(24);
       const dist = Math.hypot(
         pose.cameraPos[0] - pose.target[0],
         pose.cameraPos[1] - pose.target[1],
         pose.cameraPos[2] - pose.target[2],
       );
-      expect(dist).toBeGreaterThanOrEqual(8 - 0.001);
+      expect(dist).toBeGreaterThanOrEqual(7 - 0.001);
       expect(dist).toBeLessThanOrEqual(45 + 0.001);
     }
+  });
+
+  it('M01: genera topografías deterministas por semilla (Seed) y mantiene nivelada la plaza central', () => {
+    const seedA = 104729;
+    const seedB = 739391;
+    const worldA = buildColonyWorld({ siteId: 'mars-jezero', terrainSeed: seedA });
+    const worldB = buildColonyWorld({ siteId: 'mars-jezero', terrainSeed: seedB });
+
+    expect(worldA.terrainSeed).toBe(seedA);
+    expect(worldB.terrainSeed).toBe(seedB);
+    expect(worldA.group.getObjectByName('world-outcrops')).toBeTruthy();
+    expect(worldB.group.getObjectByName('world-outcrops')).toBeTruthy();
+
+    let diffSum = 0;
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      const rx = Math.cos(angle) * 95;
+      const rz = Math.sin(angle) * 95;
+      const hA1 = sampleWorldTerrainHeight(rx, rz, 'mars-jezero', seedA);
+      const hA2 = sampleWorldTerrainHeight(rx, rz, 'mars-jezero', seedA);
+      const hB = sampleWorldTerrainHeight(rx, rz, 'mars-jezero', seedB);
+      expect(hA1).toBe(hA2);
+      diffSum += Math.abs(hA1 - hB);
+    }
+    expect(diffSum).toBeGreaterThan(2);
+
+    // La plaza central sigue nivelada en y = 0 bajo cualquier semilla
+    expect(sampleWorldTerrainHeight(0, 0, 'mars-jezero', seedA)).toBe(0);
+    expect(sampleWorldTerrainHeight(0, 0, 'mars-jezero', seedB)).toBe(0);
+
+    disposeObject3D(worldA.group);
+    disposeObject3D(worldB.group);
   });
 
   it('M02: permite picking Raycaster de los 5 módulos, sincroniza clima/escudo/apagón y reemplaza GLB sin 404', () => {
@@ -265,7 +323,129 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
     disposeObject3D(world.group);
   });
 
-  it('M04: resolveColonyKeyCommand soporta órbita, paneo (Shift/WASD), zoom, Tab, Enter, Espacio y R', () => {
+  it('M02: evoluciona la colonia por día/asignación (alas solares, túneles, invernadero y regolito) y varía el ángulo solar', () => {
+    const evoDay1 = computeColonyEvolutionState({
+      currentDay: 1,
+      solarAllocPercent: 30,
+      shieldingAllocPercent: 20,
+      greenhouseAllocPercent: 15,
+      sciencePoints: 10,
+      lifeSupportPercent: 60,
+      powerPercent: 60,
+      foodPercent: 60,
+    });
+    expect(evoDay1.solarWingLeft).toBe(false);
+    expect(evoDay1.solarWingRight).toBe(false);
+    expect(evoDay1.tunnelAirlockSpur).toBe(false);
+    expect(evoDay1.tunnelNorthUmbilical).toBe(false);
+    expect(evoDay1.greenhouseTier2).toBe(false);
+    expect(evoDay1.greenhouseTier3).toBe(false);
+    expect(evoDay1.regolithWall).toBe(false);
+    expect(evoDay1.regolithArches).toBe(false);
+
+    const world = buildColonyWorld({
+      siteId: 'moon-shackleton',
+      currentDay: 1,
+      solarAllocPercent: 30,
+      shieldingAllocPercent: 20,
+      greenhouseAllocPercent: 15,
+      sciencePoints: 10,
+      lifeSupportPercent: 60,
+      powerPercent: 60,
+      foodPercent: 60,
+    });
+
+    expect(world.getEvolutionState()).toEqual(evoDay1);
+    expect(world.group.getObjectByName('evo-solar-wing-left')?.visible).toBe(false);
+    expect(world.group.getObjectByName('evo-tunnel-airlock')?.visible).toBe(false);
+    expect(world.group.getObjectByName('evo-regolith-wall')?.visible).toBe(false);
+    expect(world.group.getObjectByName('evo-greenhouse-tier2')?.visible).toBe(false);
+
+    const sunDay1 = new THREE.Vector3();
+    world.getSunDirection(sunDay1);
+
+    // Al avanzar a Sol/Día 5 con ciencia y blindaje, despliega todas las expansiones y rota el Sol
+    world.updateState({
+      siteId: 'moon-shackleton',
+      currentDay: 5,
+      sciencePoints: 50,
+      powerPercent: 85,
+      lifeSupportPercent: 82,
+      foodPercent: 78,
+      solarAllocPercent: 70,
+      shieldingAllocPercent: 45,
+      greenhouseAllocPercent: 40,
+      isGreenhouseWilted: false,
+    });
+
+    const evoDay5 = world.getEvolutionState();
+    expect(evoDay5.solarWingLeft).toBe(true);
+    expect(evoDay5.solarWingRight).toBe(true);
+    expect(evoDay5.tunnelAirlockSpur).toBe(true);
+    expect(evoDay5.tunnelNorthUmbilical).toBe(true);
+    expect(evoDay5.greenhouseTier2).toBe(true);
+    expect(evoDay5.greenhouseTier3).toBe(true);
+    expect(evoDay5.regolithWall).toBe(true);
+    expect(evoDay5.regolithArches).toBe(true);
+
+    for (const partName of [
+      'evo-solar-wing-left',
+      'evo-solar-wing-right',
+      'evo-tunnel-airlock',
+      'evo-tunnel-north',
+      'evo-greenhouse-tier2',
+      'evo-greenhouse-tier3',
+      'evo-regolith-wall',
+      'evo-regolith-arches',
+    ]) {
+      const obj = world.group.getObjectByName(partName);
+      expect(obj).toBeTruthy();
+      expect(obj?.visible).toBe(true);
+    }
+
+    // Todas las alas nuevas de módulos siguen siendo seleccionables por Raycaster
+    expect(findColonyModuleId(world.group.getObjectByName('evo-solar-wing-left') ?? null)).toBe('power-grid');
+    expect(findColonyModuleId(world.group.getObjectByName('evo-regolith-arches') ?? null)).toBe('oxygen-module');
+    expect(findColonyModuleId(world.group.getObjectByName('evo-greenhouse-tier3') ?? null)).toBe('greenhouse');
+
+    const sunDay5 = new THREE.Vector3();
+    world.getSunDirection(sunDay5);
+    expect(sunDay5.distanceTo(sunDay1)).toBeGreaterThan(0.2);
+
+    const rimSun = computeDynamicSunDirection('moon-shackleton', { currentDay: 2, isRimShadowPass: true });
+    expect(rimSun[1]).toBeLessThan(0.1);
+    const marsDustSun = computeDynamicSunDirection('mars-jezero', { currentDay: 4, isDustStorm: true });
+    expect(marsDustSun[1]).toBeCloseTo(0.38, 3);
+
+    world.animate(2.0, 0.2);
+    disposeObject3D(world.group);
+
+    // Respaldo SVG sin WebGL también refleja evolución por día
+    const htmlEvo = renderToStaticMarkup(
+      React.createElement(ColonyWorld3D, {
+        lang: 'es',
+        forceFallback: true,
+        options: {
+          siteId: 'mars-jezero',
+          currentDay: 5,
+          sciencePoints: 50,
+          powerPercent: 85,
+          lifeSupportPercent: 85,
+          foodPercent: 75,
+          solarAllocPercent: 70,
+          shieldingAllocPercent: 45,
+          greenhouseAllocPercent: 40,
+        },
+      }),
+    );
+    expect(htmlEvo).toContain('data-evo="solar-left"');
+    expect(htmlEvo).toContain('data-evo="solar-right"');
+    expect(htmlEvo).toContain('data-evo="regolith-arches"');
+    expect(htmlEvo).toContain('data-evo="greenhouse-tier3"');
+    expect(htmlEvo).toContain('data-evo="tunnel-north"');
+  });
+
+  it('M04: resolveColonyKeyCommand soporta órbita, paneo (Shift/WASD), zoom, cámara C, Tab, Enter, Espacio y R', () => {
     expect(resolveColonyKeyCommand('ArrowLeft')).toEqual({
       type: 'orbit',
       dTheta: 0.16,
@@ -283,6 +463,8 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
     expect(resolveColonyKeyCommand('d')).toEqual({ type: 'pan', dx: 1.8, dz: 0 });
     expect(resolveColonyKeyCommand('+')?.type).toBe('orbit');
     expect(resolveColonyKeyCommand('-')?.type).toBe('orbit');
+    expect(resolveColonyKeyCommand('c')).toEqual({ type: 'toggle-camera' });
+    expect(resolveColonyKeyCommand('C')).toEqual({ type: 'toggle-camera' });
     expect(resolveColonyKeyCommand('Tab')).toEqual({ type: 'cycle-module', dir: 1 });
     expect(resolveColonyKeyCommand('Tab', true)).toEqual({ type: 'cycle-module', dir: -1 });
     expect(resolveColonyKeyCommand('Enter')).toEqual({ type: 'activate-module' });
@@ -291,21 +473,218 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
     expect(resolveColonyKeyCommand('Escape')).toBeNull();
   });
 
-  it('M04: ColonyWorld3D renderiza respaldo SVG accesible y bilingüe sin WebGL, con cero errores de consola y cero emojis', () => {
+  it('M03/M04: generateTurnAnomalies es determinista, respeta zonas de exclusión y cumple <= 15 palabras sin emojis', () => {
+    const keepOutCenters = [
+      { x: 0, z: 0, r: 7.5 },
+      { x: -13, z: 4, r: 6.5 },
+      { x: 12.5, z: 3, r: 5.5 },
+      { x: -6, z: -13, r: 4.0 },
+      { x: 9, z: 12.5, r: 4.2 },
+    ];
+
+    for (const siteId of ['moon-shackleton', 'mars-jezero'] as const) {
+      const a1 = generateTurnAnomalies(siteId, 20260415, 1);
+      const a1Repeat = generateTurnAnomalies(siteId, 20260415, 1);
+      const a2Day2 = generateTurnAnomalies(siteId, 20260415, 2);
+      const a2Seed = generateTurnAnomalies(siteId, 991177, 1);
+
+      expect(a1).toEqual(a1Repeat);
+      expect(a1).toHaveLength(2);
+      expect(a2Day2).toHaveLength(2);
+      expect(a1[0].id).not.toBe(a1[1].id);
+      expect(a1[0].id).not.toBe(a2Day2[0].id);
+      expect(a1[0].position).not.toEqual(a2Seed[0].position);
+
+      for (let day = 1; day <= 8; day++) {
+        const turnItems = generateTurnAnomalies(siteId, 20260415 + day * 13, day);
+        expect(turnItems).toHaveLength(2);
+        for (const anom of turnItems) {
+          expect(anom.position[0]).toBeGreaterThanOrEqual(-20);
+          expect(anom.position[0]).toBeLessThanOrEqual(20);
+          expect(anom.position[2]).toBeGreaterThanOrEqual(-20);
+          expect(anom.position[2]).toBeLessThanOrEqual(20);
+          for (const zone of keepOutCenters) {
+            expect(Math.hypot(anom.position[0] - zone.x, anom.position[2] - zone.z)).toBeGreaterThanOrEqual(
+              zone.r,
+            );
+          }
+          for (const lang of ['es', 'en'] as const) {
+            expect(countWords(anom.title[lang])).toBeLessThanOrEqual(15);
+            expect(countWords(anom.finding[lang])).toBeLessThanOrEqual(15);
+            expect(EMOJI_REGEX.test(anom.title[lang])).toBe(false);
+            expect(EMOJI_REGEX.test(anom.finding[lang])).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
+  it('M03/M04: Three.js anomalías, expedición del Rover, mantenimiento directo y limpieza GPU completa', () => {
+    const world = buildColonyWorld({
+      siteId: 'mars-jezero',
+      terrainSeed: 20260415,
+      currentDay: 2,
+      isDustStorm: true,
+      isSolarStorm: true,
+      isGreenhouseWilted: true,
+      powerPercent: 32,
+      lifeSupportPercent: 38,
+      foodPercent: 20,
+    });
+
+    expect(world.anomalyPickables).toHaveLength(2);
+    expect(world.pickables).toHaveLength(5);
+
+    const anomalies = world.getAnomalies();
+    expect(anomalies).toHaveLength(2);
+    for (let i = 0; i < 2; i++) {
+      let resolvedId: string | null = null;
+      world.anomalyPickables[i].traverse((o) => {
+        if (!resolvedId && o instanceof THREE.Mesh) {
+          resolvedId = findAnomalyId(o);
+        }
+      });
+      expect(resolvedId).toBe(anomalies[i].id);
+    }
+
+    // Mantenimiento pendiente debe activar balizas e invisibilizarlas al completar mantenimiento
+    for (const modId of ['power-grid', 'oxygen-module', 'greenhouse', 'comms-array'] as const) {
+      expect(world.group.getObjectByName(`maint-${modId}`)?.visible).toBe(true);
+    }
+
+    world.triggerMaintenanceAnimation('power-grid');
+    world.triggerMaintenanceAnimation('greenhouse');
+    world.triggerMaintenanceAnimation('comms-array');
+    world.updateState({
+      maintainedModuleIds: ['power-grid', 'oxygen-module', 'greenhouse', 'comms-array'],
+    });
+    for (const modId of ['power-grid', 'oxygen-module', 'greenhouse', 'comms-array'] as const) {
+      expect(world.group.getObjectByName(`maint-${modId}`)?.visible).toBe(false);
+    }
+
+    // Despacho del Rover hacia anomalía 0 -> conducir -> escanear (láser activo) -> marcar escaneada -> regresar
+    const startPos = new THREE.Vector3();
+    const forward = new THREE.Vector3();
+    world.getRoverPose(startPos, forward);
+    expect(Number.isFinite(startPos.x)).toBe(true);
+    expect(forward.length()).toBeCloseTo(1, 3);
+
+    expect(world.dispatchRoverToAnomaly('non-existent')).toBe(false);
+    expect(world.dispatchRoverToAnomaly(anomalies[0].id)).toBe(true);
+
+    const beamMesh = world.group.getObjectByName('rover-scanner-beam');
+    expect(beamMesh).toBeTruthy();
+
+    let sawActiveLaserBeam = false;
+    let t = 0;
+    for (let step = 0; step < 110; step++) {
+      t += 0.1;
+      world.animate(t, 0.1);
+      if (beamMesh?.visible) {
+        sawActiveLaserBeam = true;
+      }
+    }
+    expect(sawActiveLaserBeam).toBe(true);
+    expect(beamMesh?.visible).toBe(false);
+
+    // Pose válida tras volver o conducir
+    const endPos = new THREE.Vector3();
+    const endFwd = new THREE.Vector3();
+    world.getRoverPose(endPos, endFwd);
+    expect(Number.isFinite(endPos.y)).toBe(true);
+    expect(endFwd.length()).toBeCloseTo(1, 3);
+
+    // Reinicio limpio al vaciar anomalías escaneadas y al avanzar de día
+    world.updateState({ currentDay: 3, scannedAnomalyIds: [] });
+    expect(world.getAnomalies()[0].id).not.toBe(anomalies[0].id);
+
+    // Verificar dispose GPU sobre geometrías y materiales añadidos en M02/M03
+    const terrain = world.group.getObjectByName('world-terrain') as THREE.Mesh;
+    const beam = world.group.getObjectByName('rover-scanner-beam') as THREE.Mesh;
+    const geoSpy = vi.spyOn(terrain.geometry, 'dispose');
+    const beamGeoSpy = vi.spyOn(beam.geometry, 'dispose');
+    disposeObject3D(world.group);
+    expect(geoSpy).toHaveBeenCalledTimes(1);
+    expect(beamGeoSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('M03/M04: getModulesNeedingMaintenance y helpers de useMission cumplen recompensas y <= 15 palabras', () => {
+    const allIssues = getModulesNeedingMaintenance({
+      isDustStorm: true,
+      isSolarStorm: true,
+      isEnvironmentalAlert: true,
+      isGreenhouseWilted: true,
+      powerPercent: 25,
+      lifeSupportPercent: 30,
+      foodPercent: 20,
+    });
+    expect(allIssues.map((i) => i.moduleId)).toEqual([
+      'power-grid',
+      'oxygen-module',
+      'greenhouse',
+      'comms-array',
+    ]);
+
+    for (const issue of allIssues) {
+      const conf = getMaintenanceConfirmation(issue.moduleId);
+      expect(conf).toBeTruthy();
+      for (const lang of ['es', 'en'] as const) {
+        expect(countWords(issue.prompt[lang])).toBeLessThanOrEqual(15);
+        expect(countWords(issue.confirmation[lang])).toBeLessThanOrEqual(15);
+        expect(EMOJI_REGEX.test(issue.prompt[lang])).toBe(false);
+        expect(EMOJI_REGEX.test(issue.confirmation[lang])).toBe(false);
+      }
+    }
+
+    const filteredIssues = getModulesNeedingMaintenance(
+      { isDustStorm: true, isSolarStorm: true },
+      ['power-grid', 'comms-array'],
+    );
+    expect(filteredIssues.some((i) => i.moduleId === 'power-grid')).toBe(false);
+    expect(filteredIssues.some((i) => i.moduleId === 'comms-array')).toBe(false);
+    expect(getMaintenanceConfirmation('rover-moxie')).toBeNull();
+
+    const weather = selectStartingWeather('moon-shackleton', VERIFIED_NASA_WEATHER_EVENTS, 20260415);
+    const mission = createInitialMissionState('moon-shackleton', weather, 20260415);
+    const anomalies = generateTurnAnomalies('moon-shackleton', 20260415, 1);
+
+    const afterScan = applyAnomalyScanToMission(mission, anomalies[0]);
+    expect(afterScan.resources.sciencePoints).toBe(mission.resources.sciencePoints + 3);
+    expect(afterScan.logs[0].nasaTag).toBe('Lunar Rover LRO');
+    expect(afterScan.logs.length).toBe(mission.logs.length + 1);
+
+    const lowPowerMission = {
+      ...afterScan,
+      resources: { ...afterScan.resources, power: 40, lifeSupport: 50, food: 60 },
+    };
+    const afterPowerMaint = applyMaintenanceToMission(lowPowerMission, 'power-grid')!;
+    expect(afterPowerMaint.resources.power).toBe(42);
+    expect(afterPowerMaint.logs[0].nasaTag).toBe('Artemis ECLSS');
+
+    const afterCommsMaint = applyMaintenanceToMission(afterPowerMaint, 'comms-array')!;
+    expect(afterCommsMaint.resources.sciencePoints).toBe(afterPowerMaint.resources.sciencePoints + 1);
+  });
+
+  it('M04: ColonyWorld3D y OutpostMap renderizan respaldo SVG sin WebGL (orbital, rover, anomalías, mantenimiento) con cero errores', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const day1Anomalies = generateTurnAnomalies('moon-shackleton', 20260415, 1);
 
     for (const [lang, siteId] of [
       ['es', 'moon-shackleton'],
       ['en', 'mars-jezero'],
     ] as const) {
+      const siteAnoms = generateTurnAnomalies(siteId, 20260415, 1);
       const html = renderToStaticMarkup(
         React.createElement(ColonyWorld3D, {
           lang,
           forceFallback: true,
+          cameraMode: 'rover',
           selectedModule: 'comms-array',
           options: {
             siteId,
+            terrainSeed: 20260415,
+            currentDay: 1,
             powerPercent: 80,
             lifeSupportPercent: 85,
             shieldingPercent: 75,
@@ -313,20 +692,59 @@ describe('Interactive 3D Colony World (M01–M04)', () => {
             shieldingAllocPercent: 40,
             isEnvironmentalAlert: siteId === 'moon-shackleton',
             isDustStorm: siteId === 'mars-jezero',
+            scannedAnomalyIds: [siteAnoms[0].id],
+            maintainedModuleIds: [],
           },
         }),
       );
       expect(html).toContain('data-testid="colony-world-3d"');
       expect(html).toContain('data-testid="colony-world-svg-fallback"');
+      expect(html).toContain('data-testid="colony-anomalies-bar"');
+      expect(html).toContain(`data-testid="svg-anomaly-${siteAnoms[0].id}"`);
+      expect(html).toContain(`data-testid="svg-anomaly-${siteAnoms[1].id}"`);
+      expect(html).toContain(lang === 'es' ? '(analizada)' : '(scanned)');
+      expect(html).toContain(lang === 'es' ? '(+3 ciencia)' : '(+3 science)');
+      if (siteId === 'moon-shackleton') {
+        expect(html).toContain('data-testid="svg-maint-oxygen-module"');
+      } else {
+        expect(html).toContain('data-testid="svg-maint-power-grid"');
+        expect(html).toContain('data-testid="svg-maint-comms-array"');
+      }
       expect(html).toContain(lang === 'es' ? 'SVG // SIN WEBGL' : 'SVG // NO WEBGL');
       expect(html).toContain(lang === 'es' ? 'Módulo (Tab)' : 'Module (Tab)');
       expect(html).toContain(lang === 'es' ? 'Centrar vista' : 'Reset view');
       expect(html).toContain(lang === 'es' ? 'Pausar' : 'Pause');
       for (const modId of COLONY_WORLD_MODULE_IDS) {
-        expect(html).toContain(`aria-label="${COLONY_WORLD_MODULES[modId].label[lang]}"`);
+        expect(html).toContain(`aria-label="${COLONY_WORLD_MODULES[modId].label[lang]}`);
       }
       expect(EMOJI_REGEX.test(html)).toBe(false);
     }
+
+    const site = OUTPOST_SITES['moon-shackleton'];
+    const weather = selectStartingWeather('moon-shackleton', VERIFIED_NASA_WEATHER_EVENTS, 20260415);
+    const mission = createInitialMissionState('moon-shackleton', weather, 20260415);
+    const projection = projectSystemsTurn(mission, mission.powerAllocation);
+
+    const htmlOutpostRover = renderToStaticMarkup(
+      React.createElement(OutpostMap, {
+        lang: 'es',
+        site,
+        currentDay: 1,
+        resources: { ...mission.resources, power: 25 },
+        allocation: mission.powerAllocation,
+        weather,
+        projection,
+        defaultViewMode: 'rover',
+        terrainSeed: 20260415,
+        scannedAnomalyIds: [day1Anomalies[0].id],
+        maintainedModules: [],
+      }),
+    );
+    expect(htmlOutpostRover).toContain('id="outpost-cam-rover-btn"');
+    expect(htmlOutpostRover).toContain('aria-pressed="true"');
+    expect(htmlOutpostRover).toContain('data-testid="outpost-maint-chip"');
+    expect(htmlOutpostRover).toContain('colony-anomalies-bar');
+    expect(EMOJI_REGEX.test(htmlOutpostRover)).toBe(false);
 
     expect(warnSpy).not.toHaveBeenCalled();
     expect(errorSpy).not.toHaveBeenCalled();

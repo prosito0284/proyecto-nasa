@@ -95,6 +95,13 @@
   text-transform: none;
 }
 
+.viewer3d-seed-badge,
+.viewer3d-mars .viewer3d-seed-badge {
+  background-color: rgba(11, 18, 30, 0.9);
+  color: #F2EBDD;
+  border-color: #64748B;
+}
+
 .viewer3d-fallback-svg [role='button']:focus-visible {
   outline: 2px solid #38BDF8;
   outline-offset: 2px;
@@ -241,6 +248,8 @@
 
 .view-mode-switch {
   display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
   border: 1.5px solid var(--ink, #1B1F2A);
   border-radius: 2px;
   background-color: var(--paper, #F2EBDD);
@@ -248,16 +257,17 @@
 }
 
 .view-mode-btn {
+  flex: 1 1 auto;
   min-width: 44px;
   min-height: 44px;
-  padding: 0.35rem 0.75rem;
+  padding: 0.35rem 0.65rem;
   background-color: var(--paper, #F2EBDD);
   color: var(--ink, #1B1F2A);
   border: none;
   border-right: 1px solid var(--ink, #1B1F2A);
   border-radius: 0;
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   font-weight: 700;
   text-transform: uppercase;
   cursor: pointer;
@@ -270,6 +280,17 @@
 .view-mode-btn[aria-pressed='true'] {
   background-color: var(--nasa-blue, #0B3D91);
   color: #FFFFFF;
+}
+
+@media (max-width: 600px) {
+  .view-mode-switch {
+    width: 100%;
+  }
+
+  .view-mode-btn {
+    padding: 0.35rem 0.45rem;
+    font-size: 0.7rem;
+  }
 }
 
 .outpost-3d-stage {
@@ -444,6 +465,127 @@
   font-size: 1rem;
   line-height: 1.4;
   color: var(--ink, #1B1F2A);
+}
+
+/* M03: Barra rápida de anomalías escaneables y aviso táctico 3D */
+.colony3d-tactical-toast {
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.42rem 0.6rem;
+  background-color: rgba(11, 18, 30, 0.96);
+  color: #F8F3E8;
+  border: 1.5px solid #38BDF8;
+  border-radius: 2px;
+}
+
+.colony3d-tactical-toast.tone-ok {
+  border-color: #2E7D4F;
+}
+
+.colony3d-tactical-toast.tone-warn {
+  border-color: #FFB300;
+}
+
+.colony3d-tactical-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.14rem;
+  min-width: 0;
+}
+
+.colony3d-tactical-copy strong {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #38BDF8;
+}
+
+.colony3d-tactical-toast.tone-ok .colony3d-tactical-copy strong {
+  color: #4ADE80;
+}
+
+.colony3d-tactical-toast.tone-warn .colony3d-tactical-copy strong {
+  color: #FFB300;
+}
+
+.colony3d-tactical-copy span {
+  font-size: 1rem;
+  line-height: 1.3;
+  color: #F8F3E8;
+}
+
+.colony3d-toast-close {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #162133;
+  color: #F8F3E8;
+  border: 1.5px solid #6794C1;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.colony3d-toast-close:hover {
+  background-color: #0B3D91;
+}
+
+.colony-anomalies-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.6rem;
+  background-color: var(--paper-sheet, #F8F3E8);
+  border-top: 1.5px solid var(--ink, #1B1F2A);
+}
+
+.colony-anomalies-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--ink, #1B1F2A);
+  margin-right: 0.2rem;
+}
+
+.colony-anomaly-btn {
+  border-color: var(--warn-ochre, #8F4700);
+}
+
+.colony-anomaly-btn.colony-anomaly-scanned {
+  background-color: #E6F4EC;
+  border-color: #2E7D4F;
+  color: #14532D;
+}
+
+.colony-anomaly-pts {
+  padding: 0.08rem 0.34rem;
+  background-color: var(--ink, #1B1F2A);
+  color: #FFFFFF;
+  border-radius: 2px;
+  font-size: 0.68rem;
+}
+
+.colony-anomaly-scanned .colony-anomaly-pts {
+  background-color: #2E7D4F;
+}
+
+.state-chip-maint {
+  color: var(--warn-ochre, #8F4700);
+  border-left: 4px solid #D97706;
 }
 
 @media (prefers-reduced-motion: reduce) {

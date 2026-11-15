@@ -5,7 +5,7 @@
  * Los componentes (Bloques B y C) solo reciben props; no importan el motor para mutar estado.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CoreResources,
   MissionLogEntry,
@@ -23,6 +23,7 @@ import {
 } from '../services/nasaApi';
 import {
   advanceMissionTurn,
+  clampPercent,
   createInitialMissionState,
   evaluateCommanderPerformance,
   evaluateTurnPatchUnlocks,
@@ -30,6 +31,12 @@ import {
   selectNextWeather,
   selectStartingWeather,
 } from '../engine/simulationEngine';
+import {
+  COLONY_WORLD_MODULES,
+  type ColonyWorldModuleId,
+  getMaintenanceConfirmation,
+  type WorldAnomalySpec,
+} from '../components/Three/proceduralModels';
 
 /** Sube la versión si cambia la forma de lo guardado para descartar partidas viejas. */
 const SAVE_KEY = 'jamt-mission-v2';
@@ -49,6 +56,18 @@ export interface TurnSummary {
 interface SavedGame {
   mission: MissionState;
   challengeSeed: number | null;
+  terrainSeed?: number;
+  scannedAnomalyIds?: string[];
+  maintainedModules?: ColonyWorldModuleId[];
+}
+
+function generateFreeTerrainSeed(prevSeed?: number): number {
+  const salt = Math.floor(Math.random() * 899999);
+  const raw = ((Date.now() ^ (salt * 2654435761)) >>> 0) % 900000 + 100000;
+  if (prevSeed !== undefined && raw === prevSeed) {
+    return ((raw + 7919) % 900000) + 100000;
+  }
+  return raw;
 }
 
 /** Semilla del "Reto del día": la misma para todo el mundo durante un día (UTC). */
@@ -88,8 +107,9 @@ function newMission(
   siteId: OutpostSiteId,
   pool: SpaceWeatherEvent[],
   challengeSeed: number | null = null,
+  freeSeed?: number,
 ): MissionState {
-  const seed = challengeSeed ?? Date.now();
+  const seed = challengeSeed ?? freeSeed ?? Date.now();
   const source = challengeSeed === null ? pool : VERIFIED_NASA_WEATHER_EVENTS;
   return createInitialMissionState(siteId, selectStartingWeather(siteId, source, seed), seed);
 }
@@ -101,7 +121,24 @@ function loadSavedGame(): SavedGame | null {
     const saved = JSON.parse(raw) as SavedGame;
     const m = saved?.mission;
     const valid = m?.status === 'playing' && m.engine && m.currentDilemma && m.resources;
-    return valid ? { mission: m, challengeSeed: saved.challengeSeed ?? null } : null;
+    return valid
+      ? {
+          mission: m,
+          challengeSeed: saved.challengeSeed ?? null,
+          terrainSeed:
+            typeof saved.terrainSeed === 'number'
+              ? saved.terrainSeed
+              : saved.challengeSeed ?? m.engine?.rngState,
+          scannedAnomalyIds: Array.isArray(saved.scannedAnomalyIds)
+            ? saved.scannedAnomalyIds.filter((id): id is string => typeof id === 'string')
+            : [],
+          maintainedModules: Array.isArray(saved.maintainedModules)
+            ? saved.maintainedModules.filter((id): id is ColonyWorldModuleId =>
+                typeof id === 'string' && id in COLONY_WORLD_MODULES,
+              )
+            : [],
+        }
+      : null;
   } catch {
     return null;
   }
@@ -124,6 +161,9 @@ const hasStarted = (state: MissionState) => (state.engine?.history.length ?? 0) 
 interface InitialGame extends SavedGame {
   /** true si hay una partida que mostrar de inmediato (guardada o abierta desde un enlace de reto). */
   inProgress: boolean;
+  terrainSeed: number;
+  scannedAnomalyIds: string[];
+  maintainedModules: ColonyWorldModuleId[];
 }
 
 function initGame(defaultSite: OutpostSiteId): InitialGame {
@@ -132,15 +172,89 @@ function initGame(defaultSite: OutpostSiteId): InitialGame {
     return {
       mission: newMission(linked.siteId, VERIFIED_NASA_WEATHER_EVENTS, linked.seed),
       challengeSeed: linked.seed,
+      terrainSeed: linked.seed,
+      scannedAnomalyIds: [],
+      maintainedModules: [],
       inProgress: true,
     };
   }
   const saved = loadSavedGame();
-  if (saved) return { ...saved, inProgress: true };
+  if (saved) {
+    return {
+      ...saved,
+      terrainSeed: saved.terrainSeed ?? saved.challengeSeed ?? generateFreeTerrainSeed(),
+      scannedAnomalyIds: saved.scannedAnomalyIds ?? [],
+      maintainedModules: saved.maintainedModules ?? [],
+      inProgress: true,
+    };
+  }
+  const initialFreeSeed = generateFreeTerrainSeed();
   return {
-    mission: newMission(defaultSite, VERIFIED_NASA_WEATHER_EVENTS),
+    mission: newMission(defaultSite, VERIFIED_NASA_WEATHER_EVENTS, null, initialFreeSeed),
     challengeSeed: null,
+    terrainSeed: initialFreeSeed,
+    scannedAnomalyIds: [],
+    maintainedModules: [],
     inProgress: false,
+  };
+}
+
+export function applyAnomalyScanToMission(
+  prev: MissionState,
+  anomaly: WorldAnomalySpec,
+): MissionState {
+  const entry: MissionLogEntry = {
+    day: prev.currentDay,
+    title: {
+      es: `Rover: ${anomaly.title.es} (+3 ciencia)`,
+      en: `Rover: ${anomaly.title.en} (+3 science)`,
+    },
+    detail: anomaly.finding,
+    severity: 'nominal',
+    nasaTag: anomaly.nasaSource === 'ARTEMIS' ? 'Lunar Rover LRO' : 'Mars Rover Perseverance',
+  };
+  return {
+    ...prev,
+    resources: {
+      ...prev.resources,
+      sciencePoints: prev.resources.sciencePoints + 3,
+    },
+    logs: [entry, ...prev.logs],
+  };
+}
+
+export function applyMaintenanceToMission(
+  prev: MissionState,
+  moduleId: ColonyWorldModuleId,
+): MissionState | null {
+  const confirmation = getMaintenanceConfirmation(moduleId);
+  if (!confirmation) return null;
+
+  const nextRes: CoreResources = { ...prev.resources };
+  if (moduleId === 'power-grid') {
+    nextRes.power = clampPercent(nextRes.power + 2);
+  } else if (moduleId === 'oxygen-module') {
+    nextRes.lifeSupport = clampPercent(nextRes.lifeSupport + 2);
+  } else if (moduleId === 'greenhouse') {
+    nextRes.food = clampPercent(nextRes.food + 2);
+  } else if (moduleId === 'comms-array') {
+    nextRes.sciencePoints += 1;
+  }
+  const modLabel = COLONY_WORLD_MODULES[moduleId].label;
+  const entry: MissionLogEntry = {
+    day: prev.currentDay,
+    title: {
+      es: `Mantenimiento: ${modLabel.es}`,
+      en: `Maintenance: ${modLabel.en}`,
+    },
+    detail: confirmation,
+    severity: 'nominal',
+    nasaTag: prev.siteId === 'moon-shackleton' ? 'Artemis ECLSS' : 'Mars Perseverance',
+  };
+  return {
+    ...prev,
+    resources: nextRes,
+    logs: [entry, ...prev.logs],
   };
 }
 
@@ -149,6 +263,13 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
   const [weatherPool, setWeatherPool] = useState<SpaceWeatherEvent[]>(VERIFIED_NASA_WEATHER_EVENTS);
   const [mission, setMission] = useState<MissionState>(initial.mission);
   const [challengeSeed, setChallengeSeed] = useState<number | null>(initial.challengeSeed);
+  const [terrainSeed, setTerrainSeed] = useState<number>(initial.terrainSeed);
+  const [scannedAnomalyIds, setScannedAnomalyIds] = useState<string[]>(initial.scannedAnomalyIds);
+  const scannedAnomalyRef = useRef<string[]>(initial.scannedAnomalyIds);
+  const [maintainedModules, setMaintainedModules] = useState<ColonyWorldModuleId[]>(
+    initial.maintainedModules,
+  );
+  const maintainedModulesRef = useRef<ColonyWorldModuleId[]>(initial.maintainedModules);
   /** false = se muestra la pantalla de bienvenida (briefing) */
   const [isBriefing, setIsBriefing] = useState(!initial.inProgress);
   const [lastTurn, setLastTurn] = useState<TurnSummary | null>(null);
@@ -166,7 +287,11 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
       if (events.length === 0) return;
       setWeatherPool(events);
       if (initial.challengeSeed !== null) return;
-      setMission((prev) => (hasStarted(prev) ? prev : newMission(prev.siteId, events)));
+      setMission((prev) =>
+        hasStarted(prev)
+          ? prev
+          : newMission(prev.siteId, events, null, initial.terrainSeed),
+      );
     });
     return () => {
       cancelled = true;
@@ -174,8 +299,12 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
   }, [initial]);
 
   useEffect(() => {
-    saveGame(isBriefing ? null : { mission, challengeSeed });
-  }, [mission, challengeSeed, isBriefing]);
+    saveGame(
+      isBriefing
+        ? null
+        : { mission, challengeSeed, terrainSeed, scannedAnomalyIds, maintainedModules },
+    );
+  }, [mission, challengeSeed, terrainSeed, scannedAnomalyIds, maintainedModules, isBriefing]);
 
   /** Empieza una misión. Con `seed` es un reto reproducible; sin él, una misión libre. */
   const startMission = useCallback(
@@ -183,10 +312,53 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
       setPreviewChoice(null);
       setLastTurn(null);
       setChallengeSeed(seed);
-      setMission(newMission(siteId, weatherPool, seed));
+      const nextTerrainSeed = seed ?? generateFreeTerrainSeed();
+      setTerrainSeed(nextTerrainSeed);
+      scannedAnomalyRef.current = [];
+      setScannedAnomalyIds([]);
+      maintainedModulesRef.current = [];
+      setMaintainedModules([]);
+      setMission(newMission(siteId, weatherPool, seed, nextTerrainSeed));
       setIsBriefing(false);
     },
     [weatherPool],
+  );
+
+  /** En partida libre genera una nueva topografía procedural sin alterar recursos del turno. */
+  const reseedTerrain = useCallback(() => {
+    if (challengeSeed !== null) return;
+    setTerrainSeed((prev) => generateFreeTerrainSeed(prev));
+  }, [challengeSeed]);
+
+  /** Registra el escaneo 3D de una anomalía una sola vez (+3 ciencia). */
+  const recordAnomalyScan = useCallback(
+    (anomaly: WorldAnomalySpec): boolean => {
+      if (mission.status !== 'playing') return false;
+      if (scannedAnomalyRef.current.includes(anomaly.id)) return false;
+      const nextIds = [...scannedAnomalyRef.current, anomaly.id];
+      scannedAnomalyRef.current = nextIds;
+      setScannedAnomalyIds(nextIds);
+      setMission((prev) => applyAnomalyScanToMission(prev, anomaly));
+      return true;
+    },
+    [mission.status],
+  );
+
+  /** Registra mantenimiento directo 3D en un módulo afectado (1 vez por módulo y turno). */
+  const recordModuleMaintenance = useCallback(
+    (moduleId: ColonyWorldModuleId): boolean => {
+      if (mission.status !== 'playing') return false;
+      if (maintainedModulesRef.current.includes(moduleId)) return false;
+      if (!getMaintenanceConfirmation(moduleId)) return false;
+
+      const nextIds = [...maintainedModulesRef.current, moduleId];
+      maintainedModulesRef.current = nextIds;
+      setMaintainedModules(nextIds);
+
+      setMission((prev) => applyMaintenanceToMission(prev, moduleId) ?? prev);
+      return true;
+    },
+    [mission.status],
   );
 
   const setAllocation = useCallback((allocation: PowerAllocation) => {
@@ -200,6 +372,8 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
       const nextWeather = selectNextWeather(mission, pool);
       const updated = advanceMissionTurn(mission, choice, nextWeather, mission.powerAllocation);
       const unlockedPatchIds = evaluateTurnPatchUnlocks(mission, updated);
+      maintainedModulesRef.current = [];
+      setMaintainedModules([]);
       setPreviewChoice(null);
       setLastTurn({
         day: mission.currentDay,
@@ -234,6 +408,12 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
     evaluation,
     isBriefing,
     challengeSeed,
+    terrainSeed,
+    reseedTerrain,
+    scannedAnomalyIds,
+    maintainedModules,
+    recordAnomalyScan,
+    recordModuleMaintenance,
     lastTurn,
     dismissTurnReport: useCallback(() => setLastTurn(null), []),
     previewChoice,
