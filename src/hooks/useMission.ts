@@ -199,6 +199,65 @@ function initGame(defaultSite: OutpostSiteId): InitialGame {
   };
 }
 
+export function applyAnomalyScanToMission(
+  prev: MissionState,
+  anomaly: WorldAnomalySpec,
+): MissionState {
+  const entry: MissionLogEntry = {
+    day: prev.currentDay,
+    title: {
+      es: `Rover: ${anomaly.title.es} (+3 ciencia)`,
+      en: `Rover: ${anomaly.title.en} (+3 science)`,
+    },
+    detail: anomaly.finding,
+    severity: 'nominal',
+    nasaTag: anomaly.nasaSource === 'ARTEMIS' ? 'Lunar Rover LRO' : 'Mars Rover Perseverance',
+  };
+  return {
+    ...prev,
+    resources: {
+      ...prev.resources,
+      sciencePoints: prev.resources.sciencePoints + 3,
+    },
+    logs: [entry, ...prev.logs],
+  };
+}
+
+export function applyMaintenanceToMission(
+  prev: MissionState,
+  moduleId: ColonyWorldModuleId,
+): MissionState | null {
+  const confirmation = getMaintenanceConfirmation(moduleId);
+  if (!confirmation) return null;
+
+  const nextRes: CoreResources = { ...prev.resources };
+  if (moduleId === 'power-grid') {
+    nextRes.power = clampPercent(nextRes.power + 2);
+  } else if (moduleId === 'oxygen-module') {
+    nextRes.lifeSupport = clampPercent(nextRes.lifeSupport + 2);
+  } else if (moduleId === 'greenhouse') {
+    nextRes.food = clampPercent(nextRes.food + 2);
+  } else if (moduleId === 'comms-array') {
+    nextRes.sciencePoints += 1;
+  }
+  const modLabel = COLONY_WORLD_MODULES[moduleId].label;
+  const entry: MissionLogEntry = {
+    day: prev.currentDay,
+    title: {
+      es: `Mantenimiento: ${modLabel.es}`,
+      en: `Maintenance: ${modLabel.en}`,
+    },
+    detail: confirmation,
+    severity: 'nominal',
+    nasaTag: prev.siteId === 'moon-shackleton' ? 'Artemis ECLSS' : 'Mars Perseverance',
+  };
+  return {
+    ...prev,
+    resources: nextRes,
+    logs: [entry, ...prev.logs],
+  };
+}
+
 export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
   const [initial] = useState(() => initGame(defaultSite));
   const [weatherPool, setWeatherPool] = useState<SpaceWeatherEvent[]>(VERIFIED_NASA_WEATHER_EVENTS);
@@ -279,26 +338,7 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
       const nextIds = [...scannedAnomalyRef.current, anomaly.id];
       scannedAnomalyRef.current = nextIds;
       setScannedAnomalyIds(nextIds);
-      setMission((prev) => {
-        const entry: MissionLogEntry = {
-          day: prev.currentDay,
-          title: {
-            es: `Rover: ${anomaly.title.es} (+3 ciencia)`,
-            en: `Rover: ${anomaly.title.en} (+3 science)`,
-          },
-          detail: anomaly.finding,
-          severity: 'nominal',
-          nasaTag: anomaly.nasaSource === 'ARTEMIS' ? 'Lunar Rover LRO' : 'Mars Rover Perseverance',
-        };
-        return {
-          ...prev,
-          resources: {
-            ...prev.resources,
-            sciencePoints: prev.resources.sciencePoints + 3,
-          },
-          logs: [entry, ...prev.logs],
-        };
-      });
+      setMission((prev) => applyAnomalyScanToMission(prev, anomaly));
       return true;
     },
     [mission.status],
@@ -309,41 +349,13 @@ export function useMission(defaultSite: OutpostSiteId = 'moon-shackleton') {
     (moduleId: ColonyWorldModuleId): boolean => {
       if (mission.status !== 'playing') return false;
       if (maintainedModulesRef.current.includes(moduleId)) return false;
-      const confirmation = getMaintenanceConfirmation(moduleId);
-      if (!confirmation) return false;
+      if (!getMaintenanceConfirmation(moduleId)) return false;
 
       const nextIds = [...maintainedModulesRef.current, moduleId];
       maintainedModulesRef.current = nextIds;
       setMaintainedModules(nextIds);
 
-      setMission((prev) => {
-        const nextRes: CoreResources = { ...prev.resources };
-        if (moduleId === 'power-grid') {
-          nextRes.power = clampPercent(nextRes.power + 2);
-        } else if (moduleId === 'oxygen-module') {
-          nextRes.lifeSupport = clampPercent(nextRes.lifeSupport + 2);
-        } else if (moduleId === 'greenhouse') {
-          nextRes.food = clampPercent(nextRes.food + 2);
-        } else if (moduleId === 'comms-array') {
-          nextRes.sciencePoints += 1;
-        }
-        const modLabel = COLONY_WORLD_MODULES[moduleId].label;
-        const entry: MissionLogEntry = {
-          day: prev.currentDay,
-          title: {
-            es: `Mantenimiento: ${modLabel.es}`,
-            en: `Maintenance: ${modLabel.en}`,
-          },
-          detail: confirmation,
-          severity: 'nominal',
-          nasaTag: prev.siteId === 'moon-shackleton' ? 'Artemis ECLSS' : 'Mars Perseverance',
-        };
-        return {
-          ...prev,
-          resources: nextRes,
-          logs: [entry, ...prev.logs],
-        };
-      });
+      setMission((prev) => applyMaintenanceToMission(prev, moduleId) ?? prev);
       return true;
     },
     [mission.status],
