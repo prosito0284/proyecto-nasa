@@ -428,6 +428,26 @@ describe('Interactive Ignition Onboarding (T01–T05)', () => {
     expect(isExecutionLocked(null, false)).toBe(false);
     expect(isExecutionLocked('choice-a', false)).toBe(true);
     expect(isExecutionLocked(null, true)).toBe(true);
+    expect(isExecutionLocked(null, false, true)).toBe(true);
+
+    const weather = selectStartingWeather('moon-shackleton', VERIFIED_NASA_WEATHER_EVENTS, 20260415);
+    const mission = createInitialMissionState('moon-shackleton', weather, 20260415);
+    const lockedPanelHtml = renderToStaticMarkup(
+      React.createElement(ResourcePanel, {
+        lang: 'es',
+        resources: mission.resources,
+        allocation: BALANCED_POWER_ALLOCATION,
+        projection: projectSystemsTurn(mission, BALANCED_POWER_ALLOCATION),
+        hoveredChoice: null,
+        pendingEffects: [],
+        evaluation: evaluateCommanderPerformance(mission),
+        onChangeAllocation: () => {},
+        onOpenBadgesModal: () => {},
+        actionsDisabled: true,
+      }),
+    );
+    expect(lockedPanelHtml).toMatch(/id="open-badges-modal-btn"[^>]*disabled/);
+    expect(lockedPanelHtml).toMatch(/class="commander-mini-patch-btn"[^>]*disabled/);
 
     vi.useFakeTimers();
     try {

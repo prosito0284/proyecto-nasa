@@ -54,8 +54,9 @@ export function resolvePostDrillAllocation(
 export function isExecutionLocked(
   executingId: string | null,
   hasPendingStamp = false,
+  hasActiveTurnReport = false,
 ): boolean {
-  return executingId !== null || hasPendingStamp;
+  return executingId !== null || hasPendingStamp || hasActiveTurnReport;
 }
 
 export function computeOutcomeFlagsAfterTutorialLaunch(
@@ -182,6 +183,7 @@ export const App: React.FC = () => {
     !isBriefing &&
     mission.status === 'playing' &&
     !lastTurn &&
+    executingId === null &&
     !isScienceOpen &&
     !isBadgesOpen &&
     !isShowcaseOpen;
@@ -291,11 +293,20 @@ export const App: React.FC = () => {
     [isEmergencyStepActive, mission],
   );
 
+  const isTurnReportOpen = Boolean(lastTurn);
+  const isModalLaunchLocked = isExecutionLocked(
+    executingId,
+    stampTimer.current !== null,
+    isTurnReportOpen,
+  );
+
   const openScience = (termId?: string) => {
-    if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
+    if (isExecutionLocked(executingId, stampTimer.current !== null, Boolean(lastTurn))) return;
     missionAudio.playClick();
     onboarding.completeOnboardingTarget('nasa-telemetry');
     tutorial.completeActionTrigger('step-science-button');
+    setIsBadgesOpen(false);
+    setIsShowcaseOpen(false);
     setFocusTermId(termId);
     setIsScienceOpen(true);
   };
@@ -305,11 +316,14 @@ export const App: React.FC = () => {
     missionAudio.playClick();
     clearStampTimer();
     setExecutingId(null);
+    setIsScienceOpen(false);
+    setIsBadgesOpen(false);
+    setIsShowcaseOpen(false);
     openBriefing();
   };
 
   const handleLaunchTutorial = () => {
-    if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
+    if (isExecutionLocked(executingId, stampTimer.current !== null, Boolean(lastTurn))) return;
     missionAudio.playClick();
     clearStampTimer();
     setExecutingId(null);
@@ -338,6 +352,9 @@ export const App: React.FC = () => {
     clearStampTimer();
     patches.dismissUnlockBanner();
     setExecutingId(null);
+    setIsScienceOpen(false);
+    setIsBadgesOpen(false);
+    setIsShowcaseOpen(false);
     setLinkCopied(false);
     setBoardSaved(false);
     startMission(siteId, seed);
@@ -348,6 +365,7 @@ export const App: React.FC = () => {
     clearStampTimer();
     setIsScienceOpen(false);
     setIsBadgesOpen(false);
+    setIsShowcaseOpen(false);
     const updated = decide(choice);
     setExecutingId(null);
     if (updated.status === 'won') missionAudio.playSuccess();
@@ -359,8 +377,11 @@ export const App: React.FC = () => {
 
   /** Firma la orden: muestra el sello un instante y luego avanza el día. */
   const handleExecute = (choice: TradeoffChoice) => {
-    if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
+    if (isExecutionLocked(executingId, stampTimer.current !== null, Boolean(lastTurn))) return;
     missionAudio.playClick();
+    setIsScienceOpen(false);
+    setIsBadgesOpen(false);
+    setIsShowcaseOpen(false);
     tutorial.completeActionTrigger('step-work-orders');
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (reduceMotion) {
@@ -386,6 +407,9 @@ export const App: React.FC = () => {
     clearStampTimer();
     patches.dismissUnlockBanner();
     setExecutingId(null);
+    setIsScienceOpen(false);
+    setIsBadgesOpen(false);
+    setIsShowcaseOpen(false);
     setLinkCopied(false);
     setBoardSaved(false);
     restartMission();
@@ -467,7 +491,7 @@ export const App: React.FC = () => {
             id="start-tutorial-btn"
             data-onboarding-id="training-button"
             className="btn-secondary tutorial-launch-btn"
-            disabled={executingId !== null}
+            disabled={isModalLaunchLocked}
             onClick={handleLaunchTutorial}
           >
             <HelmetIcon size={16} />{' '}
@@ -478,7 +502,7 @@ export const App: React.FC = () => {
             data-tutorial-id="science-button"
             data-onboarding-id="nasa-telemetry"
             className="btn-secondary"
-            disabled={executingId !== null}
+            disabled={isModalLaunchLocked}
             onClick={() => openScience()}
           >
             <ScienceIcon size={16} /> {es ? 'Ciencia NASA y quiz' : 'NASA science & quiz'}
@@ -488,8 +512,14 @@ export const App: React.FC = () => {
             data-testid="open-patches-showcase-btn"
             type="button"
             className="btn-secondary"
+            disabled={isModalLaunchLocked}
             onClick={() => {
+              if (isExecutionLocked(executingId, stampTimer.current !== null, Boolean(lastTurn))) {
+                return;
+              }
               missionAudio.playClick();
+              setIsScienceOpen(false);
+              setIsBadgesOpen(false);
               setIsShowcaseOpen(true);
             }}
           >
@@ -501,6 +531,7 @@ export const App: React.FC = () => {
           <button
             id="toggle-mute-btn"
             className="btn-secondary"
+            disabled={executingId !== null}
             onClick={() => setIsMuted(missionAudio.toggleMute())}
             aria-pressed={isMuted}
           >
@@ -510,6 +541,7 @@ export const App: React.FC = () => {
           <button
             id="toggle-lang-btn"
             className="btn-secondary"
+            disabled={executingId !== null}
             onClick={() => {
               missionAudio.playClick();
               setLang((l) => (l === 'es' ? 'en' : 'es'));
@@ -616,7 +648,11 @@ export const App: React.FC = () => {
               evaluation={evaluation}
               onChangeAllocation={handleAllocationChange}
               onOpenBadgesModal={() => {
-                if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
+                if (isExecutionLocked(executingId, stampTimer.current !== null, Boolean(lastTurn))) {
+                  return;
+                }
+                setIsScienceOpen(false);
+                setIsShowcaseOpen(false);
                 setIsBadgesOpen(true);
               }}
               crew={crew}
@@ -626,6 +662,7 @@ export const App: React.FC = () => {
               scienceBonus={projection.scienceBonus}
               roverSamplesCollected={mission.roverSamplesCollected ?? 0}
               roverScienceEarned={mission.roverScienceEarned ?? 0}
+              actionsDisabled={isModalLaunchLocked}
             />
 
             <div className="mission-center-col">
@@ -929,7 +966,7 @@ export const App: React.FC = () => {
 
       <ScienceModal
         lang={lang}
-        isOpen={isScienceOpen}
+        isOpen={isScienceOpen && !isModalLaunchLocked}
         onClose={() => {
           setIsScienceOpen(false);
           onboarding.completeOnboardingTarget('nasa-telemetry');
@@ -944,7 +981,7 @@ export const App: React.FC = () => {
 
       <CommanderCertificate
         lang={lang}
-        isOpen={isBadgesOpen}
+        isOpen={isBadgesOpen && !isModalLaunchLocked}
         onClose={() => setIsBadgesOpen(false)}
         evaluation={evaluation}
         site={currentSite}
@@ -960,6 +997,7 @@ export const App: React.FC = () => {
         roverSamplesCollected={mission.roverSamplesCollected ?? 0}
         roverScienceEarned={mission.roverScienceEarned ?? 0}
         onOpenShowcase={() => {
+          if (isModalLaunchLocked) return;
           setIsBadgesOpen(false);
           setIsShowcaseOpen(true);
         }}
@@ -967,12 +1005,13 @@ export const App: React.FC = () => {
 
       <PatchShowcaseModal
         lang={lang}
-        isOpen={isShowcaseOpen}
+        isOpen={isShowcaseOpen && !isModalLaunchLocked}
         onClose={() => setIsShowcaseOpen(false)}
         unlockedById={patches.unlockedById}
         onOpenCertificate={
           !isBriefing
             ? () => {
+                if (isModalLaunchLocked) return;
                 setIsShowcaseOpen(false);
                 setIsBadgesOpen(true);
               }
@@ -983,9 +1022,10 @@ export const App: React.FC = () => {
       <PatchUnlockBanner
         lang={lang}
         record={patches.activeUnlockBanner}
-        suppressed={isScienceOpen || isBadgesOpen || isShowcaseOpen}
+        suppressed={isScienceOpen || isBadgesOpen || isShowcaseOpen || isModalLaunchLocked}
         onDismiss={patches.dismissUnlockBanner}
         onOpenShowcase={() => {
+          if (isModalLaunchLocked) return;
           missionAudio.playClick();
           patches.dismissUnlockBanner();
           setIsShowcaseOpen(true);

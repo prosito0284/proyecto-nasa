@@ -66,6 +66,8 @@ export interface ResourcePanelProps {
   roverSamplesCollected?: number;
   /** R06: Puntos de ciencia acumulados mediante el Rover */
   roverScienceEarned?: number;
+  /** B02: Deshabilita apertura de modales durante firma de orden (650 ms) o con TurnReport activo */
+  actionsDisabled?: boolean;
 }
 
 export const BALANCED_POWER_ALLOCATION: PowerAllocation = {
@@ -157,6 +159,7 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
   scienceBonus,
   roverSamplesCollected,
   roverScienceEarned,
+  actionsDisabled = false,
 }) => {
   const [showAdvancedSliders, setShowAdvancedSliders] = useState(false);
   const [gridIgnited, setGridIgnited] = useState(false);
@@ -340,7 +343,9 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
               type="button"
               id="open-badges-modal-btn"
               className="btn-secondary btn-compact"
+              disabled={actionsDisabled}
               onClick={() => {
+                if (actionsDisabled) return;
                 missionAudio.playClick();
                 onOpenBadgesModal();
               }}
@@ -363,7 +368,9 @@ export const ResourcePanel: React.FC<ResourcePanelProps> = ({
                   key={badge.id}
                   type="button"
                   className="commander-mini-patch-btn"
+                  disabled={actionsDisabled}
                   onClick={() => {
+                    if (actionsDisabled) return;
                     missionAudio.playClick();
                     onOpenBadgesModal();
                   }}
