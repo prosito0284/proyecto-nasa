@@ -38,6 +38,7 @@ import {
   formatTerrainSeedBadge,
   generateTurnAnomalies,
   getColonyModuleStatus,
+  getColonyEvolutionSummary,
   getMaintenanceConfirmation,
   getModulesNeedingMaintenance,
   getWorldAtmosphere,
@@ -1208,6 +1209,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   };
 
   const seedBadgeCode = formatTerrainSeedBadge(effectiveSeed);
+  const evoSummary = getColonyEvolutionSummary(computeColonyEvolutionState(options), lang);
 
   return (
     <div
@@ -1244,9 +1246,18 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
                   : 'SVG // NO WEBGL'}
             </span>
           </span>
-          <span className="viewer3d-badge viewer3d-seed-badge" data-testid="colony-seed-badge">
-            {`SEED #${seedBadgeCode}`}
-          </span>
+          <div className="viewer3d-hud-right">
+            <span
+              className={`viewer3d-badge viewer3d-evo-badge evo-tier-${evoSummary.tier.toLowerCase()}`}
+              data-testid="colony-evo-badge"
+              title={evoSummary.detailText}
+            >
+              {evoSummary.badgeLabel}
+            </span>
+            <span className="viewer3d-badge viewer3d-seed-badge" data-testid="colony-seed-badge">
+              {`SEED #${seedBadgeCode}`}
+            </span>
+          </div>
         </div>
 
         {webglSupported && floatingTag && floatingTag.kind === 'anomaly' && activeAnomalyTag && (

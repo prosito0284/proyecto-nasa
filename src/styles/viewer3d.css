@@ -58,11 +58,20 @@
   left: 0.45rem;
   right: 0.45rem;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.4rem;
+  gap: 0.35rem;
   pointer-events: none;
   z-index: 2;
+}
+
+.viewer3d-hud-right {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  pointer-events: auto;
 }
 
 .viewer3d-badge {
@@ -93,6 +102,14 @@
   color: #38BDF8;
   border-color: #38BDF8;
   text-transform: none;
+}
+
+.viewer3d-evo-badge,
+.viewer3d-mars .viewer3d-evo-badge {
+  background-color: rgba(11, 18, 30, 0.92);
+  color: #4ADE80;
+  border-color: #2E7D4F;
+  cursor: help;
 }
 
 .viewer3d-seed-badge,

@@ -1916,6 +1916,49 @@ export function computeColonyEvolutionState(opts: ColonyWorldStateOptions): Colo
   };
 }
 
+export interface ColonyEvolutionSummary {
+  activeCount: number;
+  totalCount: number;
+  tier: 'I' | 'II' | 'III';
+  badgeLabel: string;
+  detailText: string;
+}
+
+export function getColonyEvolutionSummary(
+  evo: ColonyEvolutionState,
+  lang: Language,
+): ColonyEvolutionSummary {
+  const es = lang === 'es';
+  const flags: Array<[boolean, string]> = [
+    [evo.solarWingLeft, es ? 'ala solar oeste' : 'west solar wing'],
+    [evo.solarWingRight, es ? 'ala solar norte' : 'north solar wing'],
+    [evo.tunnelAirlockSpur, es ? 'esclusa del rover' : 'rover airlock'],
+    [evo.tunnelNorthUmbilical, es ? 'umbilical de radio' : 'comms umbilical'],
+    [evo.greenhouseTier2, es ? 'anexo bio II' : 'bio wing II'],
+    [evo.greenhouseTier3, es ? 'cultivo bio III' : 'bio tier III'],
+    [evo.regolithWall, es ? 'muro de regolito' : 'regolith berm'],
+    [evo.regolithArches, es ? 'bóveda anti-radiación' : 'radiation arches'],
+  ];
+  const unlocked = flags.filter(([on]) => on).map(([, name]) => name);
+  const activeCount = unlocked.length;
+  const totalCount = flags.length;
+  const tier: 'I' | 'II' | 'III' = activeCount >= 6 ? 'III' : activeCount >= 3 ? 'II' : 'I';
+  return {
+    activeCount,
+    totalCount,
+    tier,
+    badgeLabel: es ? `FASE ${tier} · ${activeCount}/${totalCount}` : `TIER ${tier} · ${activeCount}/${totalCount}`,
+    detailText:
+      unlocked.length > 0
+        ? es
+          ? `Base ampliada (${activeCount}/${totalCount}): ${unlocked.join(', ')}.`
+          : `Colony upgrades (${activeCount}/${totalCount}): ${unlocked.join(', ')}.`
+        : es
+          ? 'Base inicial (0/8 ampliaciones). Avanza turnos o asigna watts para ampliar módulos.'
+          : 'Starter outpost (0/8 upgrades). Advance turns or allocate watts to expand modules.',
+  };
+}
+
 export function computeDynamicSunDirection(
   siteId: OutpostSiteId | undefined,
   opts: ColonyWorldStateOptions,
@@ -2093,8 +2136,8 @@ const MAINTENANCE_DEFINITIONS: Record<
       en: 'Dust or frost on solar panels. Click module to brush arrays clean.',
     },
     confirmation: {
-      es: 'Paneles solares cepillados y calibrados (+2 % recuperación de batería hoy).',
-      en: 'Solar panels brushed clean and recalibrated (+2% battery recovery today).',
+      es: 'Paneles limpios: +2 % batería hoy y +3 % mañana.',
+      en: 'Arrays brushed clean: +2% battery today and +3% tomorrow.',
     },
   },
   'oxygen-module': {
@@ -2104,8 +2147,8 @@ const MAINTENANCE_DEFINITIONS: Record<
       en: 'Frost buildup on habitat radiators. Click dome to purge thermal valves.',
     },
     confirmation: {
-      es: 'Radiadores ECLSS purgados con éxito (+2 % soporte vital hoy).',
-      en: 'ECLSS thermal radiators purged cleanly (+2% life support today).',
+      es: 'Radiadores ECLSS purgados: +2 % soporte vital hoy y +3 % mañana.',
+      en: 'ECLSS radiators purged: +2% life support today and +3% tomorrow.',
     },
   },
   greenhouse: {
@@ -2115,8 +2158,8 @@ const MAINTENANCE_DEFINITIONS: Record<
       en: 'Hydroponic nozzles clogged with dust. Click greenhouse dome to rinse lines.',
     },
     confirmation: {
-      es: 'Boquillas Veggie limpias e irrigación reactivada (+2 % cosecha hoy).',
-      en: 'Veggie nozzles rinsed and irrigation restored (+2% crop yield today).',
+      es: 'Boquillas Veggie limpias: +2 % cosecha hoy y +3 % mañana.',
+      en: 'Veggie nozzles rinsed: +2% harvest today and +3% tomorrow.',
     },
   },
   'comms-array': {
@@ -2126,8 +2169,8 @@ const MAINTENANCE_DEFINITIONS: Record<
       en: 'Dish antenna misaligned by weather. Click array to recalibrate Earth link.',
     },
     confirmation: {
-      es: 'Antena parabólica recalibrada hacia la Tierra (+1 punto científico).',
-      en: 'Deep-space dish recalibrated toward Earth (+1 science telemetry point).',
+      es: 'Antena recalibrada hacia Tierra: +1 ciencia hoy y +2 mañana.',
+      en: 'Dish recalibrated to Earth: +1 science today and +2 tomorrow.',
     },
   },
 };
@@ -2433,6 +2476,7 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   // 1. MATRIZ DE PANELES SOLARES (power-grid)
   const power = createModuleShell('power-grid');
   const panelPivots: Array<{ yaw: THREE.Group; tilt: THREE.Group }> = [];
+  const solarPanelCellMats: THREE.MeshStandardMaterial[] = [];
   const addSolarUnit = (parent: THREE.Object3D, px: number, pz: number) => {
     addWorldMesh(parent, new THREE.CylinderGeometry(0.14, 0.22, 3.4, 8), 0x9aa5b4, wire, {
       pos: [px, 1.7, pz],
@@ -2441,10 +2485,11 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     yaw.position.set(px, 3.4, pz);
     const tilt = new THREE.Group();
     yaw.add(tilt);
-    addWorldMesh(tilt, new THREE.BoxGeometry(2.9, 0.09, 1.75), 0x1e3a8a, 0x93c5fd, {
+    const cellMesh = addWorldMesh(tilt, new THREE.BoxGeometry(2.9, 0.09, 1.75), 0x1e3a8a, 0x93c5fd, {
       emissive: 0x0b3d91,
       emissiveIntensity: 0.22,
     });
+    solarPanelCellMats.push(cellMesh.material as THREE.MeshStandardMaterial);
     addWorldMesh(tilt, new THREE.BoxGeometry(2.9, 0.1, 0.05), 0x93c5fd, 0x93c5fd, { pos: [0, 0.02, 0] });
     parent.add(yaw);
     panelPivots.push({ yaw, tilt });
@@ -2613,13 +2658,15 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     emissiveIntensity: 0.5,
   });
   const cropMeshes: THREE.Mesh[] = [cropMesh];
-  addWorldMesh(
+  const ghCanopyMats: THREE.MeshStandardMaterial[] = [];
+  const mainGhCanopy = addWorldMesh(
     gh.visual,
     new THREE.CylinderGeometry(1.75, 1.75, 6.0, 18, 1, false, 0, Math.PI),
     0xdbeafe,
     COLONY_HIGHLIGHT_HEX,
     { pos: [0, 0.5, 0], rot: [0, 0, Math.PI / 2], opacity: 0.3 },
   );
+  ghCanopyMats.push(mainGhCanopy.material as THREE.MeshStandardMaterial);
   const ledMeshes: THREE.Mesh[] = [];
   for (const lz of [-0.55, 0.55]) {
     ledMeshes.push(
@@ -2659,13 +2706,14 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       emissiveIntensity: 0.5,
     }),
   );
-  addWorldMesh(
+  const tier2GhCanopy = addWorldMesh(
     evoGreenhouseTier2,
     new THREE.CylinderGeometry(1.02, 1.02, 4.1, 14, 1, false, 0, Math.PI),
     0xdbeafe,
     COLONY_HIGHLIGHT_HEX,
     { pos: [0, 0.38, 2.65], rot: [0, 0, Math.PI / 2], opacity: 0.3 },
   );
+  ghCanopyMats.push(tier2GhCanopy.material as THREE.MeshStandardMaterial);
   ledMeshes.push(
     addWorldMesh(evoGreenhouseTier2, new THREE.BoxGeometry(3.4, 0.06, 0.1), 0xf0abfc, 0xf0abfc, {
       pos: [0, 1.22, 2.65],
@@ -2693,13 +2741,14 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       emissiveIntensity: 0.4,
     });
   }
-  addWorldMesh(
+  const tier3GhCanopy = addWorldMesh(
     evoGreenhouseTier3,
     new THREE.CylinderGeometry(1.02, 1.02, 4.1, 14, 1, false, 0, Math.PI),
     0xdbeafe,
     COLONY_HIGHLIGHT_HEX,
     { pos: [0, 0.38, -2.65], rot: [0, 0, Math.PI / 2], opacity: 0.3 },
   );
+  ghCanopyMats.push(tier3GhCanopy.material as THREE.MeshStandardMaterial);
   ledMeshes.push(
     addWorldMesh(evoGreenhouseTier3, new THREE.BoxGeometry(3.4, 0.06, 0.1), 0xf0abfc, 0xf0abfc, {
       pos: [0, 1.22, -2.65],
@@ -3109,6 +3158,8 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
   let radiationCurrent = 0;
   let fogTarget = atmo.fogDensity;
   let sunTarget = atmo.sunIntensity;
+  let commsNeedsMaint = false;
+  let oxygenMaintFlash = false;
 
   // M03: Estado cinemático y navegación sobre el terreno del Rover
   const roverHomeMeta = COLONY_WORLD_MODULES['rover-moxie'].position;
@@ -3215,6 +3266,10 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       const mg = maintGroups[modId];
       if (mg) mg.visible = activeIssues.has(modId);
     }
+    const powerNeedsMaint = activeIssues.has('power-grid');
+    const oxygenNeedsMaint = activeIssues.has('oxygen-module');
+    const greenhouseNeedsMaint = activeIssues.has('greenhouse');
+    commsNeedsMaint = activeIssues.has('comms-array');
 
     const [sx, sy, sz] = computeDynamicSunDirection(siteId, state);
     sunDirVec.set(sx, sy, sz).normalize();
@@ -3252,6 +3307,12 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
       panelTiltTarget = isLunar ? 1.35 : 0.38;
     }
 
+    for (const cellMat of solarPanelCellMats) {
+      cellMat.color.setHex(powerNeedsMaint ? (isLunar ? 0x4b5d78 : 0x6f4329) : 0x1e3a8a);
+      cellMat.roughness = powerNeedsMaint ? 0.85 : 0.55;
+      applyBaseEmissive(cellMat, 0x0b3d91, powerNeedsMaint ? 0.05 : 0.22, 'power-grid');
+    }
+
     const battHex = powerVal < 15 ? 0xfc3d21 : powerVal < 40 ? 0xd97706 : 0x2e7d4f;
     for (const bMesh of [batteryMesh, auxBatteryMesh]) {
       const battMat = bMesh.material as THREE.MeshStandardMaterial;
@@ -3266,15 +3327,20 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     }
     for (const rad of radiators) {
       const mat = rad.material as THREE.MeshStandardMaterial;
+      mat.color.setHex(oxygenNeedsMaint ? (isLunar ? 0x93c5fd : 0xfbbf24) : 0xf2ebdd);
       applyBaseEmissive(
         mat,
-        state.isEnvironmentalAlert ? 0xffb300 : 0x000000,
-        state.isEnvironmentalAlert ? 0.6 : 0,
+        oxygenNeedsMaint || state.isEnvironmentalAlert ? 0xffb300 : 0x000000,
+        oxygenNeedsMaint ? 0.45 : state.isEnvironmentalAlert ? 0.6 : 0,
         'oxygen-module',
       );
     }
 
     const wilted = Boolean(state.isGreenhouseWilted);
+    for (const canopyMat of ghCanopyMats) {
+      canopyMat.color.setHex(greenhouseNeedsMaint ? (isLunar ? 0xbfdbfe : 0xfde68a) : 0xdbeafe);
+      canopyMat.opacity = greenhouseNeedsMaint ? 0.46 : 0.3;
+    }
     for (const cm of cropMeshes) {
       const cropMat = cm.material as THREE.MeshStandardMaterial;
       cropMat.color.setHex(wilted ? 0x991b1b : 0x2e7d4f);
@@ -3284,6 +3350,14 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
     for (const led of ledMeshes) {
       applyBaseEmissive(led.material as THREE.MeshStandardMaterial, 0xd946ef, isBlackout ? 0.05 : 1.1, 'greenhouse');
     }
+
+    const commsBeaconHex = commsNeedsMaint
+      ? 0xffb300
+      : state.commsActive
+        ? 0x2e7d4f
+        : atmo.accentColor;
+    beaconMat.color.setHex(commsBeaconHex);
+    beaconMat.emissive.setHex(commsBeaconHex);
 
     const moxieMat = moxieMesh.material as THREE.MeshStandardMaterial;
     applyBaseEmissive(moxieMat, 0xffb300, isBlackout ? 0.05 : 0.6, 'rover-moxie');
@@ -3480,12 +3554,44 @@ export function buildColonyWorld(options: ColonyWorldStateOptions = {}): ColonyW
 
     const earthYaw = Math.atan2(WORLD_EARTH_DIRECTION[0], WORLD_EARTH_DIRECTION[2]);
     const commsSweepOffset =
-      maintAnimTimers['comms-array'] > 0 ? Math.sin(elapsedSec * 14) * 0.42 : 0;
-    const yawGoal = (state.commsActive ? earthYaw : earthYaw + Math.sin(elapsedSec * 0.25) * 0.6) + commsSweepOffset;
-    dishYaw.rotation.y += (yawGoal - dishYaw.rotation.y) * Math.min(1, dtSec * (state.commsActive || commsSweepOffset ? 5 : 0.8));
-    dishElev.rotation.x = 0.9 + (maintAnimTimers['comms-array'] > 0 ? Math.sin(elapsedSec * 12) * 0.2 : 0);
-    const blink = state.commsActive ? Math.sin(elapsedSec * 14) > 0 : Math.sin(elapsedSec * 3) > 0.6;
+      maintAnimTimers['comms-array'] > 0
+        ? Math.sin(elapsedSec * 14) * 0.42
+        : commsNeedsMaint
+          ? Math.sin(elapsedSec * 1.4) * 0.65 + 0.45
+          : 0;
+    const yawGoal =
+      (state.commsActive ? earthYaw : earthYaw + Math.sin(elapsedSec * 0.25) * (commsNeedsMaint ? 0.85 : 0.28)) +
+      commsSweepOffset;
+    dishYaw.rotation.y +=
+      (yawGoal - dishYaw.rotation.y) * Math.min(1, dtSec * (state.commsActive || maintAnimTimers['comms-array'] > 0 ? 5 : 1.1));
+    dishElev.rotation.x =
+      0.9 +
+      (maintAnimTimers['comms-array'] > 0
+        ? Math.sin(elapsedSec * 12) * 0.2
+        : commsNeedsMaint
+          ? Math.cos(elapsedSec * 1.8) * 0.16
+          : 0);
+    const blink = state.commsActive || commsNeedsMaint ? Math.sin(elapsedSec * 14) > 0 : Math.sin(elapsedSec * 3) > 0.6;
     beaconMat.emissiveIntensity = blink ? 1.4 : 0.15;
+
+    if (maintAnimTimers['oxygen-module'] > 0) {
+      oxygenMaintFlash = true;
+      for (const rad of radiators) {
+        const mat = rad.material as THREE.MeshStandardMaterial;
+        mat.emissive.setHex(0x38bdf8);
+        mat.emissiveIntensity = 0.85;
+      }
+    } else if (oxygenMaintFlash) {
+      oxygenMaintFlash = false;
+      for (const rad of radiators) {
+        const mat = rad.material as THREE.MeshStandardMaterial;
+        const base = mat.userData.baseEmissive as { hex: number; intensity: number } | undefined;
+        if (hoveredId !== 'oxygen-module' && base) {
+          mat.emissive.setHex(base.hex);
+          mat.emissiveIntensity = base.intensity;
+        }
+      }
+    }
 
     if (maintAnimTimers.greenhouse > 0) {
       growLight.color.setHex(0x38bdf8);
