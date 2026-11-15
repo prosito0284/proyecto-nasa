@@ -51,10 +51,21 @@ export function computeOnboardingCutout(
     return { top: cy, left: cx, right: cx, bottom: cy, width: 0, height: 0 };
   }
   const pad = Math.max(0, padding);
-  const top = Math.max(0, Math.round(rect.top - pad));
-  const left = Math.max(0, Math.round(rect.left - pad));
-  const right = Math.min(vw, Math.round(rect.right + pad));
-  const bottom = Math.min(vh, Math.round(rect.bottom + pad));
+  const rawTop = Math.round(rect.top - pad);
+  const rawLeft = Math.round(rect.left - pad);
+  const rawRight = Math.round(rect.right + pad);
+  const rawBottom = Math.round(rect.bottom + pad);
+
+  if (rawBottom <= 0 || rawTop >= vh || rawRight <= 0 || rawLeft >= vw) {
+    const cx = Math.round(vw / 2);
+    const cy = Math.round(vh / 2);
+    return { top: cy, left: cx, right: cx, bottom: cy, width: 0, height: 0 };
+  }
+
+  const top = clamp(rawTop, 0, vh);
+  const left = clamp(rawLeft, 0, vw);
+  const right = clamp(rawRight, left, vw);
+  const bottom = clamp(rawBottom, top, vh);
   return {
     top,
     left,

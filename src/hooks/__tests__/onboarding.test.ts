@@ -13,6 +13,7 @@ import { App } from '../../App';
 import { MissionBriefing } from '../../components/MissionHUD/MissionBriefing';
 import { ResourcePanel } from '../../components/MissionHUD/ResourcePanel';
 import {
+  computeOnboardingCutout,
   countCommandSentences,
   countCommandWords,
   OnboardingSpotlight,
@@ -31,6 +32,7 @@ import {
   ONBOARDING_STORAGE_KEY,
   onboardingReducer,
   readOnboardingDone,
+  scrollOnboardingTargetIntoView,
   writeOnboardingDone,
 } from '../useOnboarding';
 
@@ -288,5 +290,74 @@ describe('Interactive Ignition Onboarding (T01–T05)', () => {
     for (const step of ONBOARDING_STEPS) {
       expect(combined).toContain(`data-onboarding-id="${step.targetId}"`);
     }
+  });
+
+  it('F01: centra instantáneamente targets fuera del pliegue (1280x800), lleva top-nav al tope en móvil (360x640) y nunca genera recorte invertido', () => {
+    const scrollIntoView = vi.fn();
+    const offscreenDesktopTarget = {
+      closest: () => null,
+      getBoundingClientRect: () => ({
+        top: 1298,
+        left: 24,
+        width: 170,
+        height: 62,
+        right: 194,
+        bottom: 1360,
+        x: 24,
+        y: 1298,
+        toJSON: () => ({}),
+      }),
+      scrollIntoView,
+    } as unknown as HTMLElement;
+
+    scrollOnboardingTargetIntoView(offscreenDesktopTarget);
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'instant',
+      block: 'center',
+      inline: 'nearest',
+    });
+
+    // Recorte seguro si todavía llegara un rect temporal fuera del viewport: nunca top > vh ni top > bottom
+    const collapsedOffscreen = computeOnboardingCutout(
+      { top: 1298, left: 24, width: 170, height: 62, right: 194, bottom: 1360 },
+      6,
+      1280,
+      800,
+    );
+    expect(collapsedOffscreen.width).toBe(0);
+    expect(collapsedOffscreen.height).toBe(0);
+    expect(collapsedOffscreen.top).toBeLessThanOrEqual(800);
+    expect(collapsedOffscreen.top).toBeLessThanOrEqual(collapsedOffscreen.bottom);
+
+    // En móvil (360x640), #open-science-modal-btn dentro de .top-nav fuerza scrollTo({ top: 0, behavior: 'instant' })
+    const scrollToSpy = vi.fn();
+    Object.assign(window, { innerWidth: 360, innerHeight: 640, scrollTo: scrollToSpy });
+    const mobileTopNavTarget = {
+      closest: (sel: string) => (sel === '.top-nav' ? {} : null),
+      getBoundingClientRect: () => ({
+        top: 68,
+        left: 16,
+        width: 210,
+        height: 44,
+        right: 226,
+        bottom: 112,
+        x: 16,
+        y: 68,
+        toJSON: () => ({}),
+      }),
+      scrollIntoView: vi.fn(),
+    } as unknown as HTMLElement;
+
+    scrollOnboardingTargetIntoView(mobileTopNavTarget);
+    expect(scrollToSpy).toHaveBeenCalledWith({ top: 0, behavior: 'instant' });
+
+    const mobileCutout = computeOnboardingCutout(
+      mobileTopNavTarget.getBoundingClientRect(),
+      6,
+      360,
+      640,
+    );
+    expect(mobileCutout.height).toBe(56);
+    expect(mobileCutout.top).toBe(62);
   });
 });

@@ -149,6 +149,18 @@ body {
   }
 }
 
+/* F01: Margen de scroll seguro para evitar recortes contra el borde superior o barra móvil fija */
+[data-onboarding-id] {
+  scroll-margin-top: 84px;
+  scroll-margin-bottom: 24px;
+}
+
+.top-nav .btn-secondary,
+.top-nav [data-onboarding-id] {
+  scroll-margin-top: 24px;
+  scroll-margin-bottom: 24px;
+}
+
 /* Línea de Tiempo / Registro de Soles de Misión */
 .timeline-bar {
   background: var(--paper-sheet);
