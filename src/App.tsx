@@ -335,6 +335,7 @@ export const App: React.FC = () => {
   const handleStart = (siteId: OutpostSiteId, seed: number | null = null) => {
     missionAudio.playClick();
     clearStampTimer();
+    patches.dismissUnlockBanner();
     setExecutingId(null);
     setLinkCopied(false);
     setBoardSaved(false);
@@ -382,6 +383,7 @@ export const App: React.FC = () => {
   const handleResetMission = () => {
     missionAudio.playClick();
     clearStampTimer();
+    patches.dismissUnlockBanner();
     setExecutingId(null);
     setLinkCopied(false);
     setBoardSaved(false);

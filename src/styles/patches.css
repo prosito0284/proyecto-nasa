@@ -275,13 +275,38 @@
 }
 
 @media (max-width: 540px) {
+  .patch-unlock-toast-layer {
+    right: 8px;
+    left: 8px;
+    bottom: 8px;
+    max-width: none;
+  }
+
   .patch-unlock-toast-card {
-    flex-wrap: wrap;
+    width: 100%;
+    padding: 0.45rem 0.55rem;
+    gap: 0.5rem;
+  }
+
+  .patch-unlock-toast-emblem {
+    padding: 2px;
+  }
+
+  .patch-unlock-toast-emblem svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .patch-unlock-toast-title {
+    font-size: 1rem;
+  }
+
+  .patch-unlock-toast-subtitle {
+    display: none;
   }
 
   .patch-unlock-toast-actions {
-    width: 100%;
     flex-direction: row;
-    justify-content: flex-end;
+    gap: 0.28rem;
   }
 }
