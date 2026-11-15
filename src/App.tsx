@@ -11,6 +11,7 @@ import { simulateTrainingDrill } from './engine/trainingDrill';
 import { buildChallengeUrl, getDailyChallengeSeed, useMission } from './hooks/useMission';
 import { useClassBoard } from './hooks/useClassBoard';
 import { OutpostMap } from './components/OutpostView/OutpostMap';
+import { resetColonyWorldSessionCache } from './components/Three/ColonyWorld3D';
 import { BALANCED_POWER_ALLOCATION, ResourcePanel } from './components/MissionHUD/ResourcePanel';
 import { CommanderCertificate } from './components/MissionHUD/CommanderCertificate';
 import { PatchShowcaseModal } from './components/MissionHUD/PatchShowcaseModal';
@@ -59,11 +60,19 @@ export function isExecutionLocked(
   return executingId !== null || hasPendingStamp || hasActiveTurnReport;
 }
 
-export function computeOutcomeFlagsAfterTutorialLaunch(
-  status: 'briefing' | 'playing' | 'won' | 'failed',
-  current: { linkCopied: boolean; boardSaved: boolean },
-): { linkCopied: boolean; boardSaved: boolean } {
-  if (status !== 'playing') return { linkCopied: false, boardSaved: false };
+export function computeOutcomeFlagsAfterTutorialLaunch<
+  T extends { linkCopied: boolean; boardSaved: boolean; boardName?: string },
+>(status: 'briefing' | 'playing' | 'won' | 'failed', current: T): T {
+  if (status !== 'playing') {
+    const next: { linkCopied: boolean; boardSaved: boolean; boardName?: string } = {
+      linkCopied: false,
+      boardSaved: false,
+    };
+    if ('boardName' in current) {
+      next.boardName = '';
+    }
+    return next as T;
+  }
   return current;
 }
 const siteShortName = (siteId: OutpostSiteId, lang: Language) =>
@@ -86,6 +95,7 @@ export const App: React.FC = () => {
   const [executingId, setExecutingId] = useState<string | null>(null);
   const [boardName, setBoardName] = useState('');
   const [boardSaved, setBoardSaved] = useState(false);
+  const [missionResetCount, setMissionResetCount] = useState(0);
   const stampTimer = useRef<number | null>(null);
   const processedTurnKeyRef = useRef<string | null>(null);
 
@@ -333,10 +343,14 @@ export const App: React.FC = () => {
     const nextFlags = computeOutcomeFlagsAfterTutorialLaunch(mission.status, {
       linkCopied,
       boardSaved,
+      boardName,
     });
     setLinkCopied(nextFlags.linkCopied);
     setBoardSaved(nextFlags.boardSaved);
+    setBoardName(nextFlags.boardName);
     if (mission.status !== 'playing') {
+      resetColonyWorldSessionCache();
+      setMissionResetCount((n) => n + 1);
       startMission(mission.siteId, challengeSeed);
       window.scrollTo({ top: 0 });
     } else if (isBriefing) {
@@ -357,6 +371,9 @@ export const App: React.FC = () => {
     setIsShowcaseOpen(false);
     setLinkCopied(false);
     setBoardSaved(false);
+    setBoardName('');
+    resetColonyWorldSessionCache();
+    setMissionResetCount((n) => n + 1);
     startMission(siteId, seed);
     window.scrollTo({ top: 0 });
   };
@@ -412,6 +429,9 @@ export const App: React.FC = () => {
     setIsShowcaseOpen(false);
     setLinkCopied(false);
     setBoardSaved(false);
+    setBoardName('');
+    resetColonyWorldSessionCache();
+    setMissionResetCount((n) => n + 1);
     restartMission();
   };
 
@@ -684,6 +704,7 @@ export const App: React.FC = () => {
               )}
 
               <OutpostMap
+                key={`outpost-${mission.siteId}-${missionResetCount}`}
                 lang={lang}
                 site={currentSite}
                 currentDay={mission.currentDay}
@@ -980,6 +1001,7 @@ export const App: React.FC = () => {
       />
 
       <CommanderCertificate
+        key={`cert-${mission.siteId}-${missionResetCount}`}
         lang={lang}
         isOpen={isBadgesOpen && !isModalLaunchLocked}
         onClose={() => setIsBadgesOpen(false)}

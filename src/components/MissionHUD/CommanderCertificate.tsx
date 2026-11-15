@@ -97,11 +97,15 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
+  const historyCount = history?.length ?? 0;
+
   useEffect(() => {
     if (astronautName !== undefined) {
       setCommanderName(astronautName);
+    } else if (currentDay === 1 && missionStatus === 'playing' && historyCount === 0) {
+      setCommanderName('');
     }
-  }, [astronautName]);
+  }, [astronautName, site.id, currentDay, missionStatus, historyCount]);
 
   useEffect(() => {
     if (!isOpen) return;

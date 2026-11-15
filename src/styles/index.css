@@ -25,10 +25,13 @@
   /* Tonos planos complementarios del cuaderno de vuelo (todos con contraste AA >= 4.5:1) */
   --paper-sheet: #F8F3E8;
   --paper-aged: #E5DEC9;
+  --paper-inset: #E6DEC8;
   --ink-secondary: #2F3647;
   --ink-muted: #4A5266;
   --warn-ochre: #8F4700;
   --crit-red: #B31B12;
+  --alert-red-tint: rgba(252, 61, 33, 0.1);
+  --warn-ochre-tint: rgba(143, 71, 0, 0.12);
   --font-sans: var(--font-body);
 
   /* Alias de compatibilidad para componentes compartidos (ej. ScienceModal del Bloque B) */

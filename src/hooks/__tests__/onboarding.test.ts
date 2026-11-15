@@ -513,12 +513,20 @@ describe('Interactive Ignition Onboarding (T01–T05)', () => {
     ).toEqual({ linkCopied: false, boardSaved: false });
 
     expect(
-      computeOutcomeFlagsAfterTutorialLaunch('failed', { linkCopied: true, boardSaved: true }),
-    ).toEqual({ linkCopied: false, boardSaved: false });
+      computeOutcomeFlagsAfterTutorialLaunch('failed', {
+        linkCopied: true,
+        boardSaved: true,
+        boardName: 'Cmdr. Vega',
+      }),
+    ).toEqual({ linkCopied: false, boardSaved: false, boardName: '' });
 
     expect(
-      computeOutcomeFlagsAfterTutorialLaunch('playing', { linkCopied: true, boardSaved: false }),
-    ).toEqual({ linkCopied: true, boardSaved: false });
+      computeOutcomeFlagsAfterTutorialLaunch('playing', {
+        linkCopied: true,
+        boardSaved: false,
+        boardName: 'Cmdr. Vega',
+      }),
+    ).toEqual({ linkCopied: true, boardSaved: false, boardName: 'Cmdr. Vega' });
   });
 
   it('F05: da accesibilidad de teclado/ratón a oxygen-module y separa la lectura de telemetría en Briefing', () => {
