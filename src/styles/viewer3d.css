@@ -488,7 +488,7 @@
 .colony3d-tactical-toast {
   position: absolute;
   left: 0.5rem;
-  right: 0.5rem;
+  right: 10.6rem;
   bottom: 0.5rem;
   z-index: 4;
   display: flex;
@@ -586,8 +586,144 @@
   background-color: #0B3D91;
 }
 
-@media (max-width: 540px) {
+/* R02: Cruceta táctil en pantalla (D-Pad mínimo 44x44px, esquinas 2px, cero sombras difusas) */
+.rover-dpad-overlay {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.35rem;
+  background-color: rgba(3, 6, 12, 0.92);
+  border: 1.5px solid #6794C1;
+  border-radius: 2px;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.viewer3d-mars .rover-dpad-overlay {
+  background-color: rgba(45, 22, 14, 0.94);
+  border-color: #C87D52;
+}
+
+.rover-dpad-overlay.is-disabled {
+  opacity: 0.65;
+}
+
+.rover-dpad-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding-inline: 0.1rem;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.rover-dpad-code {
+  color: #B8D8F8;
+  text-transform: uppercase;
+}
+
+.viewer3d-mars .rover-dpad-code {
+  color: #F4C39B;
+}
+
+.rover-dpad-speed {
+  color: #4ADE80;
+}
+
+.rover-dpad-overlay.is-disabled .rover-dpad-speed {
+  color: #FFB300;
+}
+
+.rover-dpad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(44px, 44px));
+  grid-template-rows: repeat(2, minmax(44px, 44px));
+  gap: 3px;
+}
+
+.rover-dpad-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background-color: #162133;
+  color: #F8F3E8;
+  border: 1.5px solid #6794C1;
+  border-radius: 2px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.viewer3d-mars .rover-dpad-btn {
+  background-color: #3D1F14;
+  border-color: #C87D52;
+}
+
+.rover-dpad-btn:hover:not(:disabled) {
+  background-color: #1E3252;
+  border-color: #38BDF8;
+}
+
+.viewer3d-mars .rover-dpad-btn:hover:not(:disabled) {
+  background-color: #542B1D;
+  border-color: #F4C39B;
+}
+
+.rover-dpad-btn.is-pressed,
+.viewer3d-mars .rover-dpad-btn.is-pressed {
+  background-color: #0B3D91;
+  color: #FFFFFF;
+  border-color: #38BDF8;
+}
+
+.rover-dpad-btn:focus-visible {
+  outline: 2px solid #38BDF8;
+  outline-offset: 1px;
+}
+
+.rover-dpad-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.rover-dpad-slot-up {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.rover-dpad-slot-left {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.rover-dpad-slot-down {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.rover-dpad-slot-right {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+@media (max-width: 580px) {
   .colony3d-tactical-toast {
+    top: 2.55rem;
+    left: 0.45rem;
+    right: 0.45rem;
+    bottom: auto;
     flex-wrap: wrap;
   }
 

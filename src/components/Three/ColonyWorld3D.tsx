@@ -51,6 +51,15 @@ import {
   softClampColonyTarget,
   type WorldAnomalySpec,
 } from './proceduralModels';
+import {
+  EMPTY_ROVER_DIRECTIONS,
+  mapKeyToRoverDirection,
+  mergeRoverDirections,
+  resolveDirectionsFromKeys,
+  RoverControlsOverlay,
+  type RoverDirectionKey,
+  type RoverDirectionState,
+} from './RoverControlsOverlay';
 import '../../styles/viewer3d.css';
 
 export interface ColonyWorld3DProps {
@@ -143,6 +152,25 @@ export function resolveColonyKeyCommand(key: string, shiftKey = false): ColonyKe
   }
 }
 
+function normalizeDriveKey(key: string): string {
+  return key.length === 1 ? key.toLowerCase() : key;
+}
+
+function isEditableOrModalContext(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (el) {
+    const tag = el.tagName?.toUpperCase?.();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (el.isContentEditable) return true;
+    if (el.closest?.('[role="dialog"], .science-modal-backdrop, .modal-overlay')) return true;
+  }
+  if (typeof document !== 'undefined') {
+    const activeModal = document.querySelector('[role="dialog"][aria-modal="true"]');
+    if (activeModal) return true;
+  }
+  return false;
+}
+
 type FloatingTagState =
   | { kind: 'module'; moduleId: ColonyWorldModuleId; x: number; y: number }
   | { kind: 'anomaly'; anomalyId: string; x: number; y: number };
@@ -197,11 +225,20 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   const latestOptionsRef = useRef<ColonyWorldStateOptions>(options);
   latestOptionsRef.current = { ...options, terrainSeed: effectiveSeed };
 
+  const frameRef = useRef<HTMLDivElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const worldRef = useRef<ColonyWorldHandle | null>(null);
   const desiredPoseRef = useRef<ColonyCameraPose | null>(null);
+
+  const pressedKeysRef = useRef<Set<string>>(new Set());
+  const pointerDirectionsRef = useRef<RoverDirectionState>({ ...EMPTY_ROVER_DIRECTIONS });
+  const roverDirectionsRef = useRef<RoverDirectionState>({ ...EMPTY_ROVER_DIRECTIONS });
+  const [roverDirections, setRoverDirections] = useState<RoverDirectionState>(EMPTY_ROVER_DIRECTIONS);
+  const [roverSpeedMps, setRoverSpeedMps] = useState(0);
+  const lastReportedSpeedRef = useRef(0);
+  const autoScannedIdsRef = useRef<Set<string>>(new Set());
 
   const onSelectModuleRef = useRef(onSelectModule);
   onSelectModuleRef.current = onSelectModule;
@@ -261,8 +298,128 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   const titleLabel =
     ariaLabel ??
     (es
-      ? `Entorno 3D interactivo de la colonia en ${isMars ? 'Marte' : 'la Luna'}. Usa flechas para orbitar, + o - para acercar, C para cámara Rover, Tab para módulos y R para centrar.`
-      : `Interactive 3D colony environment on ${isMars ? 'Mars' : 'the Moon'}. Use arrow keys to orbit, + or - to zoom, C for Rover camera, Tab for modules, and R to reset.`);
+      ? `Entorno 3D interactivo de la colonia en ${isMars ? 'Marte' : 'la Luna'}. Usa WASD o flechas para conducir el Rover, arrastrar para orbitar, C para cámara Rover, Tab para módulos y R para centrar.`
+      : `Interactive 3D colony environment on ${isMars ? 'Mars' : 'the Moon'}. Use WASD or arrow keys to drive the Rover, drag to orbit, C for Rover camera, Tab for modules, and R to reset.`);
+
+  const syncRoverDriveState = () => {
+    if (latestOptionsRef.current.isLowPowerBlackout || isPausedRef.current) {
+      pressedKeysRef.current.clear();
+      pointerDirectionsRef.current = { ...EMPTY_ROVER_DIRECTIONS };
+    }
+    const kDirs = resolveDirectionsFromKeys(pressedKeysRef.current);
+    const merged = mergeRoverDirections(kDirs, pointerDirectionsRef.current);
+    const prev = roverDirectionsRef.current;
+    if (
+      prev.forward !== merged.forward ||
+      prev.backward !== merged.backward ||
+      prev.left !== merged.left ||
+      prev.right !== merged.right
+    ) {
+      roverDirectionsRef.current = merged;
+      setRoverDirections(merged);
+    }
+    worldRef.current?.setRoverControlInput(merged);
+  };
+  const syncRoverDriveStateRef = useRef(syncRoverDriveState);
+  syncRoverDriveStateRef.current = syncRoverDriveState;
+
+  const handleDpadDirectionChange = (direction: RoverDirectionKey, pressed: boolean) => {
+    if (latestOptionsRef.current.isLowPowerBlackout) {
+      pointerDirectionsRef.current = { ...EMPTY_ROVER_DIRECTIONS };
+      syncRoverDriveState();
+      return;
+    }
+    if (pointerDirectionsRef.current[direction] === pressed) return;
+    pointerDirectionsRef.current = {
+      ...pointerDirectionsRef.current,
+      [direction]: pressed,
+    };
+    if (pressed) {
+      desiredPoseRef.current = null;
+    }
+    syncRoverDriveState();
+  };
+
+  useEffect(() => {
+    autoScannedIdsRef.current = new Set(options.scannedAnomalyIds ?? []);
+  }, [siteId, effectiveSeed, options.currentDay, options.scannedAnomalyIds]);
+
+  useEffect(() => {
+    if (options.isLowPowerBlackout || isPaused) {
+      pressedKeysRef.current.clear();
+      pointerDirectionsRef.current = { ...EMPTY_ROVER_DIRECTIONS };
+      syncRoverDriveStateRef.current();
+    }
+  }, [options.isLowPowerBlackout, isPaused]);
+
+  useEffect(() => {
+    if (!webglSupported) return;
+
+    const clearAllInputs = () => {
+      if (
+        pressedKeysRef.current.size === 0 &&
+        !pointerDirectionsRef.current.forward &&
+        !pointerDirectionsRef.current.backward &&
+        !pointerDirectionsRef.current.left &&
+        !pointerDirectionsRef.current.right
+      ) {
+        return;
+      }
+      pressedKeysRef.current.clear();
+      pointerDirectionsRef.current = { ...EMPTY_ROVER_DIRECTIONS };
+      syncRoverDriveStateRef.current();
+    };
+
+    const handleWindowKeyDown = (ev: KeyboardEvent) => {
+      if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.shiftKey) return;
+      const dir = mapKeyToRoverDirection(ev.key);
+      if (!dir) return;
+      if (isEditableOrModalContext(ev.target)) return;
+
+      const activeEl = typeof document !== 'undefined' ? document.activeElement : null;
+      const frameContainsFocus = Boolean(frameRef.current && activeEl && frameRef.current.contains(activeEl));
+      const viewportActive = frameContainsFocus || cameraModeRef.current === 'rover';
+      if (!viewportActive) return;
+
+      ev.preventDefault();
+      if (latestOptionsRef.current.isLowPowerBlackout) return;
+      desiredPoseRef.current = null;
+
+      const norm = normalizeDriveKey(ev.key);
+      if (!pressedKeysRef.current.has(norm)) {
+        pressedKeysRef.current.add(norm);
+        syncRoverDriveStateRef.current();
+      }
+    };
+
+    const handleWindowKeyUp = (ev: KeyboardEvent) => {
+      const norm = normalizeDriveKey(ev.key);
+      const removedNorm = pressedKeysRef.current.delete(norm);
+      const removedRaw = pressedKeysRef.current.delete(ev.key);
+      if (removedNorm || removedRaw) {
+        syncRoverDriveStateRef.current();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        clearAllInputs();
+      }
+    };
+
+    window.addEventListener('keydown', handleWindowKeyDown, { passive: false });
+    window.addEventListener('keyup', handleWindowKeyUp);
+    window.addEventListener('blur', clearAllInputs);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('keydown', handleWindowKeyDown);
+      window.removeEventListener('keyup', handleWindowKeyUp);
+      window.removeEventListener('blur', clearAllInputs);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearAllInputs();
+    };
+  }, [webglSupported]);
 
   const handleRegenerateTerrain = () => {
     missionAudio.playClick();
@@ -312,6 +469,32 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     const off = cam.position.clone().sub(ctrl.target);
     return { x: off.x, y: off.y, z: off.z };
   };
+
+  const handleProximityAutoScan = (anomalyId: string) => {
+    const curOpts = latestOptionsRef.current;
+    if (curOpts.isLowPowerBlackout) return;
+    if (curOpts.scannedAnomalyIds?.includes(anomalyId) || autoScannedIdsRef.current.has(anomalyId)) {
+      return;
+    }
+    const list =
+      worldRef.current?.getAnomalies() ??
+      generateTurnAnomalies(curOpts.siteId, curOpts.terrainSeed, curOpts.currentDay ?? 1);
+    const spec = list.find((a) => a.id === anomalyId);
+    if (!spec) return;
+
+    autoScannedIdsRef.current.add(anomalyId);
+    missionAudio.playSuccess();
+    onScanAnomalyRef.current?.(spec);
+    setTacticalNotice({
+      id: `scan-drive-${spec.id}`,
+      tone: 'ok',
+      badge: es ? 'MUESTRA +3 CIENCIA' : 'SAMPLE +3 SCIENCE',
+      text: spec.finding[lang],
+      glossaryTermId: getAnomalyGlossaryTermId(spec.kind),
+    });
+  };
+  const handleProximityAutoScanRef = useRef(handleProximityAutoScan);
+  handleProximityAutoScanRef.current = handleProximityAutoScan;
 
   const handleInspectAnomaly = (anomalyId: string) => {
     const curOpts = latestOptionsRef.current;
@@ -489,6 +672,22 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
   };
 
   const handleViewportKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!e.shiftKey && mapKeyToRoverDirection(e.key)) {
+      // Conducción simultánea con Flechas/WASD cuando WebGL está activo (previene scroll de página)
+      if (webglSupported) {
+        e.preventDefault();
+        if (!latestOptionsRef.current.isLowPowerBlackout) {
+          desiredPoseRef.current = null;
+          const norm = normalizeDriveKey(e.key);
+          if (!pressedKeysRef.current.has(norm)) {
+            pressedKeysRef.current.add(norm);
+            syncRoverDriveState();
+          }
+        }
+        return;
+      }
+    }
+
     const cmd = resolveColonyKeyCommand(e.key, e.shiftKey);
     if (!cmd) return;
 
@@ -722,6 +921,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
       downY = ev.clientY;
       isDragging = true;
       desiredPoseRef.current = null;
+      hostRef.current?.focus({ preventScroll: true });
     };
 
     const handlePointerUp = (ev: PointerEvent) => {
@@ -782,14 +982,38 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
     let elapsed = 0;
     const anchorVec = new THREE.Vector3();
     let lastTagKey = '';
+    world.setRoverControlInput(roverDirectionsRef.current);
 
     const tick = (now: number) => {
       const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
       lastTime = now;
 
-      if (!isPausedRef.current && !reducedMotion) {
+      const curTele = world.getRoverTelemetry();
+      const activeDrive =
+        roverDirectionsRef.current.forward ||
+        roverDirectionsRef.current.backward ||
+        roverDirectionsRef.current.left ||
+        roverDirectionsRef.current.right ||
+        curTele.isMoving;
+
+      if (!isPausedRef.current && (!reducedMotion || activeDrive)) {
         elapsed += dt;
         world.animate(elapsed, dt);
+      }
+
+      const nextTele = world.getRoverTelemetry();
+      const roundedSpeed = Math.round(Math.abs(nextTele.linearVelocity) * 10) / 10;
+      if (Math.abs(roundedSpeed - lastReportedSpeedRef.current) >= 0.1) {
+        lastReportedSpeedRef.current = roundedSpeed;
+        setRoverSpeedMps(roundedSpeed);
+      }
+      if (
+        activeDrive &&
+        !latestOptionsRef.current.isLowPowerBlackout &&
+        nextTele.nearestAnomalyId &&
+        nextTele.nearestAnomalyDistance <= 3.0
+      ) {
+        handleProximityAutoScanRef.current(nextTele.nearestAnomalyId);
       }
 
       const activeCamMode = cameraModeRef.current;
@@ -1223,6 +1447,7 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
 
   return (
     <div
+      ref={frameRef}
       className={`viewer3d-frame ${isMars ? 'viewer3d-mars' : 'viewer3d-lunar'} ${className ?? ''}`.trim()}
       data-testid="colony-world-3d"
     >
@@ -1341,6 +1566,16 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
               </button>
             </div>
           </div>
+        )}
+
+        {webglSupported && (
+          <RoverControlsOverlay
+            lang={lang}
+            activeDirections={roverDirections}
+            speedMps={roverSpeedMps}
+            disabled={Boolean(options.isLowPowerBlackout || isPaused)}
+            onDirectionChange={handleDpadDirectionChange}
+          />
         )}
 
         {!webglSupported && renderSvgColonyFallback()}
@@ -1485,8 +1720,8 @@ export const ColonyWorld3D: React.FC<ColonyWorld3DProps> = ({
 
         <span className="viewer3d-hint">
           {es
-            ? 'Arrastra para orbitar · C cámara Rover · Tab cambia módulo · R centrar'
-            : 'Drag to orbit · C Rover cam · Tab switches module · R reset'}
+            ? 'WASD o Flechas conduce el Rover · Arrastra para orbitar · C cámara Rover · R centrar'
+            : 'WASD or Arrows drives Rover · Drag to orbit · C Rover cam · R reset'}
         </span>
       </div>
     </div>
