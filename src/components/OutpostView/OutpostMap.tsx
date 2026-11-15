@@ -29,6 +29,8 @@ import {
   SlidersIcon,
   SunIcon,
 } from '../icons';
+import { isWebGLAvailable, ModelViewer3D } from '../Three/ModelViewer3D';
+import type { ColonyModule3DId } from '../Three/proceduralModels';
 
 export interface OutpostMapProps {
   lang: Language;
@@ -43,6 +45,8 @@ export interface OutpostMapProps {
   commDelaySeconds?: number;
   /** T08: Callback opcional para disparar avance del tutorial al interactuar con la colonia */
   onTutorialAction?: (stepId: string) => void;
+  /** M02: Modo inicial opcional ('2d' | '3d'); por defecto usa '3d' si WebGL está disponible */
+  defaultViewMode?: '2d' | '3d';
 }
 
 type ModuleKey = 'solar' | 'eclss' | 'shielding' | 'greenhouse';
@@ -113,8 +117,13 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   onOpenScienceModal,
   commDelaySeconds,
   onTutorialAction,
+  defaultViewMode,
 }) => {
   const [selectedModule, setSelectedModule] = useState<ModuleKey>('shielding');
+  const [selected3DModule, setSelected3DModule] = useState<ColonyModule3DId>('shielding');
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>(
+    () => defaultViewMode ?? (isWebGLAvailable() ? '3d' : '2d'),
+  );
   const [showSystemDetails, setShowSystemDetails] = useState(false);
   const [showCommSimulator, setShowCommSimulator] = useState(false);
   const [selectedPresetIdx, setSelectedPresetIdx] = useState(0);
@@ -144,7 +153,20 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
   const handleSelectModuleFromSvg = (mod: ModuleKey) => {
     missionAudio.playClick();
     setSelectedModule(mod);
+    setSelected3DModule(mod);
     setShowSystemDetails(true);
+    onTutorialAction?.('step-outpost-map');
+  };
+
+  const handleSelect3DModule = (mod: ColonyModule3DId) => {
+    missionAudio.playClick();
+    setSelected3DModule(mod);
+    if (mod === 'comms') {
+      setShowCommSimulator(true);
+    } else {
+      setSelectedModule(mod);
+      setShowSystemDetails(true);
+    }
     onTutorialAction?.('step-outpost-map');
   };
 
@@ -300,42 +322,75 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
             <p className="surface-subtitle">{site.nasaMissionReference[lang]}</p>
           </div>
 
-          <button
-            type="button"
-            className={`weather-pill severity-${weather.severity}`}
-            aria-live="polite"
-            onClick={() => {
-              missionAudio.playClick();
-              onOpenScienceModal?.();
-            }}
-            title={
-              lang === 'es'
-                ? 'Haz clic para ver la telemetría científica NASA DONKI'
-                : 'Click to inspect NASA DONKI science telemetry'
-            }
-          >
-            <span className="weather-icon" aria-hidden="true">
-              {isSolarStorm ? (
-                <AlertIcon size={20} />
-              ) : isDustStorm ? (
-                <DustIcon size={20} />
-              ) : (
-                <SunIcon size={20} />
-              )}
-            </span>
-            <div>
-              <strong>{weather.classOrIntensity}</strong>
-              <small>
-                {weather.isLiveNasaData
-                  ? lang === 'es'
-                    ? 'DONKI EN VIVO'
-                    : 'DONKI LIVE'
-                  : lang === 'es'
-                    ? 'ARCHIVO DONKI'
-                    : 'DONKI ARCHIVE'}
-              </small>
+          <div className="surface-header-actions">
+            <div
+              className="view-mode-switch"
+              role="group"
+              aria-label={lang === 'es' ? 'Modo de vista de la colonia' : 'Colony view mode'}
+            >
+              <button
+                type="button"
+                id="outpost-view-2d-btn"
+                className="view-mode-btn"
+                aria-pressed={viewMode === '2d'}
+                onClick={() => {
+                  missionAudio.playClick();
+                  setViewMode('2d');
+                }}
+              >
+                {lang === 'es' ? 'VISTA 2D' : '2D VIEW'}
+              </button>
+              <button
+                type="button"
+                id="outpost-view-3d-btn"
+                className="view-mode-btn"
+                aria-pressed={viewMode === '3d'}
+                onClick={() => {
+                  missionAudio.playClick();
+                  setViewMode('3d');
+                }}
+              >
+                {lang === 'es' ? 'VISTA 3D' : '3D VIEW'}
+              </button>
             </div>
-          </button>
+
+            <button
+              type="button"
+              className={`weather-pill severity-${weather.severity}`}
+              aria-live="polite"
+              onClick={() => {
+                missionAudio.playClick();
+                onOpenScienceModal?.();
+              }}
+              title={
+                lang === 'es'
+                  ? 'Haz clic para ver la telemetría científica NASA DONKI'
+                  : 'Click to inspect NASA DONKI science telemetry'
+              }
+            >
+              <span className="weather-icon" aria-hidden="true">
+                {isSolarStorm ? (
+                  <AlertIcon size={20} />
+                ) : isDustStorm ? (
+                  <DustIcon size={20} />
+                ) : (
+                  <SunIcon size={20} />
+                )}
+              </span>
+              <div>
+                <strong>{weather.classOrIntensity}</strong>
+                <small>
+                  {weather.isLiveNasaData
+                    ? lang === 'es'
+                      ? 'DONKI EN VIVO'
+                      : 'DONKI LIVE'
+                    : lang === 'es'
+                      ? 'ARCHIVO DONKI'
+                      : 'DONKI ARCHIVE'}
+                </small>
+              </div>
+            </button>
+          </div>
         </div>
 
         {/* C5: Indicadores visuales de estado activo en el mapa */}
@@ -374,7 +429,102 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
           </div>
         )}
 
-        {/* C11 & C5: Diagrama Técnico a Dos Tintas por Sitio con Rótulos de Plano y 5 Estados Visuales */}
+        {/* M02: Vista 3D reactiva por defecto si WebGL está disponible + acceso rápido a módulos */}
+        {viewMode === '3d' ? (
+          <div className="outpost-3d-stage" data-testid="outpost-3d-stage">
+            <ModelViewer3D
+              lang={lang}
+              modelId="colony-base"
+              height={286}
+              onSelectModule={handleSelect3DModule}
+              options={{
+                siteId: site.id,
+                powerPercent: resources.power,
+                lifeSupportPercent: resources.lifeSupport,
+                shieldingPercent: projection.effectiveShielding,
+                foodPercent: resources.food,
+                solarAllocPercent: Math.min(
+                  100,
+                  Math.round(
+                    (allocation.greenhouseAlloc + allocation.scienceAndCommsAlloc * 0.5) *
+                      weather.solarEfficiencyMultiplier +
+                      resources.power * 0.3,
+                  ),
+                ),
+                shieldingAllocPercent: allocation.shieldingAlloc,
+                weatherType: weather.type,
+                isDustStorm,
+                isSolarStorm,
+                isRimShadowPass,
+                isLowPowerBlackout,
+                isGreenhouseWilted,
+                selectedModule: selected3DModule,
+              }}
+            />
+
+            <div
+              className="colony-3d-module-bar"
+              role="group"
+              aria-label={
+                lang === 'es'
+                  ? 'Inspección rápida de módulos 3D'
+                  : 'Quick 3D module selector'
+              }
+            >
+              {(
+                [
+                  {
+                    id: 'solar',
+                    icon: <SunIcon size={15} />,
+                    es: 'Energía',
+                    en: 'Power',
+                  },
+                  {
+                    id: 'eclss',
+                    icon: <DropletIcon size={15} />,
+                    es: 'Soporte Vital',
+                    en: 'Life Support',
+                  },
+                  {
+                    id: 'shielding',
+                    icon: <ShieldIcon size={15} />,
+                    es: 'Blindaje',
+                    en: 'Shielding',
+                  },
+                  {
+                    id: 'greenhouse',
+                    icon: <LeafIcon size={15} />,
+                    es: 'Invernadero',
+                    en: 'Greenhouse',
+                  },
+                  {
+                    id: 'comms',
+                    icon: <AntennaIcon size={15} />,
+                    es: 'Antena',
+                    en: 'Antenna',
+                  },
+                ] as Array<{
+                  id: ColonyModule3DId;
+                  icon: React.ReactNode;
+                  es: string;
+                  en: string;
+                }>
+              ).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  id={`colony-3d-btn-${item.id}`}
+                  className="colony-3d-module-btn"
+                  aria-pressed={selected3DModule === item.id}
+                  onClick={() => handleSelect3DModule(item.id)}
+                >
+                  {item.icon}
+                  <span>{item[lang]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
         <div
           className={`svg-outpost-wrapper ${isLunar ? 'svg-env-lunar' : 'svg-env-mars'} ${
             isDustStorm ? 'svg-env-dust-storm' : ''
@@ -1170,6 +1320,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
             );
           })()}
         </div>
+        )}
 
         {/* C3: Botones plegables para Detalles de Módulos y Simulador de Retraso (plegados por defecto) */}
         <div className="map-drawers-bar">
@@ -1236,6 +1387,7 @@ export const OutpostMap: React.FC<OutpostMapProps> = ({
                     onClick={() => {
                       missionAudio.playClick();
                       setSelectedModule(key);
+                      setSelected3DModule(key);
                     }}
                   >
                     <div className="module-top">

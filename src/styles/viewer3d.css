@@ -200,6 +200,12 @@
   color: #FFFFFF;
 }
 
+.outpost-3d-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
 .colony-3d-module-bar {
   display: flex;
   flex-wrap: wrap;
