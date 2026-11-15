@@ -9,13 +9,14 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { App, resolvePostDrillAllocation } from '../../App';
+import { App, isExecutionLocked, resolvePostDrillAllocation } from '../../App';
 import { MissionBriefing } from '../../components/MissionHUD/MissionBriefing';
 import {
   BALANCED_POWER_ALLOCATION,
   ResourcePanel,
   shouldCommitPresetChange,
 } from '../../components/MissionHUD/ResourcePanel';
+import { cancelCommIntervalRef } from '../../components/OutpostView/OutpostMap';
 import {
   computeOnboardingCutout,
   countCommandSentences,
@@ -411,5 +412,31 @@ describe('Interactive Ignition Onboarding (T01–T05)', () => {
     expect(shouldCommitPresetChange('storm', true)).toBe(false);
     expect(shouldCommitPresetChange('storm', false)).toBe(true);
     expect(shouldCommitPresetChange('balanced', true)).toBe(true);
+  });
+
+  it('F03: bloquea acciones secundarias durante la ventana de sello de 650 ms y limpia el intervalo de radio sin fugas', () => {
+    expect(isExecutionLocked(null, false)).toBe(false);
+    expect(isExecutionLocked('choice-a', false)).toBe(true);
+    expect(isExecutionLocked(null, true)).toBe(true);
+
+    vi.useFakeTimers();
+    try {
+      const tick = vi.fn();
+      const ref: { current: ReturnType<typeof setInterval> | null } = {
+        current: setInterval(tick, 60),
+      };
+      vi.advanceTimersByTime(120);
+      expect(tick).toHaveBeenCalledTimes(2);
+
+      // Al cambiar de día/base o desmontar OutpostMap, se cancela y anula la referencia
+      expect(cancelCommIntervalRef(ref)).toBe(true);
+      expect(ref.current).toBeNull();
+      expect(cancelCommIntervalRef(ref)).toBe(false);
+
+      vi.advanceTimersByTime(500);
+      expect(tick).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

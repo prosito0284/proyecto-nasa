@@ -57,6 +57,13 @@ export function resolvePostDrillAllocation(
   return { ...BALANCED_POWER_ALLOCATION };
 }
 
+export function isExecutionLocked(
+  executingId: string | null,
+  hasPendingStamp = false,
+): boolean {
+  return executingId !== null || hasPendingStamp;
+}
+
 const siteShortName = (siteId: OutpostSiteId, lang: Language) =>
   siteId === 'moon-shackleton'
     ? lang === 'es'
@@ -99,9 +106,16 @@ export const App: React.FC = () => {
   } = useMission();
   const classBoard = useClassBoard();
 
+  const clearStampTimer = () => {
+    if (stampTimer.current !== null) {
+      window.clearTimeout(stampTimer.current);
+      stampTimer.current = null;
+    }
+  };
+
   useEffect(
     () => () => {
-      if (stampTimer.current !== null) window.clearTimeout(stampTimer.current);
+      clearStampTimer();
     },
     [],
   );
@@ -234,6 +248,7 @@ export const App: React.FC = () => {
   }, [isEmergencyStepActive, mission.powerAllocation, setAllocation]);
 
   const handleAllocationChange = (next: PowerAllocation) => {
+    if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
     if ((isEmergencyStepActive || emergencyDrillActiveRef.current) && next.shieldingAlloc >= 40) {
       restorePreDrillAllocation();
       return;
@@ -247,6 +262,7 @@ export const App: React.FC = () => {
   );
 
   const openScience = (termId?: string) => {
+    if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
     missionAudio.playClick();
     onboarding.completeOnboardingTarget('nasa-telemetry');
     tutorial.completeActionTrigger('step-science-button');
@@ -254,8 +270,19 @@ export const App: React.FC = () => {
     setIsScienceOpen(true);
   };
 
-  const handleLaunchTutorial = () => {
+  const handleOpenBriefing = () => {
+    if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
     missionAudio.playClick();
+    clearStampTimer();
+    setExecutingId(null);
+    openBriefing();
+  };
+
+  const handleLaunchTutorial = () => {
+    if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
+    missionAudio.playClick();
+    clearStampTimer();
+    setExecutingId(null);
     setIsScienceOpen(false);
     setIsBadgesOpen(false);
     if (mission.status !== 'playing') {
@@ -271,6 +298,8 @@ export const App: React.FC = () => {
 
   const handleStart = (siteId: OutpostSiteId, seed: number | null = null) => {
     missionAudio.playClick();
+    clearStampTimer();
+    setExecutingId(null);
     setLinkCopied(false);
     setBoardSaved(false);
     startMission(siteId, seed);
@@ -278,6 +307,9 @@ export const App: React.FC = () => {
   };
 
   const applyDecision = (choice: TradeoffChoice) => {
+    clearStampTimer();
+    setIsScienceOpen(false);
+    setIsBadgesOpen(false);
     const updated = decide(choice);
     setExecutingId(null);
     if (updated.status === 'won') missionAudio.playSuccess();
@@ -289,7 +321,7 @@ export const App: React.FC = () => {
 
   /** Firma la orden: muestra el sello un instante y luego avanza el día. */
   const handleExecute = (choice: TradeoffChoice) => {
-    if (executingId) return;
+    if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
     missionAudio.playClick();
     tutorial.completeActionTrigger('step-work-orders');
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -298,7 +330,10 @@ export const App: React.FC = () => {
       return;
     }
     setExecutingId(choice.id);
-    stampTimer.current = window.setTimeout(() => applyDecision(choice), STAMP_MS);
+    stampTimer.current = window.setTimeout(() => {
+      stampTimer.current = null;
+      applyDecision(choice);
+    }, STAMP_MS);
   };
 
   /** Cierra el informe del día; si la misión terminó, abre el certificado. */
@@ -310,6 +345,8 @@ export const App: React.FC = () => {
 
   const handleResetMission = () => {
     missionAudio.playClick();
+    clearStampTimer();
+    setExecutingId(null);
     setLinkCopied(false);
     setBoardSaved(false);
     restartMission();
@@ -378,10 +415,8 @@ export const App: React.FC = () => {
             <button
               id="new-mission-btn"
               className="btn-secondary"
-              onClick={() => {
-                missionAudio.playClick();
-                openBriefing();
-              }}
+              disabled={executingId !== null}
+              onClick={handleOpenBriefing}
             >
               {es ? 'Cambiar de base' : 'Change outpost'}
             </button>
@@ -390,6 +425,7 @@ export const App: React.FC = () => {
             id="start-tutorial-btn"
             data-onboarding-id="training-button"
             className="btn-secondary tutorial-launch-btn"
+            disabled={executingId !== null}
             onClick={handleLaunchTutorial}
           >
             <HelmetIcon size={16} />{' '}
@@ -400,6 +436,7 @@ export const App: React.FC = () => {
             data-tutorial-id="science-button"
             data-onboarding-id="nasa-telemetry"
             className="btn-secondary"
+            disabled={executingId !== null}
             onClick={() => openScience()}
           >
             <ScienceIcon size={16} /> {es ? 'Ciencia NASA y quiz' : 'NASA science & quiz'}
@@ -512,7 +549,10 @@ export const App: React.FC = () => {
               pendingEffects={mission.pendingDelayedEffects}
               evaluation={evaluation}
               onChangeAllocation={handleAllocationChange}
-              onOpenBadgesModal={() => setIsBadgesOpen(true)}
+              onOpenBadgesModal={() => {
+                if (isExecutionLocked(executingId, stampTimer.current !== null)) return;
+                setIsBadgesOpen(true);
+              }}
               crew={crew}
               onTutorialAction={handleInteractiveAction}
               isOnboardingEmergency={isOnboardingEmergency}
@@ -576,6 +616,7 @@ export const App: React.FC = () => {
                       <button
                         type="button"
                         className="term-link-btn"
+                        disabled={executingId !== null}
                         onClick={() => openScience(mission.currentDilemma?.highlightedTermId)}
                       >
                         {es ? '¿Qué es' : 'What is'}{' '}
