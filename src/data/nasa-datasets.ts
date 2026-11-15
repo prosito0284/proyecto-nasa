@@ -140,6 +140,7 @@ export const VERIFIED_NASA_WEATHER_EVENTS: SpaceWeatherEvent[] = [
     },
     radiationMultiplier: 3.0,
     solarEfficiencyMultiplier: 0.88,
+    siteRelevance: 'mars-jezero',
   },
   {
     id: '2022-11-16T06:47:00-FLR-ARTEMIS1',
@@ -163,6 +164,7 @@ export const VERIFIED_NASA_WEATHER_EVENTS: SpaceWeatherEvent[] = [
     },
     radiationMultiplier: 1.5,
     solarEfficiencyMultiplier: 1.0,
+    siteRelevance: 'moon-shackleton',
   },
   {
     id: 'MARS-MEDA-2022-09-DUST',
@@ -186,6 +188,7 @@ export const VERIFIED_NASA_WEATHER_EVENTS: SpaceWeatherEvent[] = [
     },
     radiationMultiplier: 1.0,
     solarEfficiencyMultiplier: 0.5,
+    siteRelevance: 'mars-jezero',
   },
   {
     id: 'NOMINAL-SOLAR-WIND',

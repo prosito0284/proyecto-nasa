@@ -347,7 +347,7 @@ export const CommanderCertificate: React.FC<CommanderCertificateProps> = ({
                 <strong className="cert-diploma-recipient">{displayCommanderName}</strong>
                 <p className="cert-diploma-citation">
                   {lang === 'es'
-                    ? `Por liderar la base ${site.name.es} gestionando energía solar, soporte vital ECLSS y blindaje anti-radiación bajo datos reales NASA DONKI y OSDR.`
+                    ? `Por liderar ${site.name.es} gestionando energía solar, soporte vital ECLSS y blindaje anti-radiación bajo datos reales NASA DONKI y OSDR.`
                     : `For commanding ${site.name.en} by balancing solar power, ECLSS life support, and radiation shielding under real NASA DONKI and OSDR telemetry.`}
                 </p>
               </div>

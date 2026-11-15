@@ -172,15 +172,25 @@ describe('motor de simulación', () => {
     }
   });
 
-  it('en la Luna nunca hay tormentas de polvo y las tarjetas de clima coinciden con el clima', () => {
+  it('en la Luna nunca hay tormentas de polvo, cada astro respeta siteRelevance y las tarjetas de clima coinciden', () => {
     for (let seed = 0; seed < 150; seed++) {
       let s = createInitialMissionState('moon-shackleton', selectStartingWeather('moon-shackleton', POOL, seed), seed);
       const rnd = lcg(seed);
       while (s.status === 'playing') {
         expect(s.currentWeather.type).not.toBe('DUST_STORM');
+        expect(s.currentWeather.siteRelevance ?? 'both').not.toBe('mars-jezero');
         const trigger = s.currentDilemma!.triggeredByWeather;
         if (trigger) expect(trigger).toContain(s.currentWeather.type);
         s = advanceMissionTurn(s, randomPick(s, rnd), selectNextWeather(s, POOL), s.powerAllocation);
+      }
+
+      let m = createInitialMissionState('mars-jezero', selectStartingWeather('mars-jezero', POOL, seed), seed);
+      const rndM = lcg(seed + 999);
+      while (m.status === 'playing') {
+        expect(m.currentWeather.siteRelevance ?? 'both').not.toBe('moon-shackleton');
+        const trigger = m.currentDilemma!.triggeredByWeather;
+        if (trigger) expect(trigger).toContain(m.currentWeather.type);
+        m = advanceMissionTurn(m, randomPick(m, rndM), selectNextWeather(m, POOL), m.powerAllocation);
       }
     }
   });

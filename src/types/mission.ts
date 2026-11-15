@@ -79,6 +79,8 @@ export interface SpaceWeatherEvent {
   radiationMultiplier: number;
   /** Impacto en generación solar (1.0 = 100%, 0.4 = tormenta de polvo o falla de paneles) */
   solarEfficiencyMultiplier: number;
+  /** Base planetaria relevante cuando un evento histórico ocurrió específicamente en Luna o Marte */
+  siteRelevance?: OutpostSiteId | 'both';
 }
 
 /**

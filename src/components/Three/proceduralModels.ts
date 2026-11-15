@@ -2033,6 +2033,7 @@ export function generateTurnAnomalies(
     : ['ice-vein', 'lava-skylight', 'metallic-meteorite', 'seismic-probe'];
 
   const specs: WorldAnomalySpec[] = [];
+  const remainingKinds = [...kinds];
   const slotAngles = [rng() * Math.PI * 2, 0];
   slotAngles[1] = slotAngles[0] + Math.PI * (0.75 + rng() * 0.5);
 
@@ -2065,8 +2066,8 @@ export function generateTurnAnomalies(
         break;
       }
     }
-    const kindIdx = (Math.floor(rng() * kinds.length) + slot + normDay) % kinds.length;
-    const kind = kinds[kindIdx];
+    const pickIdx = Math.floor(rng() * remainingKinds.length);
+    const [kind] = remainingKinds.splice(pickIdx, 1);
     const meta = ANOMALY_CATALOG[kind];
     const y = sampleWorldTerrainHeight(chosenX, chosenZ, siteId, normSeed);
     specs.push({
